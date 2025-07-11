@@ -1,0 +1,44 @@
+{
+  "name": "school-management-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "school",
+    "management",
+    "education",
+    "react",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "Modern school management system frontend",
+  "dependencies": {
+    "@headlessui/react": "^2.2.4",
+    "@heroicons/react": "^2.2.0",
+    "@tailwindcss/forms": "^0.5.10",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "autoprefixer": "^10.4.21",
+    "axios": "^1.10.0",
+    "postcss": "^8.5.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hook-form": "^7.60.0",
+    "react-router-dom": "^6.30.1",
+    "recharts": "^3.1.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "@vitejs/plugin-react": "^4.6.0",
+    "vite": "^5.4.19"
+  }
+}

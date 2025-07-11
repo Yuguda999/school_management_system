@@ -1,0 +1,324 @@
+from typing import Any, Optional, List
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, or_
+from app.core.database import get_db
+from app.core.deps import (
+    get_current_active_user, 
+    require_admin, 
+    get_current_school
+)
+from app.models.user import User, UserRole
+from app.models.school import School
+from app.models.student import Student, StudentStatus
+from app.schemas.student import (
+    StudentCreate,
+    StudentUpdate,
+    StudentResponse,
+    StudentListResponse,
+    StudentStatusUpdate,
+    StudentClassUpdate
+)
+import math
+
+router = APIRouter()
+
+
+async def enhance_student_response(
+    student: Student,
+    db: AsyncSession
+) -> StudentResponse:
+    """Helper function to enhance student response with related data"""
+    response = StudentResponse.from_orm(student)
+    response.full_name = student.full_name
+    response.age = student.age
+
+    # Load parent name if exists
+    if student.parent_id:
+        parent_result = await db.execute(
+            select(User).where(User.id == student.parent_id)
+        )
+        parent = parent_result.scalar_one_or_none()
+        if parent:
+            response.parent_name = parent.full_name
+
+    # Load class name if exists
+    if student.current_class_id:
+        from app.models.academic import Class
+        class_result = await db.execute(
+            select(Class).where(Class.id == student.current_class_id)
+        )
+        current_class = class_result.scalar_one_or_none()
+        if current_class:
+            response.current_class_name = current_class.name
+
+    return response
+
+
+@router.post("/", response_model=StudentResponse)
+async def create_student(
+    student_data: StudentCreate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Create a new student (Admin/Super Admin only)"""
+    # Check if admission number already exists
+    result = await db.execute(
+        select(Student).where(
+            Student.admission_number == student_data.admission_number,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admission number already exists"
+        )
+    
+    # Create student
+    student_dict = student_data.dict()
+    student_dict['school_id'] = current_school.id
+    
+    student = Student(**student_dict)
+    db.add(student)
+    await db.commit()
+    await db.refresh(student)
+    
+    # Enhance response with related data
+    return await enhance_student_response(student, db)
+
+
+@router.get("/", response_model=StudentListResponse)
+async def get_students(
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    status: Optional[StudentStatus] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search by name or admission number"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get students with filtering and pagination"""
+    # Build query
+    query = select(Student).where(
+        Student.school_id == current_school.id,
+        Student.is_deleted == False
+    )
+    
+    # Apply filters
+    if class_id:
+        query = query.where(Student.current_class_id == class_id)
+    
+    if status:
+        query = query.where(Student.status == status)
+    
+    if search:
+        search_filter = or_(
+            Student.first_name.ilike(f"%{search}%"),
+            Student.last_name.ilike(f"%{search}%"),
+            Student.admission_number.ilike(f"%{search}%")
+        )
+        query = query.where(search_filter)
+    
+    # For parents, only show their children
+    if current_user.role == UserRole.PARENT:
+        query = query.where(Student.parent_id == current_user.id)
+    
+    # Get total count
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar()
+    
+    # Apply pagination
+    skip = (page - 1) * size
+    query = query.offset(skip).limit(size)
+    result = await db.execute(query)
+    students = result.scalars().all()
+    
+    # Enhance response
+    response_students = []
+    for student in students:
+        student_response = await enhance_student_response(student, db)
+        response_students.append(student_response)
+    
+    pages = math.ceil(total / size) if total > 0 else 1
+    
+    return StudentListResponse(
+        items=response_students,
+        total=total,
+        page=page,
+        size=size,
+        pages=pages
+    )
+
+
+@router.get("/{student_id}", response_model=StudentResponse)
+async def get_student(
+    student_id: str,
+    current_user: User = Depends(get_current_active_user),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get student by ID"""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    # Check permissions - parents can only view their children
+    if (current_user.role == UserRole.PARENT and 
+        student.parent_id != current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+    
+    # Enhance response
+    return await enhance_student_response(student, db)
+
+
+@router.put("/{student_id}", response_model=StudentResponse)
+async def update_student(
+    student_id: str,
+    student_data: StudentUpdate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update student information (Admin/Super Admin only)"""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    # Update fields
+    update_data = student_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(student, field, value)
+    
+    await db.commit()
+    await db.refresh(student)
+    
+    # Enhance response
+    return await enhance_student_response(student, db)
+
+
+@router.put("/{student_id}/status", response_model=StudentResponse)
+async def update_student_status(
+    student_id: str,
+    status_data: StudentStatusUpdate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update student status (Admin/Super Admin only)"""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    student.status = status_data.status
+    await db.commit()
+    await db.refresh(student)
+    
+    # Enhance response
+    response = StudentResponse.from_orm(student)
+    response.full_name = student.full_name
+    response.age = student.age
+    
+    return response
+
+
+@router.put("/{student_id}/class", response_model=StudentResponse)
+async def update_student_class(
+    student_id: str,
+    class_data: StudentClassUpdate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update student class (Admin/Super Admin only)"""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    student.current_class_id = class_data.current_class_id
+    await db.commit()
+    await db.refresh(student)
+    
+    # Enhance response
+    return await enhance_student_response(student, db)
+
+
+@router.delete("/{student_id}")
+async def delete_student(
+    student_id: str,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Delete student (Admin/Super Admin only)"""
+    result = await db.execute(
+        select(Student).where(
+            Student.id == student_id,
+            Student.school_id == current_school.id,
+            Student.is_deleted == False
+        )
+    )
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    # Soft delete
+    student.is_deleted = True
+    await db.commit()
+    
+    return {"message": "Student deleted successfully"}

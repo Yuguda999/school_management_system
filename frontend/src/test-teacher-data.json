@@ -1,0 +1,39 @@
+{
+  "test_teacher_data": {
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@testschool.com",
+    "password": "john.doeJohn",
+    "role": "teacher",
+    "employee_id": "TCH2025001",
+    "department": "Mathematics",
+    "position": "Teacher",
+    "phone": "+1234567890",
+    "gender": "male",
+    "qualification": "Bachelor's in Mathematics, Teaching Certificate",
+    "experience_years": "2-5",
+    "bio": "Experienced mathematics teacher with passion for student success",
+    "address_line1": "123 Main Street",
+    "city": "Anytown",
+    "state": "State",
+    "postal_code": "12345"
+  },
+  "required_fields_for_staff_create": [
+    "first_name",
+    "last_name", 
+    "email",
+    "password",
+    "role",
+    "employee_id",
+    "department",
+    "position"
+  ],
+  "backend_validation_notes": {
+    "password": "Must be at least 8 characters",
+    "role": "Must be 'teacher' or 'admin' for staff",
+    "employee_id": "Must be unique within school",
+    "department": "Required field, cannot be empty",
+    "position": "Required field, cannot be empty",
+    "email": "Must be unique within school"
+  }
+}

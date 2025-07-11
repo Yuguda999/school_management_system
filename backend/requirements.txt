@@ -1,0 +1,66 @@
+# FastAPI and ASGI server
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+alembic
+psycopg2-binary
+asyncpg
+
+# Authentication and Security
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+
+# Environment and Configuration
+python-dotenv
+pydantic-settings
+
+# Validation and Serialization
+pydantic
+email-validator
+
+# HTTP Client
+httpx
+
+# Date and Time
+python-dateutil
+
+# File handling
+python-magic
+Pillow
+
+# Communication
+twilio
+sendgrid
+
+# Background tasks
+celery
+redis
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
+# Date and Time
+python-dateutil
+
+# File handling
+python-magic
+Pillow
+
+# Communication
+twilio
+sendgrid
+
+# Background tasks
+celery
+redis
+
+# Testing
+pytest
+pytest-asyncio
+httpx
+
