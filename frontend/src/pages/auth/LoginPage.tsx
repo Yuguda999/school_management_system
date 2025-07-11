@@ -29,11 +29,32 @@ const LoginPage: React.FC = () => {
   const onSubmit = async (data: LoginCredentials) => {
     setIsLoading(true);
     setError('');
-    
+
     try {
       await login(data);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      // Use the specific error message from the backend
+      const errorMessage = err.response?.data?.detail;
+
+      if (errorMessage) {
+        setError(errorMessage);
+
+        // If it's a development error with credentials info, show the dev credentials helper
+        if (errorMessage.includes('Available test users') || errorMessage.includes('Incorrect password')) {
+          setShowDevCredentials(true);
+        }
+      } else {
+        // Provide more specific fallback messages based on the error type
+        if (err.response?.status === 401) {
+          setError('Invalid email or password. Please check your credentials and try again.');
+        } else if (err.response?.status === 500) {
+          setError('Server error occurred. Please try again later.');
+        } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+          setError('Unable to connect to the server. Please check your internet connection.');
+        } else {
+          setError('An unexpected error occurred. Please try again.');
+        }
+      }
     } finally {
       setIsLoading(false);
     }

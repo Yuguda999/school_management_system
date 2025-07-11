@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, Time, Integer, JSON
+from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, Time, Integer, JSON, Table
 from sqlalchemy.orm import relationship
 from app.models.base import TenantBaseModel
 import enum
@@ -34,6 +34,34 @@ class AttendanceStatus(str, enum.Enum):
     EXCUSED = "excused"
 
 
+# Association tables for many-to-many relationships
+teacher_subject_association = Table(
+    'teacher_subjects',
+    TenantBaseModel.metadata,
+    Column('id', String(36), primary_key=True, default=lambda: str(__import__('uuid').uuid4())),
+    Column('teacher_id', String(36), ForeignKey('users.id'), nullable=False),
+    Column('subject_id', String(36), ForeignKey('subjects.id'), nullable=False),
+    Column('school_id', String(36), ForeignKey('schools.id'), nullable=False),
+    Column('is_head_of_subject', Boolean, default=False, nullable=False),
+    Column('created_at', String(50), nullable=False, default=lambda: __import__('datetime').datetime.utcnow().isoformat()),
+    Column('updated_at', String(50), nullable=False, default=lambda: __import__('datetime').datetime.utcnow().isoformat()),
+    Column('is_deleted', Boolean, default=False, nullable=False)
+)
+
+class_subject_association = Table(
+    'class_subjects',
+    TenantBaseModel.metadata,
+    Column('id', String(36), primary_key=True, default=lambda: str(__import__('uuid').uuid4())),
+    Column('class_id', String(36), ForeignKey('classes.id'), nullable=False),
+    Column('subject_id', String(36), ForeignKey('subjects.id'), nullable=False),
+    Column('school_id', String(36), ForeignKey('schools.id'), nullable=False),
+    Column('is_core', Boolean, default=False, nullable=False),  # Override subject's is_core for this class
+    Column('created_at', String(50), nullable=False, default=lambda: __import__('datetime').datetime.utcnow().isoformat()),
+    Column('updated_at', String(50), nullable=False, default=lambda: __import__('datetime').datetime.utcnow().isoformat()),
+    Column('is_deleted', Boolean, default=False, nullable=False)
+)
+
+
 class Class(TenantBaseModel):
     """Class/Grade model"""
     
@@ -64,6 +92,7 @@ class Class(TenantBaseModel):
     enrollments = relationship("Enrollment", back_populates="class_")
     timetable_entries = relationship("TimetableEntry", back_populates="class_")
     attendances = relationship("Attendance", back_populates="class_")
+    subjects = relationship("Subject", secondary=class_subject_association, back_populates="classes")
     
     def __repr__(self):
         return f"<Class(id={self.id}, name={self.name}, level={self.level})>"
@@ -93,6 +122,8 @@ class Subject(TenantBaseModel):
     enrollments = relationship("Enrollment", back_populates="subject")
     timetable_entries = relationship("TimetableEntry", back_populates="subject")
     grades = relationship("Grade", back_populates="subject")
+    teachers = relationship("User", secondary=teacher_subject_association, back_populates="subjects")
+    classes = relationship("Class", secondary=class_subject_association, back_populates="subjects")
     
     def __repr__(self):
         return f"<Subject(id={self.id}, name={self.name}, code={self.code})>"

@@ -6,6 +6,7 @@ import {
   AcademicCapIcon,
   UserGroupIcon,
   BuildingOfficeIcon,
+  BookOpenIcon,
   CurrencyDollarIcon,
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
@@ -49,6 +50,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       icon: BuildingOfficeIcon,
       roles: ['super_admin', 'admin', 'teacher'],
       description: 'Class management'
+    },
+    {
+      name: 'Subjects',
+      href: '/subjects',
+      icon: BookOpenIcon,
+      roles: ['super_admin', 'admin', 'teacher'],
+      description: 'Subject management'
     },
     {
       name: 'Fees',

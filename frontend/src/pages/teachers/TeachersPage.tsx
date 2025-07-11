@@ -7,8 +7,13 @@ import {
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
+  AcademicCapIcon,
+  CalendarIcon,
+  MapPinIcon,
+  IdentificationIcon,
+  BriefcaseIcon,
 } from '@heroicons/react/24/outline';
-import { Teacher, User } from '../../types';
+import { Teacher, User, TeacherSubjectAssignment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/Layout/PageHeader';
 import DataTable, { Column } from '../../components/ui/DataTable';
@@ -17,7 +22,9 @@ import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import UserForm from '../../components/ui/UserForm';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import MultiStepTeacherModal from '../../components/teachers/MultiStepTeacherModal';
+import TeacherSubjectsView from '../../components/teachers/TeacherSubjectsView';
 import { apiService } from '../../services/api';
+import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 
 const TeachersPage: React.FC = () => {
@@ -26,6 +33,8 @@ const TeachersPage: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [teacherSubjects, setTeacherSubjects] = useState<TeacherSubjectAssignment[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -35,6 +44,26 @@ const TeachersPage: React.FC = () => {
   // Helper function to get full name
   const getFullName = (user: any) => {
     return user.full_name || `${user.first_name} ${user.last_name}`.trim();
+  };
+
+  const fetchTeacherSubjects = async (teacherId: string) => {
+    try {
+      setLoadingSubjects(true);
+      const subjects = await academicService.getTeacherSubjects(teacherId);
+      setTeacherSubjects(subjects);
+    } catch (error) {
+      console.error('Failed to fetch teacher subjects:', error);
+      showError('Failed to load teacher subjects');
+      setTeacherSubjects([]);
+    } finally {
+      setLoadingSubjects(false);
+    }
+  };
+
+  const handleViewTeacher = async (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setShowViewModal(true);
+    await fetchTeacherSubjects(teacher.id);
   };
 
 
@@ -201,10 +230,7 @@ const TeachersPage: React.FC = () => {
         actions={(teacher) => (
           <>
             <button
-              onClick={() => {
-                setSelectedTeacher(teacher);
-                setShowViewModal(true);
-              }}
+              onClick={() => handleViewTeacher(teacher)}
               className="btn btn-ghost btn-sm"
               title="View Details"
             >
@@ -268,28 +294,51 @@ const TeachersPage: React.FC = () => {
         onClose={() => {
           setShowViewModal(false);
           setSelectedTeacher(null);
+          setTeacherSubjects([]);
         }}
         title="Teacher Details"
-        size="xl"
+        size="4xl"
       >
         {selectedTeacher && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Header with Photo and Basic Info */}
-            <div className="flex items-start space-x-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <div className="h-16 w-16 flex-shrink-0">
-                <div className="h-16 w-16 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                  <UserIcon className="h-8 w-8 text-gray-500 dark:text-gray-400" />
-                </div>
+            <div className="flex items-start space-x-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 rounded-xl">
+              <div className="h-20 w-20 flex-shrink-0">
+                {selectedTeacher.user.profile_picture_url ? (
+                  <img
+                    src={selectedTeacher.user.profile_picture_url}
+                    alt={getFullName(selectedTeacher.user)}
+                    className="h-20 w-20 rounded-full object-cover border-4 border-white dark:border-gray-600 shadow-lg"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center border-4 border-white dark:border-gray-600 shadow-lg">
+                    <UserIcon className="h-10 w-10 text-white" />
+                  </div>
+                )}
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {getFullName(selectedTeacher.user)}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedTeacher.department || 'General'} • {selectedTeacher.user.position || 'Teacher'}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Employee ID: {selectedTeacher.employee_id}
+                <div className="flex items-center space-x-4 mt-2">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                    <BriefcaseIcon className="h-4 w-4 mr-1" />
+                    {selectedTeacher.user.position || 'Teacher'}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <IdentificationIcon className="h-4 w-4 mr-1" />
+                    {selectedTeacher.employee_id}
+                  </span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedTeacher.status === 'active'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  }`}>
+                    {selectedTeacher.status === 'active' ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+                <p className="text-gray-600 dark:text-gray-300 mt-2">
+                  {selectedTeacher.department || 'General Department'}
                 </p>
               </div>
               <div>
@@ -301,74 +350,168 @@ const TeachersPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Teacher Subjects Section */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                  <AcademicCapIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Subject Assignments
+                </h4>
+                {loadingSubjects && <LoadingSpinner size="sm" />}
+              </div>
+
+              {loadingSubjects ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : teacherSubjects.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {teacherSubjects.map((assignment) => (
+                    <div
+                      key={assignment.id}
+                      className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:border-blue-300 dark:hover:border-blue-500 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-900 dark:text-white">
+                            {assignment.subject_name}
+                          </h5>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Code: {assignment.subject_code}
+                          </p>
+                        </div>
+                        {assignment.is_head_of_subject && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                            Head of Subject
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <AcademicCapIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No subjects assigned</h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    This teacher has not been assigned any subjects yet.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Detailed Information Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Personal Information */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <UserIcon className="h-5 w-5 mr-2 text-blue-600" />
                   Personal Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Full Name</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">
-                      {getFullName(selectedTeacher.user)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Email</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.email}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Phone</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.phone || 'Not provided'}</p>
-                  </div>
-                  {selectedTeacher.user.date_of_birth && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date of Birth</span>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
-                        {new Date(selectedTeacher.user.date_of_birth).toLocaleDateString()}
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Full Name</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">
+                        {getFullName(selectedTeacher.user)}
                       </p>
                     </div>
-                  )}
-                  {selectedTeacher.user.gender && (
                     <div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Gender</span>
-                      <p className="text-sm text-gray-900 dark:text-gray-100 capitalize">{selectedTeacher.user.gender}</p>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Employee ID</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.employee_id}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Email</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.email}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Phone</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.phone || 'Not provided'}</p>
+                    </div>
+                  </div>
+
+                  {(selectedTeacher.user.date_of_birth || selectedTeacher.user.gender) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {selectedTeacher.user.date_of_birth && (
+                        <div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Date of Birth</span>
+                          <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">
+                            {new Date(selectedTeacher.user.date_of_birth).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                      {selectedTeacher.user.gender && (
+                        <div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Gender</span>
+                          <p className="text-sm text-gray-900 dark:text-gray-100 mt-1 capitalize">{selectedTeacher.user.gender}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Professional Information */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <BriefcaseIcon className="h-5 w-5 mr-2 text-green-600" />
                   Professional Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Employee ID</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.employee_id}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Department</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.department || 'Not assigned'}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Position</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.position || 'Teacher'}</p>
-                  </div>
-                  {selectedTeacher.user.experience_years && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Experience</span>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.experience_years} years</p>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Department</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.department || 'Not assigned'}</p>
                     </div>
-                  )}
-                  <div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Hire Date</span>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">
-                      {new Date(selectedTeacher.hire_date).toLocaleDateString()}
-                    </p>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Position</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.position || 'Teacher'}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Hire Date</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">
+                        {new Date(selectedTeacher.hire_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {selectedTeacher.user.experience_years && (
+                      <div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Experience</span>
+                        <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.experience_years} years</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Status</span>
+                      <p className="text-sm mt-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          selectedTeacher.status === 'active'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
+                          {selectedTeacher.status === 'active' ? 'Active' : 'Inactive'}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Account Status</span>
+                      <p className="text-sm mt-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          selectedTeacher.user.is_active
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
+                          {selectedTeacher.user.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -376,96 +519,187 @@ const TeachersPage: React.FC = () => {
 
             {/* Address Information */}
             {(selectedTeacher.user.address_line1 || selectedTeacher.user.city || selectedTeacher.user.state) && (
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <MapPinIcon className="h-5 w-5 mr-2 text-purple-600" />
                   Address Information
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {selectedTeacher.user.address_line1 && (
                     <div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Address</span>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Address</span>
+                      <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">
                         {selectedTeacher.user.address_line1}
-                        {selectedTeacher.user.address_line2 && <br />}
-                        {selectedTeacher.user.address_line2}
+                        {selectedTeacher.user.address_line2 && (
+                          <>
+                            <br />
+                            {selectedTeacher.user.address_line2}
+                          </>
+                        )}
                       </p>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {selectedTeacher.user.city && (
                       <div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">City</span>
-                        <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.city}</p>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">City</span>
+                        <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.city}</p>
                       </div>
                     )}
                     {selectedTeacher.user.state && (
                       <div>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">State</span>
-                        <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.state}</p>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">State</span>
+                        <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.state}</p>
+                      </div>
+                    )}
+                    {selectedTeacher.user.postal_code && (
+                      <div>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Postal Code</span>
+                        <p className="text-sm text-gray-900 dark:text-gray-100 mt-1">{selectedTeacher.user.postal_code}</p>
                       </div>
                     )}
                   </div>
-                  {selectedTeacher.user.postal_code && (
-                    <div>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Postal Code</span>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">{selectedTeacher.user.postal_code}</p>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
 
             {/* Qualifications and Bio */}
             {(selectedTeacher.user.qualification || selectedTeacher.user.bio) && (
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {selectedTeacher.user.qualification && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                      <AcademicCapIcon className="h-5 w-5 mr-2 text-indigo-600" />
                       Qualifications
                     </h4>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                      {selectedTeacher.user.qualification}
-                    </p>
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
+                        {selectedTeacher.user.qualification}
+                      </p>
+                    </div>
                   </div>
                 )}
                 {selectedTeacher.user.bio && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                      Bio
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                      <UserIcon className="h-5 w-5 mr-2 text-orange-600" />
+                      Biography
                     </h4>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                      {selectedTeacher.user.bio}
-                    </p>
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <p className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
+                        {selectedTeacher.user.bio}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Action Buttons */}
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
-              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => {
-                    setShowViewModal(false);
-                    setShowEditModal(true);
-                  }}
-                  className="btn btn-secondary"
-                >
-                  <PencilIcon className="h-4 w-4 mr-2" />
-                  Edit Teacher
-                </button>
-                <button
-                  onClick={() => {
-                    setShowViewModal(false);
-                    handleDeleteTeacher(selectedTeacher);
-                  }}
-                  className="btn btn-danger"
-                >
-                  <TrashIcon className="h-4 w-4 mr-2" />
-                  Delete Teacher
-                </button>
+            {/* Additional Information */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Account Information */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <IdentificationIcon className="h-5 w-5 mr-2 text-gray-600" />
+                  Account Information
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Account Created</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {new Date(selectedTeacher.user.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Last Updated</span>
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {new Date(selectedTeacher.user.updated_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {selectedTeacher.user.last_login && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 dark:text-gray-400">Last Login</span>
+                      <span className="text-sm text-gray-900 dark:text-gray-100">
+                        {new Date(selectedTeacher.user.last_login).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Email Verified</span>
+                    <span className={`text-sm ${selectedTeacher.user.is_verified ? 'text-green-600' : 'text-red-600'}`}>
+                      {selectedTeacher.user.is_verified ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                </div>
               </div>
-            )}
+
+              {/* Statistics */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <BriefcaseIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  Teaching Summary
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Subjects Assigned</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {teacherSubjects.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Head of Subjects</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {teacherSubjects.filter(s => s.is_head_of_subject).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Years of Service</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {Math.floor((new Date().getTime() - new Date(selectedTeacher.hire_date).getTime()) / (1000 * 60 * 60 * 24 * 365))} years
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setShowViewModal(false);
+                  setSelectedTeacher(null);
+                  setTeacherSubjects([]);
+                }}
+                className="btn btn-ghost"
+              >
+                Close
+              </button>
+
+              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      setShowEditModal(true);
+                    }}
+                    className="btn btn-primary flex items-center"
+                  >
+                    <PencilIcon className="h-4 w-4 mr-2" />
+                    Edit Teacher
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleDeleteTeacher(selectedTeacher);
+                    }}
+                    className="btn btn-danger flex items-center"
+                  >
+                    <TrashIcon className="h-4 w-4 mr-2" />
+                    Delete Teacher
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Modal>

@@ -1,5 +1,5 @@
 import { apiService } from './api';
-import { User, PaginatedResponse } from '../types';
+import { User, PaginatedResponse, CreateTeacherForm } from '../types';
 
 class UserService {
   // Get all users with pagination and filtering
@@ -64,6 +64,30 @@ class UserService {
 
   async bulkDeleteUsers(userIds: string[]): Promise<void> {
     return apiService.post('/users/bulk-delete', { user_ids: userIds });
+  }
+
+  // Teacher-specific methods
+  async createTeacher(teacherData: CreateTeacherForm): Promise<User> {
+    return apiService.post<User>('/api/v1/users/teachers', teacherData);
+  }
+
+  async createStaff(staffData: any): Promise<User> {
+    return apiService.post<User>('/api/v1/users/staff', staffData);
+  }
+
+  async createParent(parentData: any): Promise<User> {
+    return apiService.post<User>('/api/v1/users/parents', parentData);
+  }
+
+  async getTeachers(params?: {
+    page?: number;
+    size?: number;
+  }): Promise<User[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.size) queryParams.append('size', params.size.toString());
+
+    return apiService.get<User[]>(`/api/v1/users/teachers?${queryParams.toString()}`);
   }
 }
 

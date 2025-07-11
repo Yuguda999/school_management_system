@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -35,19 +36,53 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Login endpoint"""
-    # Get user by email
-    result = await db.execute(
-        select(User).where(
-            User.email == login_data.email,
-            User.is_deleted == False
+    try:
+        # Get user by email
+        result = await db.execute(
+            select(User).where(
+                User.email == login_data.email,
+                User.is_deleted == False
+            )
         )
-    )
-    user = result.scalar_one_or_none()
-    
-    if not user or not verify_password(login_data.password, user.password_hash):
+        user = result.scalar_one_or_none()
+
+        if not user:
+            # In development mode, provide more helpful error messages
+            if settings.debug or settings.environment == "development":
+                # Get a sample of available users for development
+                sample_result = await db.execute(
+                    select(User.email, User.first_name, User.last_name).where(User.is_deleted == False).limit(3)
+                )
+                sample_users = sample_result.fetchall()
+                sample_emails = [f"{row.email} ({row.first_name} {row.last_name})" for row in sample_users]
+
+                detail = f"User not found with email: {login_data.email}. Available test users: {', '.join(sample_emails)}"
+            else:
+                detail = "Incorrect email or password"
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=detail
+            )
+
+        if not verify_password(login_data.password, user.password_hash):
+            # In development mode, provide more helpful error messages
+            if settings.debug or settings.environment == "development":
+                detail = f"Incorrect password for {user.email}. Hint: Check the test credentials in your documentation."
+            else:
+                detail = "Incorrect email or password"
+
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=detail
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error during login: {e}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
         )
     
     if not user.is_active:
@@ -221,4 +256,41 @@ async def get_current_user_info(
         "school_id": current_user.school_id,
         "is_active": current_user.is_active,
         "is_verified": current_user.is_verified
+    }
+
+
+@router.get("/dev/test-credentials")
+async def get_test_credentials(db: AsyncSession = Depends(get_db)) -> Any:
+    """Get test credentials for development (only available in development mode)"""
+    if not (settings.debug or settings.environment == "development"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found"
+        )
+
+    # Get sample users for testing
+    result = await db.execute(
+        select(User.email, User.first_name, User.last_name, User.role).where(
+            User.is_deleted == False,
+            User.is_active == True
+        ).limit(5)
+    )
+    users = result.fetchall()
+
+    test_credentials = []
+    for user in users:
+        # For development, we'll show a hint about the password
+        full_name = f"{user.first_name} {user.last_name}".strip()
+        test_credentials.append({
+            "email": user.email,
+            "full_name": full_name,
+            "role": user.role,
+            "password_hint": "Check your test documentation or memories for the password"
+        })
+
+    return {
+        "message": "Development test credentials",
+        "note": "This endpoint is only available in development mode",
+        "credentials": test_credentials,
+        "common_test_password": "P@$w0rd (for elemenx93@gmail.com)"
     }

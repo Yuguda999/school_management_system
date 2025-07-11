@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from fastapi import HTTPException, status
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserUpdate, UserStatusUpdate, UserRoleUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserStatusUpdate, UserRoleUpdate, TeacherCreateWithSubjects
 from app.core.security import get_password_hash
 import uuid
 
@@ -314,3 +314,30 @@ class UserService:
             ).offset(skip).limit(limit)
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    async def create_teacher_with_subjects(
+        db: AsyncSession,
+        teacher_data: TeacherCreateWithSubjects,
+        school_id: str
+    ) -> User:
+        """Create a new teacher with subject assignments"""
+        # First create the teacher user
+        user = await UserService.create_user(db, teacher_data, school_id)
+
+        # If subjects are provided, assign them
+        if teacher_data.subject_ids:
+            from app.services.teacher_subject_service import TeacherSubjectService
+            from app.schemas.academic import BulkTeacherSubjectAssignment
+
+            assignment_data = BulkTeacherSubjectAssignment(
+                teacher_id=user.id,
+                subject_ids=teacher_data.subject_ids,
+                head_of_subject_id=teacher_data.head_of_subject_id
+            )
+
+            await TeacherSubjectService.bulk_assign_subjects_to_teacher(
+                db, assignment_data, school_id
+            )
+
+        return user

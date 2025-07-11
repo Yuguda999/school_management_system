@@ -18,7 +18,8 @@ from app.schemas.user import (
     StaffCreate,
     ParentCreate,
     UserStatusUpdate,
-    UserRoleUpdate
+    UserRoleUpdate,
+    TeacherCreateWithSubjects
 )
 from app.services.user_service import UserService
 import math
@@ -59,6 +60,18 @@ async def create_parent(
 ) -> Any:
     """Create a new parent (Admin/Super Admin only)"""
     user = await UserService.create_user(db, parent_data, current_school.id)
+    return UserResponse.from_orm(user)
+
+
+@router.post("/teachers", response_model=UserResponse)
+async def create_teacher_with_subjects(
+    teacher_data: TeacherCreateWithSubjects,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Create a new teacher with subject assignments (Admin/Super Admin only)"""
+    user = await UserService.create_teacher_with_subjects(db, teacher_data, current_school.id)
     return UserResponse.from_orm(user)
 
 

@@ -11,6 +11,7 @@ import StudentsPage from './pages/students/StudentsPage';
 import StudentDetailPage from './pages/students/StudentDetailPage';
 import TeachersPage from './pages/teachers/TeachersPage';
 import ClassesPage from './pages/classes/ClassesPage';
+import SubjectsPage from './components/subjects/SubjectsPage';
 import FeesPage from './pages/fees/FeesPage';
 import GradesPage from './pages/grades/GradesPage';
 import CommunicationPage from './pages/communication/CommunicationPage';
@@ -26,7 +27,8 @@ function App() {
   }
 
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -61,6 +63,16 @@ function App() {
         {/* Class Management */}
         <Route path="classes" element={<ClassesPage />} />
 
+        {/* Subject Management */}
+        <Route
+          path="subjects"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
+              <SubjectsPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Fee Management */}
         <Route
           path="fees"
@@ -94,6 +106,7 @@ function App() {
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </>
   );
 }
 

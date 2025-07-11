@@ -13,6 +13,7 @@ import { apiService } from '../../services/api';
 import BasicInfoStep from './steps/BasicInfoStep';
 import ProfessionalInfoStep from './steps/ProfessionalInfoStep';
 import AddressInfoStep from './steps/AddressInfoStep';
+import SubjectAssignmentStep from './steps/SubjectAssignmentStep';
 
 interface MultiStepTeacherModalProps {
   teacher?: Teacher | null;
@@ -24,6 +25,7 @@ const STEPS = [
   { id: 'basic', title: 'Basic Information', description: 'Personal details' },
   { id: 'professional', title: 'Professional Info', description: 'Work details' },
   { id: 'address', title: 'Address', description: 'Contact information' },
+  { id: 'subjects', title: 'Subject Assignment', description: 'Teaching subjects' },
 ];
 
 const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({ 
@@ -33,6 +35,7 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { showSuccess, showError } = useToast();
 
   // Form data state for all steps
@@ -146,6 +149,16 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
       if (formData.postal_code) submitData.postal_code = formData.postal_code;
       if (formData.bio) submitData.bio = formData.bio;
 
+      // Add subject assignments for new teachers
+      if (!teacher) {
+        if (formData.subject_ids && formData.subject_ids.length > 0) {
+          submitData.subject_ids = formData.subject_ids;
+        }
+        if (formData.head_of_subject_id) {
+          submitData.head_of_subject_id = formData.head_of_subject_id;
+        }
+      }
+
       // Remove password field if editing
       if (teacher) {
         delete submitData.password;
@@ -159,7 +172,8 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
       if (teacher) {
         response = await apiService.put(`/api/v1/users/${teacher.user.id}`, submitData);
       } else {
-        response = await apiService.post('/api/v1/users/staff', submitData);
+        // Use the new teacher creation endpoint that supports subject assignments
+        response = await apiService.post('/api/v1/users/teachers', submitData);
       }
 
       if (teacher) {
@@ -223,9 +237,17 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
         );
       case 'address':
         return (
-          <AddressInfoStep 
-            data={formData} 
-            onUpdate={updateFormData} 
+          <AddressInfoStep
+            data={formData}
+            onUpdate={updateFormData}
+          />
+        );
+      case 'subjects':
+        return (
+          <SubjectAssignmentStep
+            formData={formData}
+            updateFormData={updateFormData}
+            errors={errors}
           />
         );
       default:

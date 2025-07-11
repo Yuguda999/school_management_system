@@ -1,4 +1,5 @@
-from typing import Optional
+from __future__ import annotations
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, validator
 from datetime import date, datetime
 from app.models.user import UserRole, Gender
@@ -81,16 +82,27 @@ class UserResponse(UserBase):
     # Profile fields
     profile_picture_url: Optional[str] = None
     bio: Optional[str] = None
-    
+
     # Status fields
     is_active: bool
     is_verified: bool
     last_login: Optional[str] = None
-    
+
     # Timestamps
     created_at: datetime
     updated_at: datetime
-    
+
+    class Config:
+        from_attributes = True
+
+
+# Helper schema for user-subject relationships
+class UserSubjectInfo(BaseModel):
+    subject_id: str
+    subject_name: str
+    subject_code: str
+    is_head_of_subject: bool
+
     class Config:
         from_attributes = True
 
@@ -109,11 +121,24 @@ class StaffCreate(UserCreate):
     employee_id: str
     department: str
     position: str
-    
+
     @validator('role')
     def validate_staff_role(cls, v):
         if v not in [UserRole.TEACHER, UserRole.ADMIN]:
             raise ValueError('Staff role must be either teacher or admin')
+        return v
+
+
+class TeacherCreateWithSubjects(StaffCreate):
+    """Schema for creating teachers with subject assignments"""
+    subject_ids: Optional[List[str]] = None
+    head_of_subject_id: Optional[str] = None  # Subject ID for which teacher is head
+
+    @validator('head_of_subject_id')
+    def validate_head_of_subject(cls, v, values):
+        if v and 'subject_ids' in values and values['subject_ids']:
+            if v not in values['subject_ids']:
+                raise ValueError('Head of subject must be one of the assigned subjects')
         return v
 
 

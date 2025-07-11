@@ -11,8 +11,16 @@ export interface User {
   school_id: string;
   phone?: string;
   profile_picture_url?: string;
+  subjects?: UserSubjectInfo[];
   created_at: string;
   updated_at: string;
+}
+
+export interface UserSubjectInfo {
+  subject_id: string;
+  subject_name: string;
+  subject_code: string;
+  is_head_of_subject: boolean;
 }
 
 export type UserRole = 'super_admin' | 'admin' | 'teacher' | 'student' | 'parent';
@@ -179,10 +187,68 @@ export interface Subject {
   name: string;
   code: string;
   description?: string;
-  credits: number;
+  is_core: boolean;
+  credit_units: number;
+  is_active: boolean;
   school_id: string;
-  teacher_id?: string;
-  teacher?: Teacher;
+  teachers?: TeacherSubjectInfo[];
+  classes?: ClassSubjectInfo[];
+  created_at: string;
+  updated_at: string;
+}
+
+// Teacher-Subject Assignment Types
+export interface TeacherSubjectAssignment {
+  id: string;
+  teacher_id: string;
+  subject_id: string;
+  is_head_of_subject: boolean;
+  teacher_name?: string;
+  subject_name?: string;
+  subject_code?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeacherSubjectInfo {
+  teacher_id: string;
+  teacher_name: string;
+  is_head_of_subject: boolean;
+}
+
+export interface ClassSubjectInfo {
+  class_id: string;
+  class_name: string;
+  is_core: boolean;
+}
+
+// Class-Subject Assignment Types
+export interface ClassSubjectAssignment {
+  id: string;
+  class_id: string;
+  subject_id: string;
+  is_core?: boolean;
+  class_name?: string;
+  subject_name?: string;
+  subject_code?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Bulk Assignment Types
+export interface BulkTeacherSubjectAssignment {
+  teacher_id: string;
+  subject_ids: string[];
+  head_of_subject_id?: string;
+}
+
+export interface BulkClassSubjectAssignment {
+  class_id: string;
+  subject_assignments: {
+    class_id: string;
+    subject_id: string;
+    is_core?: boolean;
+  }[];
 }
 
 export interface Term {
@@ -196,19 +262,152 @@ export interface Term {
 }
 
 // Grade Types
+export type ExamType =
+  | 'continuous_assessment'
+  | 'mid_term'
+  | 'final_exam'
+  | 'quiz'
+  | 'assignment'
+  | 'project'
+  | 'practical'
+  | 'oral';
+
+export type GradeScale =
+  | 'A+'
+  | 'A'
+  | 'B+'
+  | 'B'
+  | 'C+'
+  | 'C'
+  | 'D+'
+  | 'D'
+  | 'E'
+  | 'F';
+
+export interface Exam {
+  id: string;
+  name: string;
+  description?: string;
+  exam_type: ExamType;
+  exam_date: string;
+  start_time?: string;
+  duration_minutes?: number;
+  total_marks: number;
+  pass_marks: number;
+  subject_id: string;
+  class_id: string;
+  term_id: string;
+  instructions?: string;
+  venue?: string;
+  is_published: boolean;
+  is_active: boolean;
+  created_by: string;
+  creator_name?: string;
+  subject_name?: string;
+  class_name?: string;
+  term_name?: string;
+  total_students?: number;
+  graded_students?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Grade {
   id: string;
+  score: number;
+  total_marks: number;
+  percentage: number;
+  grade?: GradeScale;
   student_id: string;
   subject_id: string;
+  exam_id: string;
   term_id: string;
-  assignment_type: string;
-  score: number;
-  max_score: number;
-  date_recorded: string;
-  comments?: string;
-  student: Student;
-  subject: Subject;
-  term: Term;
+  graded_by: string;
+  graded_date: string;
+  remarks?: string;
+  is_published: boolean;
+  grader_name?: string;
+  student_name?: string;
+  subject_name?: string;
+  exam_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentGradesSummary {
+  student_id: string;
+  student_name: string;
+  class_id: string;
+  class_name: string;
+  term_id: string;
+  term_name: string;
+  total_subjects: number;
+  graded_subjects: number;
+  total_score: number;
+  total_possible: number;
+  overall_percentage: number;
+  overall_grade?: GradeScale;
+  position?: number;
+  grades: Grade[];
+}
+
+export interface ClassGradesSummary {
+  class_id: string;
+  class_name: string;
+  term_id: string;
+  term_name: string;
+  exam_id: string;
+  exam_name: string;
+  subject_id: string;
+  subject_name: string;
+  total_students: number;
+  graded_students: number;
+  highest_score?: number;
+  lowest_score?: number;
+  average_score?: number;
+  pass_rate?: number;
+  grades: Grade[];
+}
+
+export interface ReportCard {
+  id: string;
+  student_id: string;
+  class_id: string;
+  term_id: string;
+  overall_score: number;
+  overall_percentage: number;
+  overall_grade?: GradeScale;
+  position: number;
+  total_students: number;
+  generated_by: string;
+  generated_date: string;
+  is_published: boolean;
+  teacher_comment?: string;
+  principal_comment?: string;
+  next_term_begins?: string;
+  student_name?: string;
+  class_name?: string;
+  term_name?: string;
+  generator_name?: string;
+  grades: Grade[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GradeStatistics {
+  total_exams: number;
+  published_exams: number;
+  total_grades: number;
+  published_grades: number;
+  average_class_performance?: number;
+  subjects_performance: Array<{
+    subject_id: string;
+    subject_name: string;
+    average_score: number;
+    total_students: number;
+    pass_rate: number;
+  }>;
+  grade_distribution: Record<string, number>;
 }
 
 // Fee Types
@@ -298,6 +497,15 @@ export interface CreateFeeStructureForm {
   allow_installments?: boolean;
   installment_count?: number;
   is_mandatory: boolean;
+}
+
+// Subject form types
+export interface CreateSubjectForm {
+  name: string;
+  code: string;
+  description?: string;
+  is_core: boolean;
+  credit_units: number;
 }
 
 export interface CreateFeeAssignmentForm {
@@ -483,6 +691,10 @@ export interface CreateTeacherForm {
 
   // Profile Information
   bio?: string;
+
+  // Subject Assignments
+  subject_ids?: string[];
+  head_of_subject_id?: string;
 }
 
 // Step-specific form interfaces for multistep teacher form

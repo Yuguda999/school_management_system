@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Class, Teacher, ClassLevel, CreateClassForm, UpdateClassForm } from '../../types';
+import { apiService } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
 
 interface ClassFormData {
   name: string;
@@ -27,6 +29,7 @@ const ClassForm: React.FC<ClassFormProps> = ({
 }) => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const { showError } = useToast();
 
   const {
     register,
@@ -72,10 +75,30 @@ const ClassForm: React.FC<ClassFormProps> = ({
   const fetchTeachers = async () => {
     try {
       setLoadingTeachers(true);
-      // TODO: Replace with actual API call when teacher service is available
-      setTeachers([]);
+      const teachersData = await apiService.get<any[]>('/api/v1/users/teachers');
+
+      // Transform the user data to match the Teacher interface
+      const transformedTeachers: Teacher[] = teachersData.map((user: any) => ({
+        id: user.id,
+        user_id: user.id,
+        employee_id: user.employee_id || '',
+        department: user.department || '',
+        hire_date: user.created_at,
+        salary: 0, // Not available in user data
+        status: user.is_active ? 'active' : 'inactive',
+        user: {
+          ...user,
+          // Ensure full_name is available
+          full_name: user.full_name || `${user.first_name} ${user.last_name}`.trim(),
+        },
+        subjects: [],
+        classes: [],
+      }));
+
+      setTeachers(transformedTeachers);
     } catch (error) {
       console.error('Failed to fetch teachers:', error);
+      showError('Failed to load teachers');
       setTeachers([]);
     } finally {
       setLoadingTeachers(false);

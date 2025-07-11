@@ -69,6 +69,7 @@ class User(TenantBaseModel):
     children = relationship("Student", back_populates="parent")
     sent_messages = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender")
     received_messages = relationship("Message", foreign_keys="Message.recipient_id", back_populates="recipient")
+    subjects = relationship("Subject", secondary="teacher_subjects", back_populates="teachers")
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

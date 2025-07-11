@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, List
 from pydantic import BaseModel, validator
 from datetime import date, time, datetime
@@ -35,7 +36,7 @@ class ClassResponse(ClassBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -66,9 +67,94 @@ class SubjectResponse(SubjectBase):
     is_active: bool
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+# Helper schemas for subject relationships
+class TeacherSubjectInfo(BaseModel):
+    teacher_id: str
+    teacher_name: str
+    is_head_of_subject: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ClassSubjectInfo(BaseModel):
+    class_id: str
+    class_name: str
+    is_core: bool
+
+    class Config:
+        from_attributes = True
+
+
+# Teacher-Subject Assignment Schemas
+class TeacherSubjectAssignmentBase(BaseModel):
+    teacher_id: str
+    subject_id: str
+    is_head_of_subject: bool = False
+
+
+class TeacherSubjectAssignmentCreate(TeacherSubjectAssignmentBase):
+    pass
+
+
+class TeacherSubjectAssignmentUpdate(BaseModel):
+    is_head_of_subject: Optional[bool] = None
+
+
+class TeacherSubjectAssignmentResponse(TeacherSubjectAssignmentBase):
+    id: str
+    teacher_name: Optional[str] = None
+    subject_name: Optional[str] = None
+    subject_code: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Class-Subject Assignment Schemas
+class ClassSubjectAssignmentBase(BaseModel):
+    class_id: str
+    subject_id: str
+    is_core: Optional[bool] = None  # Override subject's default is_core setting
+
+
+class ClassSubjectAssignmentCreate(ClassSubjectAssignmentBase):
+    pass
+
+
+class ClassSubjectAssignmentUpdate(BaseModel):
+    is_core: Optional[bool] = None
+
+
+class ClassSubjectAssignmentResponse(ClassSubjectAssignmentBase):
+    id: str
+    class_name: Optional[str] = None
+    subject_name: Optional[str] = None
+    subject_code: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Bulk Assignment Schemas
+class BulkTeacherSubjectAssignment(BaseModel):
+    teacher_id: str
+    subject_ids: List[str]
+    head_of_subject_id: Optional[str] = None  # Subject ID for which teacher is head
+
+
+class BulkClassSubjectAssignment(BaseModel):
+    class_id: str
+    subject_assignments: List[ClassSubjectAssignmentCreate]
 
 
 class TermBase(BaseModel):

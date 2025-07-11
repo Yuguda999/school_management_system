@@ -1,5 +1,17 @@
 import { apiService } from './api';
-import { PaginatedResponse, Class, CreateClassForm, UpdateClassForm } from '../types';
+import {
+  PaginatedResponse,
+  Class,
+  CreateClassForm,
+  UpdateClassForm,
+  Subject,
+  CreateSubjectForm,
+  Term,
+  TeacherSubjectAssignment,
+  ClassSubjectAssignment,
+  BulkTeacherSubjectAssignment,
+  BulkClassSubjectAssignment
+} from '../types';
 
 class AcademicService {
   // Classes
@@ -39,34 +51,36 @@ class AcademicService {
 
   // Subjects
   async getSubjects(params?: {
-    class_id?: string;
+    is_active?: boolean;
+    is_core?: boolean;
     page?: number;
     size?: number;
-  }): Promise<PaginatedResponse<any>> {
+  }): Promise<Subject[]> {
     const queryParams = new URLSearchParams();
-    
-    if (params?.class_id) queryParams.append('class_id', params.class_id);
+
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.is_core !== undefined) queryParams.append('is_core', params.is_core.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
-    const url = `/api/v1/academic/subjects${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiService.get<PaginatedResponse<any>>(url);
+    const url = `/api/v1/subjects${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiService.get<Subject[]>(url);
   }
 
-  async getSubject(subjectId: string): Promise<any> {
-    return apiService.get<any>(`/api/v1/academic/subjects/${subjectId}`);
+  async getSubject(subjectId: string): Promise<Subject> {
+    return apiService.get<Subject>(`/api/v1/subjects/${subjectId}`);
   }
 
-  async createSubject(subjectData: any): Promise<any> {
-    return apiService.post<any>('/api/v1/academic/subjects', subjectData);
+  async createSubject(subjectData: CreateSubjectForm): Promise<Subject> {
+    return apiService.post<Subject>('/api/v1/subjects', subjectData);
   }
 
-  async updateSubject(subjectId: string, subjectData: any): Promise<any> {
-    return apiService.put<any>(`/api/v1/academic/subjects/${subjectId}`, subjectData);
+  async updateSubject(subjectId: string, subjectData: Partial<CreateSubjectForm>): Promise<Subject> {
+    return apiService.put<Subject>(`/api/v1/subjects/${subjectId}`, subjectData);
   }
 
   async deleteSubject(subjectId: string): Promise<void> {
-    return apiService.delete<void>(`/api/v1/academic/subjects/${subjectId}`);
+    return apiService.delete<void>(`/api/v1/subjects/${subjectId}`);
   }
 
   // Terms
@@ -75,20 +89,20 @@ class AcademicService {
     is_current?: boolean;
     page?: number;
     size?: number;
-  }): Promise<PaginatedResponse<any>> {
+  }): Promise<Term[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.academic_year) queryParams.append('academic_year', params.academic_year);
     if (params?.is_current !== undefined) queryParams.append('is_current', params.is_current.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
-    const url = `/api/v1/academic/terms${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return apiService.get<PaginatedResponse<any>>(url);
+    const url = `/api/v1/terms${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiService.get<Term[]>(url);
   }
 
-  async getTerm(termId: string): Promise<any> {
-    return apiService.get<any>(`/api/v1/academic/terms/${termId}`);
+  async getTerm(termId: string): Promise<Term> {
+    return apiService.get<Term>(`/api/v1/terms/${termId}`);
   }
 
   async createTerm(termData: any): Promise<any> {
@@ -101,6 +115,80 @@ class AcademicService {
 
   async deleteTerm(termId: string): Promise<void> {
     return apiService.delete<void>(`/api/v1/academic/terms/${termId}`);
+  }
+
+  // Teacher-Subject Assignments
+  async assignSubjectToTeacher(teacherId: string, assignmentData: {
+    subject_id: string;
+    is_head_of_subject?: boolean;
+  }): Promise<TeacherSubjectAssignment> {
+    return apiService.post<TeacherSubjectAssignment>(
+      `/api/v1/assignments/teachers/${teacherId}/subjects`,
+      assignmentData
+    );
+  }
+
+  async bulkAssignSubjectsToTeacher(
+    teacherId: string,
+    assignmentData: Omit<BulkTeacherSubjectAssignment, 'teacher_id'>
+  ): Promise<TeacherSubjectAssignment[]> {
+    return apiService.post<TeacherSubjectAssignment[]>(
+      `/api/v1/assignments/teachers/${teacherId}/subjects/bulk`,
+      assignmentData
+    );
+  }
+
+  async getTeacherSubjects(teacherId: string): Promise<TeacherSubjectAssignment[]> {
+    return apiService.get<TeacherSubjectAssignment[]>(
+      `/api/v1/assignments/teachers/${teacherId}/subjects`
+    );
+  }
+
+  async getSubjectTeachers(subjectId: string): Promise<TeacherSubjectAssignment[]> {
+    return apiService.get<TeacherSubjectAssignment[]>(
+      `/api/v1/assignments/subjects/${subjectId}/teachers`
+    );
+  }
+
+  async removeTeacherSubjectAssignment(assignmentId: string): Promise<{ message: string }> {
+    return apiService.delete<{ message: string }>(`/api/v1/assignments/teacher-subjects/${assignmentId}`);
+  }
+
+  // Class-Subject Assignments
+  async assignSubjectToClass(classId: string, assignmentData: {
+    subject_id: string;
+    is_core?: boolean;
+  }): Promise<ClassSubjectAssignment> {
+    return apiService.post<ClassSubjectAssignment>(
+      `/api/v1/assignments/classes/${classId}/subjects`,
+      assignmentData
+    );
+  }
+
+  async bulkAssignSubjectsToClass(
+    classId: string,
+    assignmentData: Omit<BulkClassSubjectAssignment, 'class_id'>
+  ): Promise<ClassSubjectAssignment[]> {
+    return apiService.post<ClassSubjectAssignment[]>(
+      `/api/v1/assignments/classes/${classId}/subjects/bulk`,
+      assignmentData
+    );
+  }
+
+  async getClassSubjects(classId: string): Promise<ClassSubjectAssignment[]> {
+    return apiService.get<ClassSubjectAssignment[]>(
+      `/api/v1/assignments/classes/${classId}/subjects`
+    );
+  }
+
+  async getSubjectClasses(subjectId: string): Promise<ClassSubjectAssignment[]> {
+    return apiService.get<ClassSubjectAssignment[]>(
+      `/api/v1/assignments/subjects/${subjectId}/classes`
+    );
+  }
+
+  async removeClassSubjectAssignment(assignmentId: string): Promise<{ message: string }> {
+    return apiService.delete<{ message: string }>(`/api/v1/assignments/class-subjects/${assignmentId}`);
   }
 }
 
