@@ -106,15 +106,39 @@ class AcademicService {
   }
 
   async createTerm(termData: any): Promise<any> {
-    return apiService.post<any>('/api/v1/academic/terms', termData);
+    return apiService.post<any>('/api/v1/terms', termData);
   }
 
   async updateTerm(termId: string, termData: any): Promise<any> {
-    return apiService.put<any>(`/api/v1/academic/terms/${termId}`, termData);
+    return apiService.put<any>(`/api/v1/terms/${termId}`, termData);
   }
 
   async deleteTerm(termId: string): Promise<void> {
-    return apiService.delete<void>(`/api/v1/academic/terms/${termId}`);
+    return apiService.delete<void>(`/api/v1/terms/${termId}`);
+  }
+
+  async getCurrentTerm(): Promise<Term> {
+    return apiService.get<Term>('/api/v1/terms/current');
+  }
+
+  async setCurrentTerm(termId: string): Promise<{ message: string }> {
+    return apiService.post<{ message: string }>(`/api/v1/terms/${termId}/set-current`);
+  }
+
+  async createBulkTerms(bulkData: {
+    academic_session: string;
+    first_term_start: string;
+    first_term_end: string;
+    second_term_start: string;
+    second_term_end: string;
+    third_term_start?: string;
+    third_term_end?: string;
+  }): Promise<{
+    academic_session: string;
+    terms_created: Term[];
+    message: string;
+  }> {
+    return apiService.post('/api/v1/terms/bulk', bulkData);
   }
 
   // Teacher-Subject Assignments

@@ -10,6 +10,7 @@ import {
 import { FeeAssignment, FeeStructure, Class, Term, Student } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { FeeService } from '../../services/feeService';
 import DataTable, { Column } from '../ui/DataTable';
 import Modal from '../ui/Modal';
@@ -19,6 +20,7 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 const FeeAssignmentManager: React.FC = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const { currentTerm } = useCurrentTerm();
   const [assignments, setAssignments] = useState<FeeAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -26,10 +28,17 @@ const FeeAssignmentManager: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<FeeAssignment | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [filters, setFilters] = useState({
-    term_id: '',
+    term_id: currentTerm?.id || '',
     class_id: '',
     status: '',
   });
+
+  // Update term filter when current term changes
+  useEffect(() => {
+    if (currentTerm?.id && filters.term_id !== currentTerm.id) {
+      setFilters(prev => ({ ...prev, term_id: currentTerm.id }));
+    }
+  }, [currentTerm?.id]);
 
   // Stats
   const [stats, setStats] = useState({

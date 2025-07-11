@@ -9,6 +9,8 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
 import DashboardOverview from '../../components/reports/DashboardOverview';
 import StudentReports from '../../components/reports/StudentReports';
 import ClassReports from '../../components/reports/ClassReports';
@@ -20,6 +22,7 @@ type ReportType = 'overview' | 'students' | 'classes' | 'financial' | 'attendanc
 
 const ReportsPage: React.FC = () => {
   const { user } = useAuth();
+  const { currentTerm } = useCurrentTerm();
   const [activeReport, setActiveReport] = useState<ReportType>('overview');
 
   const reportTypes = [
@@ -105,7 +108,7 @@ const ReportsPage: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Comprehensive reporting and data analysis
+            Comprehensive reporting and data analysis for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -115,6 +118,9 @@ const ReportsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
 
       {/* Report Type Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

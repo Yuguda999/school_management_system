@@ -8,6 +8,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { Student, Grade, Subject, Term } from '../../types';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import Modal from '../ui/Modal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { useForm } from 'react-hook-form';
@@ -30,13 +31,13 @@ const AcademicRecords: React.FC<AcademicRecordsProps> = ({
   student,
   onUpdate
 }) => {
+  const { currentTerm, allTerms } = useCurrentTerm();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedTerm, setSelectedTerm] = useState<string>('all');
+  const [selectedTerm, setSelectedTerm] = useState<string>(currentTerm?.id || 'all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [gradeToDelete, setGradeToDelete] = useState<string | null>(null);
 
@@ -48,10 +49,16 @@ const AcademicRecords: React.FC<AcademicRecordsProps> = ({
     setValue
   } = useForm<GradeFormData>();
 
+  // Update selected term when current term changes
+  useEffect(() => {
+    if (currentTerm?.id && selectedTerm !== currentTerm.id && selectedTerm === 'all') {
+      setSelectedTerm(currentTerm.id);
+    }
+  }, [currentTerm?.id]);
+
   useEffect(() => {
     fetchGrades();
     fetchSubjects();
-    fetchTerms();
   }, [student.id]);
 
   const fetchGrades = async () => {
@@ -156,34 +163,7 @@ const AcademicRecords: React.FC<AcademicRecordsProps> = ({
     }
   };
 
-  const fetchTerms = async () => {
-    try {
-      // Mock data - replace with actual API call
-      const mockTerms: Term[] = [
-        {
-          id: 'term1',
-          name: 'First Term',
-          start_date: '2024-01-01',
-          end_date: '2024-03-31',
-          academic_year: '2024',
-          school_id: student.user.school_id,
-          is_current: true,
-        },
-        {
-          id: 'term2',
-          name: 'Second Term',
-          start_date: '2024-04-01',
-          end_date: '2024-06-30',
-          academic_year: '2024',
-          school_id: student.user.school_id,
-          is_current: false,
-        },
-      ];
-      setTerms(mockTerms);
-    } catch (error) {
-      console.error('Failed to fetch terms:', error);
-    }
-  };
+
 
   const handleAddGrade = () => {
     setEditingGrade(null);
@@ -310,9 +290,9 @@ const AcademicRecords: React.FC<AcademicRecordsProps> = ({
             className="input w-auto"
           >
             <option value="all">All Terms</option>
-            {terms.map((term) => (
+            {allTerms.map((term) => (
               <option key={term.id} value={term.id}>
-                {term.name}
+                {term.name} ({term.academic_session})
               </option>
             ))}
           </select>
@@ -453,9 +433,9 @@ const AcademicRecords: React.FC<AcademicRecordsProps> = ({
                 {...register('term_id', { required: 'Term is required' })}
               >
                 <option value="">Select Term</option>
-                {terms.map((term) => (
+                {allTerms.map((term) => (
                   <option key={term.id} value={term.id}>
-                    {term.name}
+                    {term.name} ({term.academic_session})
                   </option>
                 ))}
               </select>

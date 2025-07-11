@@ -13,7 +13,7 @@ import { ReportCard as ReportCardType, Student, Class, Term, GradeScale } from '
 import GradeService, { ReportCardCreateData, ReportCardUpdateData } from '../../services/gradeService';
 import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 
 interface ReportCardProps {
   reportCard?: ReportCardType;
@@ -42,6 +42,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
   const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const {
     register,
@@ -79,7 +80,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
       setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load form data');
+      showError('Failed to load form data');
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
         };
         
         const updatedReportCard = await GradeService.updateReportCard(reportCard.id, updateData);
-        toast.success('Report card updated successfully');
+        showSuccess('Report card updated successfully');
         onSubmit?.(updatedReportCard);
       } else if (mode === 'create') {
         // Create new report card
@@ -112,12 +113,12 @@ const ReportCard: React.FC<ReportCardProps> = ({
         };
         
         const newReportCard = await GradeService.createReportCard(createData);
-        toast.success('Report card created successfully');
+        showSuccess('Report card created successfully');
         onSubmit?.(newReportCard);
       }
     } catch (error: any) {
       console.error('Error saving report card:', error);
-      toast.error(error.response?.data?.detail || 'Failed to save report card');
+      showError(error.response?.data?.detail || 'Failed to save report card');
     } finally {
       setSubmitting(false);
     }

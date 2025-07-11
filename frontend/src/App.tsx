@@ -17,6 +17,7 @@ import GradesPage from './pages/grades/GradesPage';
 import CommunicationPage from './pages/communication/CommunicationPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import TermManagementPage from './pages/terms/TermManagementPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
 function App() {
@@ -95,6 +96,16 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
               <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Terms Management */}
+        <Route
+          path="terms"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+              <TermManagementPage />
             </ProtectedRoute>
           }
         />

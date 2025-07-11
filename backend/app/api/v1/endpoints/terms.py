@@ -7,7 +7,7 @@ from app.core.deps import get_current_active_user, require_admin, get_current_sc
 from app.models.user import User
 from app.models.school import School
 from app.models.academic import Term
-from app.schemas.academic import TermCreate, TermUpdate, TermResponse
+from app.schemas.academic import TermCreate, TermUpdate, TermResponse, BulkTermCreate, BulkTermResponse
 from app.services.academic_service import AcademicService
 
 router = APIRouter()
@@ -190,3 +190,20 @@ async def delete_term(
     await db.commit()
     
     return {"message": "Term deleted successfully"}
+
+
+@router.post("/bulk", response_model=BulkTermResponse)
+async def create_bulk_terms(
+    bulk_data: BulkTermCreate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Create all terms for an academic session at once (Admin/Super Admin only)"""
+    terms = await AcademicService.create_bulk_terms(db, bulk_data, current_school.id)
+
+    return BulkTermResponse(
+        academic_session=bulk_data.academic_session,
+        terms_created=[TermResponse.from_orm(term) for term in terms],
+        message=f"Successfully created {len(terms)} terms for academic session {bulk_data.academic_session}"
+    )

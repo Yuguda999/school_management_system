@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 const data = [
   { month: 'Jan', students: 1100 },
@@ -19,6 +20,33 @@ const data = [
 ];
 
 const EnrollmentChart: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
+  const [data, setData] = useState([
+    { month: 'Jan', students: 1200 },
+    { month: 'Feb', students: 1220 },
+    { month: 'Mar', students: 1250 },
+    { month: 'Apr', students: 1280 },
+    { month: 'May', students: 1300 },
+    { month: 'Jun', students: 1320 },
+  ]);
+
+  useEffect(() => {
+    // In a real implementation, you would fetch enrollment data based on currentTerm
+    // For now, we'll use mock data that could vary by term
+    if (currentTerm) {
+      // Mock different data for different terms
+      const termBasedData = [
+        { month: 'Jan', students: 1200 + (currentTerm.name.includes('First') ? 0 : 50) },
+        { month: 'Feb', students: 1220 + (currentTerm.name.includes('First') ? 0 : 50) },
+        { month: 'Mar', students: 1250 + (currentTerm.name.includes('First') ? 0 : 50) },
+        { month: 'Apr', students: 1280 + (currentTerm.name.includes('First') ? 0 : 50) },
+        { month: 'May', students: 1300 + (currentTerm.name.includes('First') ? 0 : 50) },
+        { month: 'Jun', students: 1320 + (currentTerm.name.includes('First') ? 0 : 50) },
+      ];
+      setData(termBasedData);
+    }
+  }, [currentTerm]);
+
   return (
     <div className="card p-6">
       <div className="mb-4">
@@ -26,7 +54,10 @@ const EnrollmentChart: React.FC = () => {
           Student Enrollment Trend
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Monthly enrollment over the past 6 months
+          {currentTerm
+            ? `Monthly enrollment for ${currentTerm.name} (${currentTerm.academic_session})`
+            : 'Monthly enrollment over the past 6 months'
+          }
         </p>
       </div>
       <div className="h-64">

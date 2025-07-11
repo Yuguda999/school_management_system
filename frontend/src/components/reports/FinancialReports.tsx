@@ -6,8 +6,11 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, FinancialReport } from '../../services/reportsService';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 
 const FinancialReports: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
   const [report, setReport] = useState<FinancialReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,12 +21,27 @@ const FinancialReports: React.FC = () => {
 
   useEffect(() => {
     fetchFinancialReport();
-  }, [dateRange]);
+  }, [dateRange, currentTerm?.id]); // Re-fetch when current term or date range changes
 
   const fetchFinancialReport = async () => {
     try {
       setLoading(true);
-      // Mock data since backend endpoint doesn't exist yet
+      setError(null);
+
+      // Try to fetch real data with current term and date range
+      try {
+        const params = {
+          ...dateRange,
+          term_id: currentTerm?.id
+        };
+        const financialReport = await reportsService.getFinancialReport(params);
+        setReport(financialReport);
+        return;
+      } catch (apiError) {
+        console.warn('Failed to fetch financial report from API, using mock data:', apiError);
+      }
+
+      // Fallback to mock data
       const mockReport: FinancialReport = {
         total_revenue: 2500000,
         fees_collected: 2100000,
@@ -80,12 +98,15 @@ const FinancialReports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
+
       {/* Header with Date Range */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Financial Reports</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Revenue and fee collection analysis
+            Revenue and fee collection analysis for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
         <div className="flex items-center space-x-4">

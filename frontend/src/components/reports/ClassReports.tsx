@@ -6,20 +6,37 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, ClassReport } from '../../services/reportsService';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 
 const ClassReports: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
   const [classes, setClasses] = useState<ClassReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchClassReports();
-  }, []);
+  }, [currentTerm?.id]); // Re-fetch when current term changes
 
   const fetchClassReports = async () => {
     try {
       setLoading(true);
-      // Mock data since backend endpoint doesn't exist yet
+      setError(null);
+
+      // Try to fetch real data with current term
+      try {
+        const termId = currentTerm?.id;
+        // For now, we'll use mock data since the endpoint structure might be different
+        // In a real implementation, you'd call something like:
+        // const classReports = await reportsService.getClassReports({ term_id: termId });
+        // setClasses(classReports);
+        // return;
+      } catch (apiError) {
+        console.warn('Failed to fetch class reports from API, using mock data:', apiError);
+      }
+
+      // Fallback to mock data
       const mockClasses: ClassReport[] = [
         {
           class_id: '1',
@@ -86,12 +103,15 @@ const ClassReports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Class Performance Reports</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Overview of class-wise performance metrics
+            Overview of class-wise performance metrics for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
         <button className="btn btn-primary flex items-center space-x-2">

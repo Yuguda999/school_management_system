@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PieChart,
   Pie,
@@ -7,14 +7,29 @@ import {
   Tooltip,
   Legend,
 } from 'recharts';
-
-const data = [
-  { name: 'Present', value: 85, color: '#10b981' },
-  { name: 'Absent', value: 10, color: '#ef4444' },
-  { name: 'Late', value: 5, color: '#f59e0b' },
-];
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 const AttendanceChart: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
+  const [data, setData] = useState([
+    { name: 'Present', value: 85, color: '#10b981' },
+    { name: 'Absent', value: 10, color: '#ef4444' },
+    { name: 'Late', value: 5, color: '#f59e0b' },
+  ]);
+
+  useEffect(() => {
+    // In a real implementation, you would fetch attendance data based on currentTerm
+    // For now, we'll use mock data that could vary by term
+    if (currentTerm) {
+      // Mock different data for different terms
+      const termBasedData = [
+        { name: 'Present', value: 85 + (currentTerm.name.includes('First') ? 0 : 3), color: '#10b981' },
+        { name: 'Absent', value: 10 - (currentTerm.name.includes('First') ? 0 : 2), color: '#ef4444' },
+        { name: 'Late', value: 5 - (currentTerm.name.includes('First') ? 0 : 1), color: '#f59e0b' },
+      ];
+      setData(termBasedData);
+    }
+  }, [currentTerm]);
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -43,7 +58,10 @@ const AttendanceChart: React.FC = () => {
           Attendance Overview
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Student attendance distribution this month
+          {currentTerm
+            ? `Student attendance for ${currentTerm.name} (${currentTerm.academic_session})`
+            : 'Student attendance distribution this month'
+          }
         </p>
       </div>
       <div className="h-64">

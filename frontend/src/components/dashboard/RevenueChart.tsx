@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -8,17 +8,35 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-
-const data = [
-  { month: 'Jan', revenue: 18000 },
-  { month: 'Feb', revenue: 19500 },
-  { month: 'Mar', revenue: 21000 },
-  { month: 'Apr', revenue: 20500 },
-  { month: 'May', revenue: 22000 },
-  { month: 'Jun', revenue: 23500 },
-];
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 const RevenueChart: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
+  const [data, setData] = useState([
+    { month: 'Jan', revenue: 18000 },
+    { month: 'Feb', revenue: 19500 },
+    { month: 'Mar', revenue: 21000 },
+    { month: 'Apr', revenue: 20500 },
+    { month: 'May', revenue: 22000 },
+    { month: 'Jun', revenue: 23500 },
+  ]);
+
+  useEffect(() => {
+    // In a real implementation, you would fetch revenue data based on currentTerm
+    // For now, we'll use mock data that could vary by term
+    if (currentTerm) {
+      // Mock different data for different terms
+      const termBasedData = [
+        { month: 'Jan', revenue: 18000 + (currentTerm.name.includes('First') ? 0 : 3000) },
+        { month: 'Feb', revenue: 19500 + (currentTerm.name.includes('First') ? 0 : 3000) },
+        { month: 'Mar', revenue: 21000 + (currentTerm.name.includes('First') ? 0 : 3000) },
+        { month: 'Apr', revenue: 20500 + (currentTerm.name.includes('First') ? 0 : 3000) },
+        { month: 'May', revenue: 22000 + (currentTerm.name.includes('First') ? 0 : 3000) },
+        { month: 'Jun', revenue: 23500 + (currentTerm.name.includes('First') ? 0 : 3000) },
+      ];
+      setData(termBasedData);
+    }
+  }, [currentTerm]);
   return (
     <div className="card p-6">
       <div className="mb-4">
@@ -26,7 +44,10 @@ const RevenueChart: React.FC = () => {
           Monthly Revenue
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Fee collection over the past 6 months
+          {currentTerm
+            ? `Fee collection for ${currentTerm.name} (${currentTerm.academic_session})`
+            : 'Fee collection over the past 6 months'
+          }
         </p>
       </div>
       <div className="h-64">

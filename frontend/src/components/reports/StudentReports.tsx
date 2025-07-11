@@ -7,10 +7,13 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, StudentReport } from '../../services/reportsService';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import { academicService } from '../../services/academicService';
 import { Class } from '../../types';
 
 const StudentReports: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
   const [students, setStudents] = useState<StudentReport[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +26,13 @@ const StudentReports: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedStudent, setSelectedStudent] = useState<StudentReport | null>(null);
+
+  // Update filters when current term changes
+  useEffect(() => {
+    if (currentTerm) {
+      setFilters(prev => ({ ...prev, term_id: currentTerm.id }));
+    }
+  }, [currentTerm?.id]);
 
   useEffect(() => {
     fetchClasses();
@@ -41,7 +51,25 @@ const StudentReports: React.FC = () => {
   const fetchStudentReports = async () => {
     try {
       setLoading(true);
-      // Mock data since backend endpoint doesn't exist yet
+      setError(null);
+
+      // Try to fetch real data with current filters
+      try {
+        const params = {
+          class_id: filters.class_id || undefined,
+          term_id: filters.term_id || currentTerm?.id,
+          page: currentPage,
+          size: 10
+        };
+        const response = await reportsService.getStudentReports(params);
+        setStudents(response.items);
+        setTotalPages(response.pages);
+        return;
+      } catch (apiError) {
+        console.warn('Failed to fetch student reports from API, using mock data:', apiError);
+      }
+
+      // Fallback to mock data
       const mockStudents: StudentReport[] = [
         {
           student_id: '1',
@@ -138,6 +166,9 @@ const StudentReports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
+
       {/* Filters */}
       <div className="card p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

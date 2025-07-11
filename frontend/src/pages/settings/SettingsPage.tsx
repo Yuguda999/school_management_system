@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import NotificationSettings from '../../components/settings/NotificationSettings';
 import SystemConfiguration from '../../components/settings/SystemConfiguration';
+import SchoolSettings from '../../components/settings/SchoolSettings';
 
 type SettingsTab = 'profile' | 'theme' | 'notifications' | 'school' | 'system';
 
@@ -64,14 +65,7 @@ const SettingsPage: React.FC = () => {
       case 'notifications':
         return <NotificationSettings />;
       case 'school':
-        return (
-          <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              School Settings
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">School settings will be implemented here.</p>
-          </div>
-        );
+        return <SchoolSettings />;
       case 'system':
         return <SystemConfiguration />;
       default:

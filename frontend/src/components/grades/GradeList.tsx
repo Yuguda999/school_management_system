@@ -12,7 +12,7 @@ import { Grade, Exam, GradeScale } from '../../types';
 import GradeService from '../../services/gradeService';
 import Modal from '../ui/Modal';
 import ConfirmationModal from '../ui/ConfirmationModal';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface GradeListProps {
@@ -28,6 +28,7 @@ interface GradeEditData {
 
 const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -54,7 +55,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
       setGrades(gradesData);
     } catch (error) {
       console.error('Error fetching grades:', error);
-      toast.error('Failed to load grades');
+      showError('Failed to load grades');
     } finally {
       setLoading(false);
     }
@@ -80,12 +81,12 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
 
     try {
       await GradeService.deleteGrade(gradeToDelete);
-      toast.success('Grade deleted successfully');
+      showSuccess('Grade deleted successfully');
       fetchGrades();
       onGradeUpdate?.();
     } catch (error: any) {
       console.error('Error deleting grade:', error);
-      toast.error(error.response?.data?.detail || 'Failed to delete grade');
+      showError(error.response?.data?.detail || 'Failed to delete grade');
     } finally {
       setShowDeleteModal(false);
       setGradeToDelete(null);
@@ -98,14 +99,14 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
     try {
       setSubmitting(true);
       await GradeService.updateGrade(selectedGrade.id, editData);
-      toast.success('Grade updated successfully');
+      showSuccess('Grade updated successfully');
       fetchGrades();
       onGradeUpdate?.();
       setShowEditModal(false);
       setSelectedGrade(null);
     } catch (error: any) {
       console.error('Error updating grade:', error);
-      toast.error(error.response?.data?.detail || 'Failed to update grade');
+      showError(error.response?.data?.detail || 'Failed to update grade');
     } finally {
       setSubmitting(false);
     }

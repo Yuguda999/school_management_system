@@ -163,11 +163,64 @@ class TermBase(BaseModel):
     academic_session: str
     start_date: date
     end_date: date
-    
+
+    @validator('name')
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Term name cannot be empty')
+        if len(v.strip()) < 2:
+            raise ValueError('Term name must be at least 2 characters long')
+        if len(v.strip()) > 50:
+            raise ValueError('Term name cannot exceed 50 characters')
+        return v.strip()
+
+    @validator('academic_session')
+    def validate_academic_session(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Academic session cannot be empty')
+        # Validate format like "2023/2024" or "2023-2024"
+        import re
+        pattern = r'^\d{4}[/-]\d{4}$'
+        if not re.match(pattern, v.strip()):
+            raise ValueError('Academic session must be in format YYYY/YYYY or YYYY-YYYY (e.g., 2023/2024)')
+
+        # Validate that the second year is exactly one year after the first
+        years = re.split('[/-]', v.strip())
+        if int(years[1]) != int(years[0]) + 1:
+            raise ValueError('Academic session must span consecutive years (e.g., 2023/2024)')
+
+        return v.strip()
+
+    @validator('start_date')
+    def validate_start_date(cls, v):
+        from datetime import date
+        if v < date(2020, 1, 1):
+            raise ValueError('Start date cannot be before 2020')
+        if v > date(2030, 12, 31):
+            raise ValueError('Start date cannot be after 2030')
+        return v
+
     @validator('end_date')
     def validate_end_date(cls, v, values):
-        if 'start_date' in values and v <= values['start_date']:
-            raise ValueError('End date must be after start date')
+        from datetime import date, timedelta
+
+        if 'start_date' in values:
+            start_date = values['start_date']
+            if v <= start_date:
+                raise ValueError('End date must be after start date')
+
+            # Term should be at least 30 days and at most 150 days
+            duration = (v - start_date).days
+            if duration < 30:
+                raise ValueError('Term duration must be at least 30 days')
+            if duration > 150:
+                raise ValueError('Term duration cannot exceed 150 days')
+
+        if v < date(2020, 1, 1):
+            raise ValueError('End date cannot be before 2020')
+        if v > date(2030, 12, 31):
+            raise ValueError('End date cannot be after 2030')
+
         return v
 
 
@@ -181,6 +234,85 @@ class TermUpdate(BaseModel):
     end_date: Optional[date] = None
     is_current: Optional[bool] = None
     is_active: Optional[bool] = None
+
+    @validator('name')
+    def validate_name(cls, v):
+        if v is not None:
+            if not v or not v.strip():
+                raise ValueError('Term name cannot be empty')
+            if len(v.strip()) < 2:
+                raise ValueError('Term name must be at least 2 characters long')
+            if len(v.strip()) > 50:
+                raise ValueError('Term name cannot exceed 50 characters')
+            return v.strip()
+        return v
+
+
+class BulkTermCreate(BaseModel):
+    academic_session: str
+    first_term_start: date
+    first_term_end: date
+    second_term_start: date
+    second_term_end: date
+    third_term_start: Optional[date] = None
+    third_term_end: Optional[date] = None
+
+    @validator('academic_session')
+    def validate_academic_session(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Academic session cannot be empty')
+        # Validate format like "2023/2024" or "2023-2024"
+        import re
+        pattern = r'^\d{4}[/-]\d{4}$'
+        if not re.match(pattern, v.strip()):
+            raise ValueError('Academic session must be in format YYYY/YYYY or YYYY-YYYY (e.g., 2023/2024)')
+
+        # Validate that the second year is exactly one year after the first
+        years = re.split('[/-]', v.strip())
+        if int(years[1]) != int(years[0]) + 1:
+            raise ValueError('Academic session must span consecutive years (e.g., 2023/2024)')
+
+        return v.strip()
+
+    @validator('first_term_end')
+    def validate_first_term(cls, v, values):
+        if 'first_term_start' in values and v <= values['first_term_start']:
+            raise ValueError('First term end date must be after start date')
+        return v
+
+    @validator('second_term_start')
+    def validate_second_term_start(cls, v, values):
+        if 'first_term_end' in values and v <= values['first_term_end']:
+            raise ValueError('Second term must start after first term ends')
+        return v
+
+    @validator('second_term_end')
+    def validate_second_term_end(cls, v, values):
+        if 'second_term_start' in values and v <= values['second_term_start']:
+            raise ValueError('Second term end date must be after start date')
+        return v
+
+    @validator('third_term_start')
+    def validate_third_term_start(cls, v, values):
+        if v is not None and 'second_term_end' in values and v <= values['second_term_end']:
+            raise ValueError('Third term must start after second term ends')
+        return v
+
+    @validator('third_term_end')
+    def validate_third_term_end(cls, v, values):
+        if v is not None:
+            if 'third_term_start' in values and values['third_term_start'] is not None:
+                if v <= values['third_term_start']:
+                    raise ValueError('Third term end date must be after start date')
+            else:
+                raise ValueError('Third term end date requires third term start date')
+        return v
+
+
+class BulkTermResponse(BaseModel):
+    academic_session: str
+    terms_created: List[TermResponse]
+    message: str
 
 
 class TermResponse(TermBase):

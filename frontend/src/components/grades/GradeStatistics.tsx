@@ -11,7 +11,7 @@ import {
 import { Class, Term, GradeStatistics as GradeStatsType } from '../../types';
 import GradeService from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 
 interface GradeStatisticsProps {
   selectedClassId?: string;
@@ -22,6 +22,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
   selectedClassId,
   selectedTermId
 }) => {
+  const { showError } = useToast();
   const [statistics, setStatistics] = useState<GradeStatsType | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
@@ -50,7 +51,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
       setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      showError('Failed to load data');
     }
   };
 
@@ -64,7 +65,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
       setStatistics(statsData);
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      toast.error('Failed to load statistics');
+      showError('Failed to load statistics');
     } finally {
       setLoading(false);
     }

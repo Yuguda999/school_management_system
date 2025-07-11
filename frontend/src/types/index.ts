@@ -251,14 +251,56 @@ export interface BulkClassSubjectAssignment {
   }[];
 }
 
+export enum TermType {
+  FIRST_TERM = 'first_term',
+  SECOND_TERM = 'second_term',
+  THIRD_TERM = 'third_term'
+}
+
 export interface Term {
   id: string;
   name: string;
+  type: TermType;
+  academic_session: string;
   start_date: string;
   end_date: string;
-  academic_year: string;
-  school_id: string;
   is_current: boolean;
+  is_active: boolean;
+  school_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTermForm {
+  name: string;
+  type: TermType;
+  academic_session: string;
+  start_date: string;
+  end_date: string;
+}
+
+export interface UpdateTermForm {
+  name?: string;
+  start_date?: string;
+  end_date?: string;
+  is_current?: boolean;
+  is_active?: boolean;
+}
+
+export interface BulkTermCreateForm {
+  academic_session: string;
+  first_term_start: string;
+  first_term_end: string;
+  second_term_start: string;
+  second_term_end: string;
+  third_term_start?: string;
+  third_term_end?: string;
+}
+
+export interface BulkTermResponse {
+  academic_session: string;
+  terms_created: Term[];
+  message: string;
 }
 
 // Grade Types

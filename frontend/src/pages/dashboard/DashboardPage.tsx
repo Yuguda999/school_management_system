@@ -10,23 +10,32 @@ import {
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { DashboardStats } from '../../types';
+import { reportsService } from '../../services/reportsService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatsCard from '../../components/dashboard/StatsCard';
 import RecentActivity from '../../components/dashboard/RecentActivity';
 import EnrollmentChart from '../../components/dashboard/EnrollmentChart';
 import RevenueChart from '../../components/dashboard/RevenueChart';
+import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
 import PageHeader from '../../components/Layout/PageHeader';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { currentTerm } = useCurrentTerm();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Mock data for now - replace with actual API call
+        setLoading(true);
+        const dashboardStats = await reportsService.getDashboardStats(currentTerm?.id);
+        setStats(dashboardStats);
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+        // Fallback to mock data if API fails
         const mockStats: DashboardStats = {
           total_students: 1250,
           total_teachers: 85,
@@ -35,19 +44,14 @@ const DashboardPage: React.FC = () => {
           pending_fees: 15000,
           recent_enrollments: 23,
         };
-        
-        setTimeout(() => {
-          setStats(mockStats);
-          setLoading(false);
-        }, 1000);
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
+        setStats(mockStats);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, []);
+  }, [currentTerm?.id]); // Re-fetch when current term changes
 
   if (loading) {
     return <LoadingSpinner className="h-64" />;
@@ -217,8 +221,11 @@ const DashboardPage: React.FC = () => {
     <div className="space-y-6">
       <PageHeader
         title={getWelcomeMessage()}
-        description="Here's what's happening at your school today."
+        description={currentTerm ? `Here's what's happening in ${currentTerm.name} (${currentTerm.academic_session}).` : "Here's what's happening at your school today."}
       />
+
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
 
       {/* Stats Grid */}
       <div className={`grid grid-cols-1 gap-5 ${

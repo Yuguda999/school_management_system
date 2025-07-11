@@ -9,20 +9,28 @@ import {
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, DashboardStats } from '../../services/reportsService';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 const DashboardOverview: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardStats();
-  }, []);
+  }, [currentTerm?.id]); // Re-fetch when current term changes
 
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      // Since the backend doesn't have this endpoint yet, we'll use mock data
+      setError(null);
+      const dashboardStats = await reportsService.getDashboardStats(currentTerm?.id);
+      setStats(dashboardStats);
+    } catch (err) {
+      setError('Failed to fetch dashboard statistics');
+      console.error('Error fetching dashboard stats:', err);
+      // Fallback to mock data if API fails
       const mockStats: DashboardStats = {
         total_students: 1250,
         total_teachers: 85,
@@ -34,9 +42,6 @@ const DashboardOverview: React.FC = () => {
         attendance_rate: 92.5,
       };
       setStats(mockStats);
-    } catch (err) {
-      setError('Failed to fetch dashboard statistics');
-      console.error('Error fetching dashboard stats:', err);
     } finally {
       setLoading(false);
     }

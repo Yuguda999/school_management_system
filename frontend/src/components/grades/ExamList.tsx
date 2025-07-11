@@ -17,8 +17,9 @@ import { academicService } from '../../services/academicService';
 import Modal from '../ui/Modal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import ExamForm from './ExamForm';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface ExamListProps {
   onExamSelect?: (exam: Exam) => void;
@@ -26,6 +27,8 @@ interface ExamListProps {
 
 const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   const { user } = useAuth();
+  const { currentTerm } = useCurrentTerm();
+  const { showSuccess, showError } = useToast();
   const [exams, setExams] = useState<Exam[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -37,14 +40,21 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [examToDelete, setExamToDelete] = useState<string | null>(null);
 
-  // Filters
+  // Filters - Initialize with current term
   const [filters, setFilters] = useState({
     subject_id: '',
     class_id: '',
-    term_id: '',
+    term_id: currentTerm?.id || '',
     exam_type: '' as ExamType | '',
     is_published: undefined as boolean | undefined
   });
+
+  // Update term filter when current term changes
+  useEffect(() => {
+    if (currentTerm?.id && filters.term_id !== currentTerm.id) {
+      setFilters(prev => ({ ...prev, term_id: currentTerm.id }));
+    }
+  }, [currentTerm?.id]);
 
   useEffect(() => {
     fetchData();
@@ -67,7 +77,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
       setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      showError('Failed to load data');
     }
   };
 
@@ -81,7 +91,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
       setExams(examsData);
     } catch (error) {
       console.error('Error fetching exams:', error);
-      toast.error('Failed to load exams');
+      showError('Failed to load exams');
     } finally {
       setLoading(false);
     }
@@ -107,11 +117,11 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
 
     try {
       await GradeService.deleteExam(examToDelete);
-      toast.success('Exam deleted successfully');
+      showSuccess('Exam deleted successfully');
       fetchExams();
     } catch (error: any) {
       console.error('Error deleting exam:', error);
-      toast.error(error.response?.data?.detail || 'Failed to delete exam');
+      showError(error.response?.data?.detail || 'Failed to delete exam');
     } finally {
       setShowDeleteModal(false);
       setExamToDelete(null);

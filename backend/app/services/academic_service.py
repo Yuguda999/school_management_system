@@ -209,9 +209,9 @@ class AcademicService:
         term_data: TermCreate,
         school_id: str
     ) -> Term:
-        """Create a new term"""
+        """Create a new term with comprehensive validation"""
         # Check if term already exists for the session
-        result = await db.execute(
+        existing_term_result = await db.execute(
             select(Term).where(
                 Term.type == term_data.type,
                 Term.academic_session == term_data.academic_session,
@@ -219,22 +219,92 @@ class AcademicService:
                 Term.is_deleted == False
             )
         )
-        if result.scalar_one_or_none():
+        if existing_term_result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Term already exists for this academic session"
+                detail=f"{term_data.type.value.replace('_', ' ').title()} already exists for academic session {term_data.academic_session}"
             )
-        
+
+        # Check for overlapping terms in the same academic session
+        overlapping_terms_result = await db.execute(
+            select(Term).where(
+                Term.academic_session == term_data.academic_session,
+                Term.school_id == school_id,
+                Term.is_deleted == False,
+                # Check for date overlaps
+                Term.start_date <= term_data.end_date,
+                Term.end_date >= term_data.start_date
+            )
+        )
+        overlapping_terms = overlapping_terms_result.scalars().all()
+
+        if overlapping_terms:
+            overlapping_names = [term.name for term in overlapping_terms]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Term dates overlap with existing terms: {', '.join(overlapping_names)}"
+            )
+
+        # Validate term sequence within academic session
+        await AcademicService._validate_term_sequence(db, term_data, school_id)
+
         # Create term
         term_dict = term_data.dict()
         term_dict['school_id'] = school_id
-        
+
         term = Term(**term_dict)
         db.add(term)
         await db.commit()
         await db.refresh(term)
-        
+
         return term
+
+    @staticmethod
+    async def _validate_term_sequence(
+        db: AsyncSession,
+        term_data: TermCreate,
+        school_id: str
+    ) -> None:
+        """Validate that terms are created in logical sequence"""
+        from app.models.academic import TermType
+
+        # Get existing terms for the academic session
+        existing_terms_result = await db.execute(
+            select(Term).where(
+                Term.academic_session == term_data.academic_session,
+                Term.school_id == school_id,
+                Term.is_deleted == False
+            ).order_by(Term.start_date)
+        )
+        existing_terms = existing_terms_result.scalars().all()
+
+        if not existing_terms:
+            return  # First term, no validation needed
+
+        # Define term order
+        term_order = {
+            TermType.FIRST_TERM: 1,
+            TermType.SECOND_TERM: 2,
+            TermType.THIRD_TERM: 3
+        }
+
+        new_term_order = term_order[term_data.type]
+
+        # Check if we're creating terms in logical order
+        for existing_term in existing_terms:
+            existing_order = term_order[existing_term.type]
+
+            if new_term_order < existing_order and term_data.start_date > existing_term.start_date:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot create {term_data.type.value.replace('_', ' ').title()} after {existing_term.type.value.replace('_', ' ').title()} in the same academic session"
+                )
+
+            if new_term_order > existing_order and term_data.start_date < existing_term.end_date:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot create {term_data.type.value.replace('_', ' ').title()} before {existing_term.type.value.replace('_', ' ').title()} ends"
+                )
     
     @staticmethod
     async def set_current_term(
@@ -280,7 +350,89 @@ class AcademicService:
         await db.commit()
         
         return True
-    
+
+    @staticmethod
+    async def create_bulk_terms(
+        db: AsyncSession,
+        bulk_data: 'BulkTermCreate',
+        school_id: str
+    ) -> List[Term]:
+        """Create all terms for an academic session at once"""
+        from app.models.academic import TermType
+        from app.schemas.academic import TermCreate
+
+        # Check if any terms already exist for this academic session
+        existing_terms_result = await db.execute(
+            select(Term).where(
+                Term.academic_session == bulk_data.academic_session,
+                Term.school_id == school_id,
+                Term.is_deleted == False
+            )
+        )
+        existing_terms = existing_terms_result.scalars().all()
+
+        if existing_terms:
+            existing_types = [term.type.value for term in existing_terms]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Terms already exist for academic session {bulk_data.academic_session}: {', '.join(existing_types)}"
+            )
+
+        created_terms = []
+
+        try:
+            # Create first term
+            first_term_data = TermCreate(
+                name="First Term",
+                type=TermType.FIRST_TERM,
+                academic_session=bulk_data.academic_session,
+                start_date=bulk_data.first_term_start,
+                end_date=bulk_data.first_term_end
+            )
+            first_term = Term(**first_term_data.dict(), school_id=school_id)
+            db.add(first_term)
+            created_terms.append(first_term)
+
+            # Create second term
+            second_term_data = TermCreate(
+                name="Second Term",
+                type=TermType.SECOND_TERM,
+                academic_session=bulk_data.academic_session,
+                start_date=bulk_data.second_term_start,
+                end_date=bulk_data.second_term_end
+            )
+            second_term = Term(**second_term_data.dict(), school_id=school_id)
+            db.add(second_term)
+            created_terms.append(second_term)
+
+            # Create third term if provided
+            if bulk_data.third_term_start and bulk_data.third_term_end:
+                third_term_data = TermCreate(
+                    name="Third Term",
+                    type=TermType.THIRD_TERM,
+                    academic_session=bulk_data.academic_session,
+                    start_date=bulk_data.third_term_start,
+                    end_date=bulk_data.third_term_end
+                )
+                third_term = Term(**third_term_data.dict(), school_id=school_id)
+                db.add(third_term)
+                created_terms.append(third_term)
+
+            await db.commit()
+
+            # Refresh all created terms
+            for term in created_terms:
+                await db.refresh(term)
+
+            return created_terms
+
+        except Exception as e:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create terms: {str(e)}"
+            )
+
     # Enrollment Management
     @staticmethod
     async def create_enrollment(

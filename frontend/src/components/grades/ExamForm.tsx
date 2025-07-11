@@ -4,7 +4,7 @@ import { CalendarIcon, ClockIcon, MapPinIcon } from '@heroicons/react/24/outline
 import { Exam, ExamType, Class, Subject, Term } from '../../types';
 import GradeService, { ExamCreateData, ExamUpdateData } from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 
 interface ExamFormProps {
   exam?: Exam;
@@ -29,6 +29,7 @@ interface ExamFormData {
 }
 
 const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
+  const { showSuccess, showError } = useToast();
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -78,7 +79,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
       setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load form data');
+      showError('Failed to load form data');
     }
   };
 
@@ -102,7 +103,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
         };
         
         const updatedExam = await GradeService.updateExam(exam.id, updateData);
-        toast.success('Exam updated successfully');
+        showSuccess('Exam updated successfully');
         onSubmit(updatedExam);
       } else {
         // Create new exam
@@ -123,12 +124,12 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
         };
         
         const newExam = await GradeService.createExam(createData);
-        toast.success('Exam created successfully');
+        showSuccess('Exam created successfully');
         onSubmit(newExam);
       }
     } catch (error: any) {
       console.error('Error saving exam:', error);
-      toast.error(error.response?.data?.detail || 'Failed to save exam');
+      showError(error.response?.data?.detail || 'Failed to save exam');
     } finally {
       setLoading(false);
     }

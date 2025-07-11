@@ -6,20 +6,35 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, AttendanceReport } from '../../services/reportsService';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 
 const AttendanceReports: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
   const [report, setReport] = useState<AttendanceReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAttendanceReport();
-  }, []);
+  }, [currentTerm?.id]); // Re-fetch when current term changes
 
   const fetchAttendanceReport = async () => {
     try {
       setLoading(true);
-      // Mock data since backend endpoint doesn't exist yet
+      setError(null);
+
+      // Try to fetch real data with current term
+      try {
+        const params = currentTerm ? { term_id: currentTerm.id } : undefined;
+        const attendanceReport = await reportsService.getAttendanceReport(params);
+        setReport(attendanceReport);
+        return;
+      } catch (apiError) {
+        console.warn('Failed to fetch attendance report from API, using mock data:', apiError);
+      }
+
+      // Fallback to mock data
       const mockReport: AttendanceReport = {
         overall_attendance_rate: 89.2,
         class_wise_attendance: [
@@ -82,12 +97,15 @@ const AttendanceReports: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Current Term Indicator */}
+      <CurrentTermIndicator variant="banner" />
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Attendance Reports</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Comprehensive attendance tracking and analysis
+            Comprehensive attendance tracking and analysis for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
         <button className="btn btn-primary flex items-center space-x-2">

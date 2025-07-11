@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserPlusIcon,
   CurrencyDollarIcon,
   AcademicCapIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface Activity {
   id: string;
@@ -16,16 +17,23 @@ interface Activity {
   iconColor: string;
 }
 
-const activities: Activity[] = [
-  {
-    id: '1',
-    type: 'enrollment',
-    title: 'New Student Enrolled',
-    description: 'Sarah Johnson joined Grade 10-A',
-    time: '2 hours ago',
-    icon: UserPlusIcon,
-    iconColor: 'text-green-600',
-  },
+const RecentActivity: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
+  const [activities, setActivities] = useState<Activity[]>([]);
+
+  useEffect(() => {
+    // In a real implementation, you would fetch activities based on currentTerm
+    // For now, we'll use mock data that could vary by term
+    const baseActivities: Activity[] = [
+      {
+        id: '1',
+        type: 'enrollment',
+        title: 'New Student Enrolled',
+        description: 'Sarah Johnson joined Grade 10-A',
+        time: '2 hours ago',
+        icon: UserPlusIcon,
+        iconColor: 'text-green-600',
+      },
   {
     id: '2',
     type: 'payment',
@@ -55,12 +63,28 @@ const activities: Activity[] = [
   },
 ];
 
-const RecentActivity: React.FC = () => {
+    // Modify activities based on current term
+    if (currentTerm) {
+      const termSpecificActivities = baseActivities.map(activity => ({
+        ...activity,
+        description: `${activity.description} (${currentTerm.name})`
+      }));
+      setActivities(termSpecificActivities);
+    } else {
+      setActivities(baseActivities);
+    }
+  }, [currentTerm]);
+
   return (
     <div className="card">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           Recent Activity
+          {currentTerm && (
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">
+              ({currentTerm.name})
+            </span>
+          )}
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Latest updates from your school

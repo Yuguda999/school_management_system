@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import ThemeToggle from '../ui/ThemeToggle';
+import TermSwitcher from '../terms/TermSwitcher';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -52,6 +53,9 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         <div className="ml-4 flex items-center md:ml-6 space-x-2">
+          {/* Term Switcher */}
+          <TermSwitcher compact={true} showLabel={false} />
+
           {/* Theme toggle */}
           <ThemeToggle />
 

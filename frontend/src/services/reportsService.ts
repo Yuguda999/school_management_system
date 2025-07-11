@@ -111,8 +111,9 @@ export interface ExportOptions {
 
 class ReportsService {
   // Dashboard Statistics
-  async getDashboardStats(): Promise<DashboardStats> {
-    return apiService.get<DashboardStats>('/api/v1/reports/dashboard');
+  async getDashboardStats(termId?: string): Promise<DashboardStats> {
+    const url = `/api/v1/dashboard/stats${termId ? `?term_id=${termId}` : ''}`;
+    return apiService.get<DashboardStats>(url);
   }
 
   // Student Reports
@@ -192,12 +193,14 @@ class ReportsService {
     start_date?: string;
     end_date?: string;
     class_id?: string;
+    term_id?: string;
   }): Promise<AttendanceReport> {
     const queryParams = new URLSearchParams();
     
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.term_id) queryParams.append('term_id', params.term_id);
 
     const url = `/api/v1/reports/attendance${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<AttendanceReport>(url);

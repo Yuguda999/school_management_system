@@ -11,7 +11,8 @@ import { Student, Term, StudentGradesSummary, GradeScale } from '../../types';
 import GradeService from '../../services/gradeService';
 import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
-import { toast } from 'react-hot-toast';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useToast } from '../../hooks/useToast';
 
 interface StudentGradeSummaryProps {
   studentId?: string;
@@ -22,12 +23,21 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
   studentId: initialStudentId,
   termId: initialTermId
 }) => {
+  const { currentTerm } = useCurrentTerm();
+  const { showError } = useToast();
   const [summary, setSummary] = useState<StudentGradesSummary | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || '');
-  const [selectedTermId, setSelectedTermId] = useState(initialTermId || '');
+  const [selectedTermId, setSelectedTermId] = useState(initialTermId || currentTerm?.id || '');
+
+  // Update selected term when current term changes
+  useEffect(() => {
+    if (!initialTermId && currentTerm?.id && selectedTermId !== currentTerm.id) {
+      setSelectedTermId(currentTerm.id);
+    }
+  }, [currentTerm?.id, initialTermId, selectedTermId]);
 
   useEffect(() => {
     fetchData();
@@ -58,7 +68,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      showError('Failed to load data');
     }
   };
 
@@ -72,7 +82,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
       setSummary(summaryData);
     } catch (error) {
       console.error('Error fetching summary:', error);
-      toast.error('Failed to load student summary');
+      showError('Failed to load student summary');
       setSummary(null);
     } finally {
       setLoading(false);

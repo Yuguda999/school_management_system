@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -9,17 +9,35 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-
-const data = [
-  { subject: 'Math', average: 85, target: 90 },
-  { subject: 'Science', average: 78, target: 85 },
-  { subject: 'English', average: 92, target: 90 },
-  { subject: 'History', average: 76, target: 80 },
-  { subject: 'Art', average: 88, target: 85 },
-  { subject: 'PE', average: 95, target: 90 },
-];
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 const PerformanceChart: React.FC = () => {
+  const { currentTerm } = useCurrentTerm();
+  const [data, setData] = useState([
+    { subject: 'Math', average: 85, target: 90 },
+    { subject: 'Science', average: 78, target: 85 },
+    { subject: 'English', average: 92, target: 90 },
+    { subject: 'History', average: 76, target: 80 },
+    { subject: 'Art', average: 88, target: 85 },
+    { subject: 'PE', average: 95, target: 90 },
+  ]);
+
+  useEffect(() => {
+    // In a real implementation, you would fetch performance data based on currentTerm
+    // For now, we'll use mock data that could vary by term
+    if (currentTerm) {
+      // Mock different data for different terms
+      const termBasedData = [
+        { subject: 'Math', average: 85 + (currentTerm.name.includes('First') ? 0 : 3), target: 90 },
+        { subject: 'Science', average: 78 + (currentTerm.name.includes('First') ? 0 : 4), target: 85 },
+        { subject: 'English', average: 92 + (currentTerm.name.includes('First') ? 0 : 2), target: 90 },
+        { subject: 'History', average: 76 + (currentTerm.name.includes('First') ? 0 : 3), target: 80 },
+        { subject: 'Art', average: 88 + (currentTerm.name.includes('First') ? 0 : 2), target: 85 },
+        { subject: 'PE', average: 95 + (currentTerm.name.includes('First') ? 0 : 1), target: 90 },
+      ];
+      setData(termBasedData);
+    }
+  }, [currentTerm]);
   return (
     <div className="card p-6">
       <div className="mb-4">
@@ -27,7 +45,10 @@ const PerformanceChart: React.FC = () => {
           Academic Performance
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Average scores vs target performance by subject
+          {currentTerm
+            ? `Average scores vs target for ${currentTerm.name} (${currentTerm.academic_session})`
+            : 'Average scores vs target performance by subject'
+          }
         </p>
       </div>
       <div className="h-64">

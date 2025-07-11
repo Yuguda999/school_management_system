@@ -10,7 +10,7 @@ import {
 import { Exam, Grade, Student } from '../../types';
 import GradeService, { BulkGradeCreateData } from '../../services/gradeService';
 import { studentService } from '../../services/studentService';
-import { toast } from 'react-hot-toast';
+import { useToast } from '../../hooks/useToast';
 
 interface BulkGradeEntryProps {
   exam: Exam;
@@ -37,6 +37,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
   const [existingGrades, setExistingGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   const {
     control,
@@ -94,7 +95,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
       replace(gradeEntries);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load students and grades');
+      showError('Failed to load students and grades');
     } finally {
       setLoading(false);
     }
@@ -108,21 +109,21 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
       const validGrades = data.grades.filter(grade => grade.score > 0);
       
       if (validGrades.length === 0) {
-        toast.error('Please enter at least one valid score');
+        showError('Please enter at least one valid score');
         return;
       }
-      
+
       const bulkData: BulkGradeCreateData = {
         exam_id: exam.id,
         grades: validGrades
       };
-      
+
       const createdGrades = await GradeService.createBulkGrades(bulkData);
-      toast.success(`Successfully saved ${createdGrades.length} grades`);
+      showSuccess(`Successfully saved ${createdGrades.length} grades`);
       onGradesSubmitted(createdGrades);
     } catch (error: any) {
       console.error('Error saving grades:', error);
-      toast.error(error.response?.data?.detail || 'Failed to save grades');
+      showError(error.response?.data?.detail || 'Failed to save grades');
     } finally {
       setSubmitting(false);
     }
