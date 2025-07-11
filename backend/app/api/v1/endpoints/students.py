@@ -1,11 +1,13 @@
 from typing import Any, Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from app.core.database import get_db
 from app.core.deps import (
-    get_current_active_user, 
-    require_admin, 
+    get_current_active_user,
+    require_admin,
+    require_super_admin,
     get_current_school
 )
 from app.models.user import User, UserRole
@@ -17,8 +19,10 @@ from app.schemas.student import (
     StudentResponse,
     StudentListResponse,
     StudentStatusUpdate,
-    StudentClassUpdate
+    StudentClassUpdate,
+    StudentImportResult
 )
+from app.services.csv_import_service import CSVImportService
 import math
 
 router = APIRouter()
@@ -322,3 +326,48 @@ async def delete_student(
     await db.commit()
     
     return {"message": "Student deleted successfully"}
+
+
+@router.get("/import/template")
+async def download_csv_template(
+    current_user: User = Depends(require_super_admin()),
+    current_school: School = Depends(get_current_school)
+) -> Response:
+    """Download CSV template for student import (Super Admin only)"""
+    csv_content = CSVImportService.generate_csv_template()
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=student_import_template_{current_school.name.replace(' ', '_')}.csv"
+        }
+    )
+
+
+@router.post("/import", response_model=StudentImportResult)
+async def import_students_from_csv(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_super_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Import students from CSV file (Super Admin only)"""
+    # Validate file size (10MB limit)
+    if file.size and file.size > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File size too large. Maximum size is 10MB"
+        )
+
+    # Process the CSV import
+    try:
+        result = await CSVImportService.process_csv_import(file, current_school.id, db)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error processing CSV file: {str(e)}"
+        )

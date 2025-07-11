@@ -27,12 +27,12 @@ class FeeService:
         school_id: str
     ) -> FeeStructure:
         """Create a new fee structure"""
-        # Check if fee structure already exists for the same type, session, and class level
+        # Check if fee structure already exists for the same type and session
         result = await db.execute(
             select(FeeStructure).where(
                 FeeStructure.fee_type == fee_data.fee_type,
                 FeeStructure.academic_session == fee_data.academic_session,
-                FeeStructure.class_level == fee_data.class_level,
+                FeeStructure.name == fee_data.name,
                 FeeStructure.school_id == school_id,
                 FeeStructure.is_deleted == False
             )
@@ -40,7 +40,7 @@ class FeeService:
         if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Fee structure already exists for this type, session, and class level"
+                detail="Fee structure with this name already exists for this type and session"
             )
         
         # Create fee structure
@@ -116,7 +116,49 @@ class FeeService:
         await db.refresh(fee_structure)
         
         return fee_structure
-    
+
+    @staticmethod
+    async def delete_fee_structure(
+        db: AsyncSession,
+        fee_structure_id: str,
+        school_id: str
+    ) -> bool:
+        """Delete fee structure (soft delete)"""
+        # First check if fee structure exists and belongs to the school
+        result = await db.execute(
+            select(FeeStructure).where(
+                FeeStructure.id == fee_structure_id,
+                FeeStructure.school_id == school_id,
+                FeeStructure.is_deleted == False
+            )
+        )
+        fee_structure = result.scalar_one_or_none()
+
+        if not fee_structure:
+            return False
+
+        # Check if there are any active fee assignments for this structure
+        assignments_result = await db.execute(
+            select(func.count(FeeAssignment.id)).where(
+                FeeAssignment.fee_structure_id == fee_structure_id,
+                FeeAssignment.is_deleted == False
+            )
+        )
+        assignment_count = assignments_result.scalar()
+
+        if assignment_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete fee structure with existing assignments. Please remove all assignments first."
+            )
+
+        # Perform soft delete
+        fee_structure.is_deleted = True
+        fee_structure.updated_at = datetime.utcnow()
+
+        await db.commit()
+        return True
+
     # Fee Assignment Management
     @staticmethod
     async def create_fee_assignment(

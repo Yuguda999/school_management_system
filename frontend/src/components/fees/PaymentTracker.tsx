@@ -36,39 +36,9 @@ const PaymentTracker: React.FC = () => {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockPayments: Payment[] = [
-        {
-          id: '1',
-          student_name: 'John Doe',
-          class_name: 'Class 10-A',
-          fee_type: 'Tuition Fee',
-          amount: 5000,
-          due_date: '2024-01-15',
-          paid_date: '2024-01-10',
-          status: 'paid',
-          payment_method: 'Online',
-        },
-        {
-          id: '2',
-          student_name: 'Jane Smith',
-          class_name: 'Class 9-B',
-          fee_type: 'Transport Fee',
-          amount: 1500,
-          due_date: '2024-01-15',
-          status: 'pending',
-        },
-        {
-          id: '3',
-          student_name: 'Mike Johnson',
-          class_name: 'Class 8-A',
-          fee_type: 'Library Fee',
-          amount: 500,
-          due_date: '2023-12-15',
-          status: 'overdue',
-        },
-      ];
-      setPayments(mockPayments);
+      // TODO: Implement actual API call to fetch payments
+      const payments: Payment[] = [];
+      setPayments(payments);
     } catch (error) {
       console.error('Error fetching payments:', error);
     } finally {

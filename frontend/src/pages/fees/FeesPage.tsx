@@ -7,11 +7,13 @@ import {
   CalendarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { FeeStructure, FeePayment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import PageHeader from '../../components/Layout/PageHeader';
 import FeeStructureManager from '../../components/fees/FeeStructureManager';
+import FeeAssignmentManager from '../../components/fees/FeeAssignmentManager';
 import PaymentTracker from '../../components/fees/PaymentTracker';
 import FinancialReports from '../../components/fees/FinancialReports';
 
@@ -31,14 +33,14 @@ const FeesPage: React.FC = () => {
 
   const fetchFeeStats = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockStats = {
-        totalRevenue: 125000,
-        pendingFees: 15000,
-        paidFees: 110000,
-        overduePayments: 5000,
+      // TODO: Implement actual API call to fetch fee statistics
+      const stats = {
+        totalRevenue: 0,
+        pendingFees: 0,
+        paidFees: 0,
+        overduePayments: 0,
       };
-      setFeeStats(mockStats);
+      setFeeStats(stats);
     } catch (error) {
       console.error('Failed to fetch fee stats:', error);
     }
@@ -46,6 +48,7 @@ const FeesPage: React.FC = () => {
 
   const tabs = [
     { id: 'structures', name: 'Fee Structures', icon: DocumentTextIcon },
+    { id: 'assignments', name: 'Fee Assignments', icon: UserGroupIcon },
     { id: 'payments', name: 'Payment Tracking', icon: CurrencyDollarIcon },
     { id: 'reports', name: 'Financial Reports', icon: ChartBarIcon },
   ];
@@ -158,6 +161,7 @@ const FeesPage: React.FC = () => {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'structures' && <FeeStructureManager />}
+        {activeTab === 'assignments' && <FeeAssignmentManager />}
         {activeTab === 'payments' && <PaymentTracker />}
         {activeTab === 'reports' && <FinancialReports />}
       </div>

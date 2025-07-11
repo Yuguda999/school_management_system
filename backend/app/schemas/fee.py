@@ -9,7 +9,8 @@ class FeeStructureBase(BaseModel):
     name: str
     description: Optional[str] = None
     academic_session: str
-    class_level: str
+    applicable_to: str = 'all'  # 'all' or 'specific_classes'
+    class_ids: Optional[List[str]] = None
     fee_type: FeeType
     amount: Decimal
     is_mandatory: bool = True
@@ -35,13 +36,13 @@ class FeeStructureUpdate(BaseModel):
     allow_installments: Optional[bool] = None
     installment_count: Optional[int] = None
     is_active: Optional[bool] = None
-    metadata: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None
 
 
 class FeeStructureResponse(FeeStructureBase):
     id: str
     is_active: bool
-    metadata: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
     

@@ -78,7 +78,18 @@ class StudentService {
   }
 
   // Import students from CSV
-  async importStudents(file: File): Promise<{ success: number; errors: any[] }> {
+  async importStudents(file: File): Promise<{
+    total_rows: number;
+    successful_imports: number;
+    failed_imports: number;
+    errors: Array<{
+      row: number;
+      field: string;
+      value: string;
+      error: string;
+    }>;
+    created_students: Student[];
+  }> {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -86,6 +97,13 @@ class StudentService {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+  }
+
+  // Download CSV template
+  async downloadTemplate(): Promise<Blob> {
+    return apiService.get('/api/v1/students/import/template', {
+      responseType: 'blob',
     });
   }
 

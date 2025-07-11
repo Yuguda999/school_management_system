@@ -215,26 +215,114 @@ export interface Grade {
 export interface FeeStructure {
   id: string;
   name: string;
+  description?: string;
+  fee_type: 'tuition' | 'transport' | 'library' | 'lab' | 'examination' | 'sports' | 'uniform' | 'books' | 'other';
   amount: number;
-  due_date: string;
-  fee_type: 'tuition' | 'transport' | 'library' | 'lab' | 'other';
-  class_id?: string;
-  school_id: string;
-  academic_year: string;
+  academic_session: string;
+  applicable_to: 'all' | 'specific_classes'; // Whether it applies to all classes or specific ones
+  class_ids?: string[]; // Array of class IDs when applicable_to is 'specific_classes'
+  due_date?: string;
+  late_fee_amount?: number;
+  late_fee_days?: number;
+  allow_installments: boolean;
+  installment_count: number;
+  is_active: boolean;
   is_mandatory: boolean;
+  school_id: string;
+  additional_data?: Record<string, any>;
+  applicable_classes?: Array<{
+    id: string;
+    name: string;
+    level: string;
+    section?: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeeAssignment {
+  id: string;
+  student_id: string;
+  fee_structure_id: string;
+  term_id: string;
+  amount: number;
+  discount_amount: number;
+  amount_outstanding: number;
+  due_date: string;
+  status: 'pending' | 'partial' | 'paid' | 'overdue';
+  school_id: string;
+  created_at: string;
+  updated_at: string;
+  // Related data
+  student?: Student;
+  fee_structure?: FeeStructure;
+  term?: Term;
+  student_name?: string;
+  fee_structure_name?: string;
+  term_name?: string;
 }
 
 export interface FeePayment {
   id: string;
   student_id: string;
-  fee_structure_id: string;
-  amount_paid: number;
-  payment_date: string;
-  payment_method: 'cash' | 'card' | 'bank_transfer' | 'online';
+  fee_assignment_id: string;
+  amount: number;
+  payment_method: 'cash' | 'card' | 'bank_transfer' | 'online' | 'cheque';
   transaction_id?: string;
-  status: 'pending' | 'completed' | 'failed';
-  student: Student;
-  fee_structure: FeeStructure;
+  payment_date: string;
+  collected_by: string;
+  notes?: string;
+  school_id: string;
+  created_at: string;
+  updated_at: string;
+  // Related data
+  student?: Student;
+  fee_assignment?: FeeAssignment;
+  collector?: User;
+  student_name?: string;
+  collector_name?: string;
+}
+
+// Fee form types
+export interface CreateFeeStructureForm {
+  name: string;
+  description?: string;
+  fee_type: string;
+  amount: number;
+  academic_session: string;
+  applicable_to: 'all' | 'specific_classes';
+  class_ids?: string[];
+  due_date?: string;
+  late_fee_amount?: number;
+  late_fee_days?: number;
+  allow_installments?: boolean;
+  installment_count?: number;
+  is_mandatory: boolean;
+}
+
+export interface CreateFeeAssignmentForm {
+  student_id: string;
+  fee_structure_id: string;
+  term_id: string;
+  amount: number;
+  discount_amount?: number;
+  due_date: string;
+}
+
+export interface BulkFeeAssignmentForm {
+  fee_structure_id: string;
+  term_id: string;
+  class_ids: string[];
+  discount_amount?: number;
+}
+
+export interface CreateFeePaymentForm {
+  student_id: string;
+  fee_assignment_id: string;
+  amount: number;
+  payment_method: string;
+  transaction_id?: string;
+  notes?: string;
 }
 
 // Communication Types

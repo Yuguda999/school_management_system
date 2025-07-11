@@ -31,25 +31,9 @@ python-dateutil
 python-magic
 Pillow
 
-# Communication
-twilio
-sendgrid
-
-# Background tasks
-celery
-redis
-
-# Testing
-pytest
-pytest-asyncio
-httpx
-
-# Date and Time
-python-dateutil
-
-# File handling
-python-magic
-Pillow
+# CSV and Data Processing
+pandas
+openpyxl
 
 # Communication
 twilio

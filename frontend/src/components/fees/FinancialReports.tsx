@@ -37,29 +37,16 @@ const FinancialReports: React.FC = () => {
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockData: FinancialData = {
-        totalRevenue: 2500000,
-        monthlyRevenue: [
-          { month: 'Jan', amount: 200000 },
-          { month: 'Feb', amount: 220000 },
-          { month: 'Mar', amount: 180000 },
-          { month: 'Apr', amount: 250000 },
-          { month: 'May', amount: 230000 },
-          { month: 'Jun', amount: 210000 },
-        ],
-        feeTypeBreakdown: [
-          { type: 'Tuition Fee', amount: 1500000, percentage: 60 },
-          { type: 'Transport Fee', amount: 500000, percentage: 20 },
-          { type: 'Library Fee', amount: 250000, percentage: 10 },
-          { type: 'Sports Fee', amount: 150000, percentage: 6 },
-          { type: 'Other Fees', amount: 100000, percentage: 4 },
-        ],
-        collectionRate: 85.5,
-        pendingAmount: 300000,
-        overdueAmount: 100000,
+      // TODO: Implement actual API call to fetch financial data
+      const data: FinancialData = {
+        totalRevenue: 0,
+        monthlyRevenue: [],
+        feeTypeBreakdown: [],
+        collectionRate: 0,
+        pendingAmount: 0,
+        overdueAmount: 0,
       };
-      setFinancialData(mockData);
+      setFinancialData(data);
     } catch (error) {
       console.error('Error fetching financial data:', error);
     } finally {

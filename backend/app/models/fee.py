@@ -46,7 +46,8 @@ class FeeStructure(TenantBaseModel):
     
     # Academic details
     academic_session = Column(String(20), nullable=False)
-    class_level = Column(String(50), nullable=False)  # Can be specific class or level
+    applicable_to = Column(String(20), nullable=False, default='all')  # 'all' or 'specific_classes'
+    class_ids = Column(JSON, nullable=True)  # List of class IDs when applicable_to is 'specific_classes'
     
     # Fee details
     fee_type = Column(Enum(FeeType), nullable=False)

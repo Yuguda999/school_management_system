@@ -84,6 +84,27 @@ async def update_fee_structure(
     return FeeStructureResponse.from_orm(updated_structure)
 
 
+@router.delete("/structures/{structure_id}")
+async def delete_fee_structure(
+    structure_id: str,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Delete fee structure (Admin/Super Admin only)"""
+    success = await FeeService.delete_fee_structure(
+        db, structure_id, current_school.id
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee structure not found"
+        )
+
+    return {"message": "Fee structure deleted successfully"}
+
+
 # Fee Assignment Management
 @router.post("/assignments", response_model=FeeAssignmentResponse)
 async def create_fee_assignment(

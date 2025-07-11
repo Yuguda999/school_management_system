@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import { Student, PaginatedResponse } from '../../types';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,6 +10,7 @@ import StudentTable from '../../components/students/StudentTable';
 import MultiStepStudentModal from '../../components/students/MultiStepStudentModal';
 import FilterPanel from '../../components/students/FilterPanel';
 import ConfirmationModal from '../../components/ui/ConfirmationModal';
+import CSVImportModal from '../../components/students/CSVImportModal';
 
 const StudentsPage: React.FC = () => {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ const StudentsPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showCSVImportModal, setShowCSVImportModal] = useState(false);
   const [filters, setFilters] = useState({
     class_id: '',
     status: '',
@@ -173,7 +175,17 @@ const StudentsPage: React.FC = () => {
             Manage student records and information
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex space-x-3">
+          {user?.role === 'super_admin' && (
+            <button
+              type="button"
+              onClick={() => setShowCSVImportModal(true)}
+              className="btn-secondary"
+            >
+              <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
+              Import CSV
+            </button>
+          )}
           <button
             type="button"
             onClick={handleCreateStudent}
@@ -311,6 +323,13 @@ const StudentsPage: React.FC = () => {
         message={`Are you sure you want to delete ${selectedStudents.length} student${selectedStudents.length > 1 ? 's' : ''}?\n\nThis action cannot be undone and will permanently remove all student data.`}
         confirmText={`Delete ${selectedStudents.length} Student${selectedStudents.length > 1 ? 's' : ''}`}
         type="danger"
+      />
+
+      {/* CSV Import Modal */}
+      <CSVImportModal
+        isOpen={showCSVImportModal}
+        onClose={() => setShowCSVImportModal(false)}
+        onImportComplete={fetchStudents}
       />
     </div>
   );
