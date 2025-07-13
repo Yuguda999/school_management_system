@@ -54,27 +54,51 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
   // Initialize form data if editing
   useEffect(() => {
     if (teacher) {
-      setFormData({
-        first_name: teacher.user.first_name,
-        last_name: teacher.user.last_name,
-        middle_name: teacher.user.middle_name || '',
-        email: teacher.user.email,
-        phone: teacher.user.phone || '',
-        date_of_birth: teacher.user.date_of_birth ? teacher.user.date_of_birth.toString().split('T')[0] : '',
-        gender: teacher.user.gender as Gender || 'male',
-        employee_id: teacher.employee_id,
-        department: teacher.department || '',
-        position: teacher.user.position || '',
-        qualification: teacher.user.qualification || '',
-        experience_years: teacher.user.experience_years || '',
-        address_line1: teacher.user.address_line1 || '',
-        address_line2: teacher.user.address_line2 || '',
-        city: teacher.user.city || '',
-        state: teacher.user.state || '',
-        postal_code: teacher.user.postal_code || '',
-        bio: teacher.user.bio || '',
-        // Don't include password for editing
-      });
+      const loadTeacherData = async () => {
+        try {
+          // Load basic teacher info
+          const basicData = {
+            first_name: teacher.user.first_name,
+            last_name: teacher.user.last_name,
+            middle_name: teacher.user.middle_name || '',
+            email: teacher.user.email,
+            phone: teacher.user.phone || '',
+            date_of_birth: teacher.user.date_of_birth ? teacher.user.date_of_birth.toString().split('T')[0] : '',
+            gender: teacher.user.gender as Gender || 'male',
+            employee_id: teacher.employee_id,
+            department: teacher.department || '',
+            position: teacher.user.position || '',
+            qualification: teacher.user.qualification || '',
+            experience_years: teacher.user.experience_years || '',
+            address_line1: teacher.user.address_line1 || '',
+            address_line2: teacher.user.address_line2 || '',
+            city: teacher.user.city || '',
+            state: teacher.user.state || '',
+            postal_code: teacher.user.postal_code || '',
+            bio: teacher.user.bio || '',
+            // Don't include password for editing
+          };
+
+          // Load teacher's current subject assignments
+          try {
+            const assignments = await apiService.get(`/api/v1/assignments/teachers/${teacher.user.id}/subjects`);
+            const subjectIds = assignments.map((a: any) => a.subject_id);
+            const headOfSubject = assignments.find((a: any) => a.is_head_of_subject);
+
+            basicData.subject_ids = subjectIds;
+            basicData.head_of_subject_id = headOfSubject?.subject_id || '';
+          } catch (error) {
+            console.error('Failed to load teacher subjects:', error);
+            // Continue without subject data if loading fails
+          }
+
+          setFormData(basicData);
+        } catch (error) {
+          console.error('Failed to load teacher data:', error);
+        }
+      };
+
+      loadTeacherData();
     }
   }, [teacher]);
 
@@ -170,7 +194,19 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
       // Make API call to create/update teacher using apiService
       let response;
       if (teacher) {
+        // For existing teachers, update basic info first
         response = await apiService.put(`/api/v1/users/${teacher.user.id}`, submitData);
+
+        // Then handle subject assignments separately if they were modified
+        if (formData.subject_ids !== undefined || formData.head_of_subject_id !== undefined) {
+          const subjectAssignmentData = {
+            subject_ids: formData.subject_ids || [],
+            head_of_subject_id: formData.head_of_subject_id || undefined
+          };
+
+          // Use the bulk assignment endpoint to update teacher subjects
+          await apiService.post(`/api/v1/assignments/teachers/${teacher.user.id}/subjects/bulk`, subjectAssignmentData);
+        }
       } else {
         // Use the new teacher creation endpoint that supports subject assignments
         response = await apiService.post('/api/v1/users/teachers', submitData);

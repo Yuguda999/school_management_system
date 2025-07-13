@@ -151,3 +151,4 @@ test.db
 alembic/versions/*.py
 !alembic/versions/__init__.py
 node_modules/
+alembic/

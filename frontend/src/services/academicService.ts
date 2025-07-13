@@ -178,6 +178,16 @@ class AcademicService {
     return apiService.delete<{ message: string }>(`/api/v1/assignments/teacher-subjects/${assignmentId}`);
   }
 
+  async updateTeacherSubjectAssignment(
+    assignmentId: string,
+    updateData: { is_head_of_subject?: boolean }
+  ): Promise<TeacherSubjectAssignment> {
+    return apiService.put<TeacherSubjectAssignment>(
+      `/api/v1/assignments/teacher-subjects/${assignmentId}`,
+      updateData
+    );
+  }
+
   // Class-Subject Assignments
   async assignSubjectToClass(classId: string, assignmentData: {
     subject_id: string;
@@ -214,6 +224,23 @@ class AcademicService {
   async removeClassSubjectAssignment(assignmentId: string): Promise<{ message: string }> {
     return apiService.delete<{ message: string }>(`/api/v1/assignments/class-subjects/${assignmentId}`);
   }
+
+  async removeSubjectFromClass(classId: string, assignmentId: string): Promise<{ message: string }> {
+    return apiService.delete<{ message: string }>(`/api/v1/assignments/classes/${classId}/subjects/${assignmentId}`);
+  }
+
+  async updateClassSubjectAssignment(
+    classId: string,
+    assignmentId: string,
+    updateData: { is_core?: boolean }
+  ): Promise<ClassSubjectAssignment> {
+    return apiService.put<ClassSubjectAssignment>(
+      `/api/v1/assignments/classes/${classId}/subjects/${assignmentId}`,
+      updateData
+    );
+  }
+
+
 }
 
 export const academicService = new AcademicService();

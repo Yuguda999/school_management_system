@@ -58,9 +58,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
 
   const handleConfirm = () => {
     onConfirm();
-    if (!loading) {
-      onClose();
-    }
+    // Don't auto-close the modal - let the parent component handle closing
+    // after the async operation completes
   };
 
   return (

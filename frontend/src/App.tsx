@@ -3,15 +3,23 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import ProfileCompletionCheck from './components/auth/ProfileCompletionCheck';
 import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import TeacherSetupPage from './pages/auth/TeacherSetupPage';
+import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileCompletionPage';
+import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
+import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
+import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import StudentsPage from './pages/students/StudentsPage';
 import StudentDetailPage from './pages/students/StudentDetailPage';
 import TeachersPage from './pages/teachers/TeachersPage';
+import TeacherInvitationsPage from './pages/teachers/TeacherInvitationsPage';
 import ClassesPage from './pages/classes/ClassesPage';
-import SubjectsPage from './components/subjects/SubjectsPage';
+import SubjectsPageWrapper from './pages/subjects/SubjectsPageWrapper';
+import SubjectDetailPage from './pages/subjects/SubjectDetailPage';
 import FeesPage from './pages/fees/FeesPage';
 import GradesPage from './pages/grades/GradesPage';
 import CommunicationPage from './pages/communication/CommunicationPage';
@@ -34,18 +42,42 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/teacher/accept-invitation" element={<TeacherSetupPage />} />
+      <Route path="/teacher/complete-profile" element={<TeacherProfileCompletionPage />} />
 
       {/* Protected Routes */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <Layout />
+            <ProfileCompletionCheck>
+              <Layout />
+            </ProfileCompletionCheck>
           </ProtectedRoute>
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+
+        {/* Teacher Dashboard */}
+        <Route
+          path="teacher/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <TeacherDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Teacher Profile */}
+        <Route
+          path="teacher/profile"
+          element={
+            <ProtectedRoute allowedRoles={['teacher']}>
+              <TeacherProfilePage />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Student Management */}
         <Route path="students" element={<StudentsPage />} />
@@ -60,6 +92,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="teacher-invitations"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+              <TeacherInvitationsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Class Management */}
         <Route path="classes" element={<ClassesPage />} />
@@ -69,7 +109,15 @@ function App() {
           path="subjects"
           element={
             <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
-              <SubjectsPage />
+              <SubjectsPageWrapper />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="subjects/:subjectId"
+          element={
+            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+              <SubjectDetailPage />
             </ProtectedRoute>
           }
         />

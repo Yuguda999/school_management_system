@@ -23,9 +23,18 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     
-    # Email (SendGrid)
+    # Email Configuration
+    # SMTP Settings
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_tls: bool = True
+    smtp_ssl: bool = False
+    emails_from_email: str = "noreply@school.com"
+
+    # SendGrid (alternative)
     sendgrid_api_key: Optional[str] = None
-    from_email: str = "noreply@school.com"
     
     # SMS (Twilio)
     twilio_account_sid: Optional[str] = None
@@ -38,7 +47,7 @@ class Settings(BaseSettings):
     allowed_extensions: str = "pdf,doc,docx,jpg,jpeg,png,gif"
 
     # CORS
-    allowed_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:8080"
+    allowed_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8080"
     
     # Pagination
     default_page_size: int = 20

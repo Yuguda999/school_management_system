@@ -18,6 +18,7 @@ class LoginResponse(BaseModel):
     role: UserRole
     school_id: str
     full_name: str
+    profile_completed: bool
 
 
 class RefreshTokenRequest(BaseModel):

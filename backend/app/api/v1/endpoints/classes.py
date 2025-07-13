@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school
-from app.models.user import User
+from app.core.deps import get_current_active_user, require_admin, get_current_school, check_teacher_can_access_class
+from app.models.user import User, UserRole
 from app.models.school import School
 from app.models.student import Student
 from app.schemas.academic import (
@@ -57,9 +57,17 @@ async def get_classes(
 ) -> Any:
     """Get all classes"""
     skip = (page - 1) * size
-    classes = await AcademicService.get_classes(
-        db, current_school.id, academic_session, is_active, skip, size
-    )
+
+    # Teachers can only see classes they teach or are class teachers for
+    if current_user.role == UserRole.TEACHER:
+        classes = await AcademicService.get_teacher_classes(
+            db, current_user.id, current_school.id, academic_session, is_active, skip, size
+        )
+    else:
+        # Admins can see all classes
+        classes = await AcademicService.get_classes(
+            db, current_school.id, academic_session, is_active, skip, size
+        )
     
     # Enhance response with teacher names and student counts
     response_classes = []
@@ -103,6 +111,17 @@ async def get_class(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Class not found"
         )
+
+    # Check permissions for teachers
+    if current_user.role == UserRole.TEACHER:
+        can_access = await check_teacher_can_access_class(
+            db, current_user.id, class_id, current_school.id
+        )
+        if not can_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
 
     response = ClassResponse.from_orm(class_obj)
 

@@ -85,6 +85,28 @@ async def get_subject_teachers(
     return assignments
 
 
+@router.put("/teacher-subjects/{assignment_id}", response_model=TeacherSubjectAssignmentResponse)
+async def update_teacher_subject_assignment(
+    assignment_id: str,
+    assignment_data: TeacherSubjectAssignmentUpdate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update a teacher-subject assignment (Admin only)"""
+    assignment = await TeacherSubjectService.update_teacher_subject_assignment(
+        db, assignment_id, assignment_data, current_school.id
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+
+    return assignment
+
+
 @router.delete("/teacher-subjects/{assignment_id}")
 async def remove_teacher_subject_assignment(
     assignment_id: str,
@@ -96,13 +118,13 @@ async def remove_teacher_subject_assignment(
     success = await TeacherSubjectService.remove_teacher_subject_assignment(
         db, assignment_id, current_school.id
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assignment not found"
         )
-    
+
     return {"message": "Assignment removed successfully"}
 
 
@@ -190,3 +212,48 @@ async def remove_class_subject_assignment(
         )
     
     return {"message": "Assignment removed successfully"}
+
+
+@router.put("/classes/{class_id}/subjects/{assignment_id}", response_model=ClassSubjectAssignmentResponse)
+async def update_class_subject_assignment(
+    class_id: str,
+    assignment_id: str,
+    assignment_data: ClassSubjectAssignmentUpdate,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update a class-subject assignment (Admin only)"""
+    assignment = await ClassSubjectService.update_class_subject_assignment(
+        db, assignment_id, assignment_data, current_school.id
+    )
+
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+
+    return assignment
+
+
+@router.delete("/classes/{class_id}/subjects/{assignment_id}")
+async def remove_subject_from_class(
+    class_id: str,
+    assignment_id: str,
+    current_user: User = Depends(require_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Remove a subject from a class (Admin only)"""
+    success = await ClassSubjectService.remove_class_subject_assignment(
+        db, assignment_id, current_school.id
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+
+    return {"message": "Subject removed from class successfully"}

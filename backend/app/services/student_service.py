@@ -9,6 +9,7 @@ from app.models.student import Student
 from app.models.user import User, UserRole
 from app.models.academic import Class
 from app.schemas.student import StudentCreate, StudentUpdate
+from app.services.enrollment_service import EnrollmentService
 
 
 class StudentService:
@@ -53,12 +54,22 @@ class StudentService:
         # Create student
         student_dict = student_data.dict()
         student_dict['school_id'] = school_id
-        
+
         student = Student(**student_dict)
         db.add(student)
         await db.commit()
         await db.refresh(student)
-        
+
+        # Auto-enroll student in class subjects if assigned to a class
+        if student.current_class_id:
+            try:
+                await EnrollmentService.auto_enroll_student_in_class_subjects(
+                    db, student.id, student.current_class_id, school_id
+                )
+            except HTTPException as e:
+                # Log the error but don't fail student creation
+                print(f"Warning: Could not auto-enroll student in class subjects: {e.detail}")
+
         return student
     
     @staticmethod
@@ -184,14 +195,28 @@ class StudentService:
                     detail="Class not found"
                 )
         
+        # Check if class is changing
+        old_class_id = student.current_class_id
+        new_class_id = student_data.class_id if hasattr(student_data, 'class_id') and student_data.class_id is not None else old_class_id
+
         # Update fields
         update_data = student_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(student, field, value)
-        
+
         await db.commit()
         await db.refresh(student)
-        
+
+        # Auto-enroll student in new class subjects if class changed
+        if new_class_id and new_class_id != old_class_id:
+            try:
+                await EnrollmentService.auto_enroll_student_in_class_subjects(
+                    db, student.id, new_class_id, school_id
+                )
+            except HTTPException as e:
+                # Log the error but don't fail student update
+                print(f"Warning: Could not auto-enroll student in new class subjects: {e.detail}")
+
         return student
     
     @staticmethod
@@ -222,11 +247,192 @@ class StudentService:
             Student.school_id == school_id,
             Student.is_deleted == False
         )
-        
+
         if class_id:
             query = query.where(Student.class_id == class_id)
         if is_active is not None:
             query = query.where(Student.is_active == is_active)
-        
+
         result = await db.execute(query)
         return result.scalar() or 0
+
+    @staticmethod
+    async def get_teacher_students(
+        db: AsyncSession,
+        teacher_id: str,
+        school_id: str,
+        class_id: Optional[str] = None,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Student]:
+        """Get students that a teacher can access (students enrolled in their subjects)"""
+        from sqlalchemy import text
+
+        # Build the base query to get students accessible to the teacher
+        base_query = """
+            SELECT DISTINCT s.id, s.first_name, s.last_name, s.middle_name,
+                   s.admission_number, s.date_of_birth, s.gender, s.current_class_id,
+                   s.parent_id, s.created_at, s.updated_at,
+                   s.school_id, s.is_deleted, s.status, s.admission_date
+            FROM students s
+            LEFT JOIN classes c ON s.current_class_id = c.id
+            LEFT JOIN enrollments e ON s.id = e.student_id
+            LEFT JOIN teacher_subjects ts ON e.subject_id = ts.subject_id
+            WHERE s.school_id = :school_id
+            AND s.is_deleted = false
+            AND (
+                c.teacher_id = :teacher_id OR
+                (ts.teacher_id = :teacher_id AND ts.is_deleted = false AND e.is_active = true)
+            )
+        """
+
+        params = {
+            "teacher_id": teacher_id,
+            "school_id": school_id
+        }
+
+        # Add filters
+        if class_id:
+            base_query += " AND s.current_class_id = :class_id"
+            params["class_id"] = class_id
+
+        if search:
+            base_query += """ AND (
+                s.first_name ILIKE :search OR
+                s.last_name ILIKE :search OR
+                s.admission_number ILIKE :search
+            )"""
+            params["search"] = f"%{search}%"
+
+        # Add ordering and pagination
+        base_query += " ORDER BY s.first_name, s.last_name LIMIT :limit OFFSET :skip"
+        params["limit"] = limit
+        params["skip"] = skip
+
+        result = await db.execute(text(base_query), params)
+        rows = result.fetchall()
+
+        # Convert rows to Student objects
+        students = []
+        for row in rows:
+            student = Student(
+                id=row.id,
+                first_name=row.first_name,
+                last_name=row.last_name,
+                middle_name=row.middle_name,
+                admission_number=row.admission_number,
+                date_of_birth=row.date_of_birth,
+                gender=row.gender,
+                current_class_id=row.current_class_id,
+                parent_id=row.parent_id,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                school_id=row.school_id,
+                is_deleted=row.is_deleted,
+                status=row.status,
+                admission_date=row.admission_date
+            )
+            students.append(student)
+
+        return students
+
+    @staticmethod
+    async def get_teacher_students_count(
+        db: AsyncSession,
+        teacher_id: str,
+        school_id: str,
+        class_id: Optional[str] = None
+    ) -> int:
+        """Get count of students that a teacher can access"""
+        from sqlalchemy import text
+
+        base_query = """
+            SELECT COUNT(DISTINCT s.id)
+            FROM students s
+            LEFT JOIN classes c ON s.current_class_id = c.id
+            LEFT JOIN enrollments e ON s.id = e.student_id
+            LEFT JOIN teacher_subjects ts ON e.subject_id = ts.subject_id
+            WHERE s.school_id = :school_id
+            AND s.is_deleted = false
+            AND (
+                c.teacher_id = :teacher_id OR
+                (ts.teacher_id = :teacher_id AND ts.is_deleted = false AND e.is_active = true)
+            )
+        """
+
+        params = {
+            "teacher_id": teacher_id,
+            "school_id": school_id
+        }
+
+        if class_id:
+            base_query += " AND s.current_class_id = :class_id"
+            params["class_id"] = class_id
+
+        result = await db.execute(text(base_query), params)
+        return result.scalar() or 0
+
+    @staticmethod
+    async def get_students_by_teacher_subject(
+        db: AsyncSession,
+        teacher_id: str,
+        subject_id: str,
+        school_id: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Student]:
+        """Get students enrolled in a specific subject taught by a teacher"""
+        from sqlalchemy import text
+
+        query = text("""
+            SELECT DISTINCT s.id, s.first_name, s.last_name, s.middle_name,
+                   s.admission_number, s.date_of_birth, s.gender, s.current_class_id,
+                   s.parent_id, s.created_at, s.updated_at,
+                   s.school_id, s.is_deleted, s.status, s.admission_date
+            FROM students s
+            JOIN enrollments e ON s.id = e.student_id
+            JOIN teacher_subjects ts ON e.subject_id = ts.subject_id
+            WHERE ts.teacher_id = :teacher_id
+            AND ts.subject_id = :subject_id
+            AND s.school_id = :school_id
+            AND s.is_deleted = false
+            AND ts.is_deleted = false
+            AND e.is_active = true
+            ORDER BY s.first_name, s.last_name
+            LIMIT :limit OFFSET :skip
+        """)
+
+        result = await db.execute(query, {
+            "teacher_id": teacher_id,
+            "subject_id": subject_id,
+            "school_id": school_id,
+            "limit": limit,
+            "skip": skip
+        })
+
+        rows = result.fetchall()
+
+        # Convert rows to Student objects
+        students = []
+        for row in rows:
+            student = Student(
+                id=row.id,
+                first_name=row.first_name,
+                last_name=row.last_name,
+                middle_name=row.middle_name,
+                admission_number=row.admission_number,
+                date_of_birth=row.date_of_birth,
+                gender=row.gender,
+                current_class_id=row.current_class_id,
+                parent_id=row.parent_id,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                school_id=row.school_id,
+                is_deleted=row.is_deleted,
+                status=row.status,
+                admission_date=row.admission_date
+            )
+            students.append(student)
+
+        return students

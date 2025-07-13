@@ -86,6 +86,7 @@ class UserResponse(UserBase):
     # Status fields
     is_active: bool
     is_verified: bool
+    profile_completed: bool
     last_login: Optional[str] = None
 
     # Timestamps

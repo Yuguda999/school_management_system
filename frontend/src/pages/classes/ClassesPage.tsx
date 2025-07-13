@@ -20,6 +20,7 @@ import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ClassForm from '../../components/classes/ClassForm';
 import ClassDetails from '../../components/classes/ClassDetails';
+import ClassSubjectManagement from '../../components/classes/ClassSubjectManagement';
 
 const ClassesPage: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +33,8 @@ const ClassesPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [classToDelete, setClassToDelete] = useState<Class | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showSubjectManagementModal, setShowSubjectManagementModal] = useState(false);
+  const [classForSubjectManagement, setClassForSubjectManagement] = useState<Class | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
@@ -293,6 +296,16 @@ const ClassesPage: React.FC = () => {
               <>
                 <button
                   onClick={() => {
+                    setClassForSubjectManagement(classItem);
+                    setShowSubjectManagementModal(true);
+                  }}
+                  className="btn btn-ghost btn-sm"
+                  title="Manage Subjects"
+                >
+                  <AcademicCapIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
                     setSelectedClass(classItem);
                     setShowEditModal(true);
                   }}
@@ -389,6 +402,17 @@ const ClassesPage: React.FC = () => {
         confirmText="Delete Class"
         type="danger"
       />
+
+      {/* Class Subject Management Modal */}
+      {showSubjectManagementModal && classForSubjectManagement && (
+        <ClassSubjectManagement
+          classData={classForSubjectManagement}
+          onClose={() => {
+            setShowSubjectManagementModal(false);
+            setClassForSubjectManagement(null);
+          }}
+        />
+      )}
     </div>
   );
 };

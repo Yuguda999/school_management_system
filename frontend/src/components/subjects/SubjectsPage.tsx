@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PlusIcon,
   PencilIcon,
@@ -9,17 +10,21 @@ import {
   AcademicCapIcon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  FunnelIcon
+  FunnelIcon,
+  EyeIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
-import { Subject, CreateSubjectForm } from '../../types';
+import { Subject, CreateSubjectForm, TeacherSubjectAssignment } from '../../types';
 import { academicService } from '../../services/academicService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import SubjectForm from './SubjectForm';
+import SubjectTeacherAssignmentModal from './SubjectTeacherAssignmentModal';
 
 const SubjectsPage: React.FC = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +36,9 @@ const SubjectsPage: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTeacherAssignModalOpen, setIsTeacherAssignModalOpen] = useState(false);
+  const [subjectForTeacherAssign, setSubjectForTeacherAssign] = useState<Subject | null>(null);
+  const [currentAssignments, setCurrentAssignments] = useState<TeacherSubjectAssignment[]>([]);
 
   useEffect(() => {
     fetchSubjects();
@@ -106,6 +114,19 @@ const SubjectsPage: React.FC = () => {
   const openEditModal = (subject: Subject) => {
     setSelectedSubject(subject);
     setIsEditModalOpen(true);
+  };
+
+  const openTeacherAssignModal = async (subject: Subject) => {
+    try {
+      setSubjectForTeacherAssign(subject);
+      // Load current teacher assignments for this subject
+      const assignments = await academicService.getSubjectTeachers(subject.id);
+      setCurrentAssignments(assignments);
+      setIsTeacherAssignModalOpen(true);
+    } catch (error) {
+      console.error('Error loading teacher assignments:', error);
+      showError('Failed to load teacher assignments');
+    }
   };
 
   const filteredSubjects = subjects.filter(subject =>
@@ -223,22 +244,44 @@ const SubjectsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {canManageSubjects && (
-                  <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2">
+                  {canManageSubjects && (
+                    <button
+                      onClick={() => navigate(`/subjects/${subject.id}`)}
+                      className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                      title="View details"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                  {canManageSubjects && (
+                    <button
+                      onClick={() => openTeacherAssignModal(subject)}
+                      className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      title="Assign teachers"
+                    >
+                      <UserGroupIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                  {canManageSubjects && (
                     <button
                       onClick={() => openEditModal(subject)}
                       className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      title="Edit subject"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
+                  )}
+                  {canManageSubjects && (
                     <button
                       onClick={() => handleDeleteSubject(subject)}
                       className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      title="Delete subject"
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 space-y-2">
@@ -395,6 +438,25 @@ const SubjectsPage: React.FC = () => {
           </div>
         </Dialog>
       </Transition>
+
+      {/* Teacher Assignment Modal */}
+      {isTeacherAssignModalOpen && subjectForTeacherAssign && (
+        <SubjectTeacherAssignmentModal
+          subject={subjectForTeacherAssign}
+          currentAssignments={currentAssignments}
+          onClose={() => {
+            setIsTeacherAssignModalOpen(false);
+            setSubjectForTeacherAssign(null);
+            setCurrentAssignments([]);
+          }}
+          onSuccess={() => {
+            setIsTeacherAssignModalOpen(false);
+            setSubjectForTeacherAssign(null);
+            setCurrentAssignments([]);
+            // Optionally refresh subjects list if needed
+          }}
+        />
+      )}
     </div>
   );
 };

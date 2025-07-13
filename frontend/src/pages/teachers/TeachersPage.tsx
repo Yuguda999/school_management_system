@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PlusIcon,
   PencilIcon,
@@ -12,6 +13,8 @@ import {
   MapPinIcon,
   IdentificationIcon,
   BriefcaseIcon,
+  PaperAirplaneIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { Teacher, User, TeacherSubjectAssignment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,14 +25,17 @@ import ConfirmationModal from '../../components/ui/ConfirmationModal';
 import UserForm from '../../components/ui/UserForm';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import MultiStepTeacherModal from '../../components/teachers/MultiStepTeacherModal';
+import TeacherInvitationModal from '../../components/teachers/TeacherInvitationModal';
+import TeacherInvitationsPage from './TeacherInvitationsPage';
 import TeacherSubjectsView from '../../components/teachers/TeacherSubjectsView';
 import { apiService } from '../../services/api';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 
 const TeachersPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { showSuccess, showError } = useToast();
+  const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
@@ -38,7 +44,9 @@ const TeachersPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
+  const [activeTab, setActiveTab] = useState<'teachers' | 'invitations'>('teachers');
   const [showViewModal, setShowViewModal] = useState(false);
 
   // Helper function to get full name
@@ -51,8 +59,15 @@ const TeachersPage: React.FC = () => {
       setLoadingSubjects(true);
       const subjects = await academicService.getTeacherSubjects(teacherId);
       setTeacherSubjects(subjects);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch teacher subjects:', error);
+
+      if (error.response?.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+
       showError('Failed to load teacher subjects');
       setTeacherSubjects([]);
     } finally {
@@ -95,8 +110,15 @@ const TeachersPage: React.FC = () => {
       }));
 
       setTeachers(transformedTeachers);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch teachers:', error);
+
+      if (error.response?.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+
       // Keep empty array on error
       setTeachers([]);
     } finally {
@@ -120,6 +142,13 @@ const TeachersPage: React.FC = () => {
       fetchTeachers(); // Refresh the list
     } catch (error: any) {
       console.error('Failed to delete teacher:', error);
+
+      if (error.response?.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+
       showError(error.response?.data?.detail || 'Failed to delete teacher');
     } finally {
       setShowDeleteModal(false);
@@ -202,64 +231,137 @@ const TeachersPage: React.FC = () => {
     return <LoadingSpinner />;
   }
 
+  const tabs = [
+    {
+      id: 'teachers' as const,
+      name: 'Teachers',
+      icon: UsersIcon,
+      description: 'Manage teaching staff'
+    },
+    {
+      id: 'invitations' as const,
+      name: 'Invitations',
+      icon: EnvelopeIcon,
+      description: 'Manage teacher invitations'
+    }
+  ];
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Teachers"
-        description="Manage teacher records and information"
+        title="Teacher Management"
+        description="Manage teaching staff and invitations"
         actions={
           user?.role === 'super_admin' || user?.role === 'admin' ? (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn btn-primary"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Add Teacher
-            </button>
+            <div className="flex space-x-3">
+              {activeTab === 'teachers' && (
+                <>
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="btn btn-secondary"
+                  >
+                    <PaperAirplaneIcon className="h-5 w-5 mr-2" />
+                    Invite Teacher
+                  </button>
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="btn btn-primary"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Add Teacher
+                  </button>
+                </>
+              )}
+              {activeTab === 'invitations' && (
+                <button
+                  onClick={() => setShowInviteModal(true)}
+                  className="btn btn-primary"
+                >
+                  <PaperAirplaneIcon className="h-5 w-5 mr-2" />
+                  Send Invitation
+                </button>
+              )}
+            </div>
           ) : null
         }
       />
 
-      <DataTable
-        data={teachers}
-        columns={columns}
-        loading={loading}
-        searchable={true}
-        searchPlaceholder="Search teachers..."
-        emptyMessage="No teachers found"
-        actions={(teacher) => (
-          <>
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8">
+          {tabs.map((tab) => (
             <button
-              onClick={() => handleViewTeacher(teacher)}
-              className="btn btn-ghost btn-sm"
-              title="View Details"
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
             >
-              <EyeIcon className="h-4 w-4" />
+              <tab.icon
+                className={`-ml-0.5 mr-2 h-5 w-5 ${
+                  activeTab === tab.id
+                    ? 'text-blue-500 dark:text-blue-400'
+                    : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'
+                }`}
+              />
+              {tab.name}
             </button>
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
-              <>
-                <button
-                  onClick={() => {
-                    setSelectedTeacher(teacher);
-                    setShowEditModal(true);
-                  }}
-                  className="btn btn-ghost btn-sm"
-                  title="Edit Teacher"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteTeacher(teacher)}
-                  className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
-                  title="Delete Teacher"
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </>
-        )}
-      />
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'teachers' && (
+        <DataTable
+          data={teachers}
+          columns={columns}
+          loading={loading}
+          searchable={true}
+          searchPlaceholder="Search teachers..."
+          emptyMessage="No teachers found"
+          actions={(teacher) => (
+            <>
+              <button
+                onClick={() => handleViewTeacher(teacher)}
+                className="btn btn-ghost btn-sm"
+                title="View Details"
+              >
+                <EyeIcon className="h-4 w-4" />
+              </button>
+              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+                <>
+                  <button
+                    onClick={() => {
+                      setSelectedTeacher(teacher);
+                      setShowEditModal(true);
+                    }}
+                    className="btn btn-ghost btn-sm"
+                    title="Edit Teacher"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTeacher(teacher)}
+                    className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
+                    title="Delete Teacher"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+            </>
+          )}
+        />
+      )}
+
+      {activeTab === 'invitations' && (
+        <TeacherInvitationsPage
+          showInviteModal={showInviteModal}
+          onCloseInviteModal={() => setShowInviteModal(false)}
+        />
+      )}
 
       {/* Create Teacher Modal */}
       {showCreateModal && (
@@ -284,6 +386,18 @@ const TeachersPage: React.FC = () => {
             setShowEditModal(false);
             setSelectedTeacher(null);
             fetchTeachers(); // Refresh the list
+          }}
+        />
+      )}
+
+      {/* Teacher Invitation Modal - Only show when on teachers tab */}
+      {activeTab === 'teachers' && (
+        <TeacherInvitationModal
+          isOpen={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          onSuccess={() => {
+            setShowInviteModal(false);
+            // Optionally refresh teachers list or show success message
           }}
         />
       )}

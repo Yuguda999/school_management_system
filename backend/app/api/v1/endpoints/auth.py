@@ -108,7 +108,8 @@ async def login(
         email=user.email,
         role=user.role,
         school_id=user.school_id,
-        full_name=user.full_name
+        full_name=user.full_name,
+        profile_completed=user.profile_completed
     )
 
 
@@ -255,7 +256,22 @@ async def get_current_user_info(
         "role": current_user.role,
         "school_id": current_user.school_id,
         "is_active": current_user.is_active,
-        "is_verified": current_user.is_verified
+        "is_verified": current_user.is_verified,
+        "profile_completed": current_user.profile_completed,
+        "phone": current_user.phone,
+        "date_of_birth": current_user.date_of_birth.isoformat() if current_user.date_of_birth else None,
+        "gender": current_user.gender,
+        "address_line1": current_user.address_line1,
+        "address_line2": current_user.address_line2,
+        "city": current_user.city,
+        "state": current_user.state,
+        "postal_code": current_user.postal_code,
+        "qualification": current_user.qualification,
+        "experience_years": current_user.experience_years,
+        "bio": current_user.bio,
+        "profile_picture_url": current_user.profile_picture_url,
+        "department": current_user.department,
+        "position": current_user.position
     }
 
 

@@ -7,6 +7,7 @@ interface AuthContextType {
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
+  updateUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -62,6 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: response.role,
         is_active: true,
         is_verified: true,
+        profile_completed: response.profile_completed,
         school_id: response.school_id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -78,11 +80,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
+  const updateUser = async () => {
+    try {
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to update user data:', error);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     loading,
     login,
     logout,
+    updateUser,
     isAuthenticated: !!user,
   };
 

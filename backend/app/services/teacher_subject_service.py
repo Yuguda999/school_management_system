@@ -15,6 +15,7 @@ from app.schemas.academic import (
     BulkTeacherSubjectAssignment,
     BulkClassSubjectAssignment
 )
+from app.services.enrollment_service import EnrollmentService
 
 
 class TeacherSubjectService:
@@ -336,6 +337,105 @@ class TeacherSubjectService:
         return assignments
 
     @staticmethod
+    async def update_teacher_subject_assignment(
+        db: AsyncSession,
+        assignment_id: str,
+        assignment_data: TeacherSubjectAssignmentUpdate,
+        school_id: str
+    ) -> Optional[TeacherSubjectAssignmentResponse]:
+        """Update a teacher-subject assignment"""
+        import datetime
+
+        # Check if assignment exists
+        check_query = text("""
+            SELECT ts.*, u.first_name || ' ' || u.last_name as teacher_name,
+                   s.name as subject_name, s.code as subject_code
+            FROM teacher_subjects ts
+            JOIN users u ON ts.teacher_id = u.id
+            JOIN subjects s ON ts.subject_id = s.id
+            WHERE ts.id = :assignment_id
+            AND ts.school_id = :school_id
+            AND ts.is_deleted = false
+        """)
+
+        result = await db.execute(check_query, {
+            "assignment_id": assignment_id,
+            "school_id": school_id
+        })
+        assignment_row = result.fetchone()
+
+        if not assignment_row:
+            return None
+
+        # If setting as head of subject, remove head status from other teachers for this subject
+        if assignment_data.is_head_of_subject:
+            await db.execute(
+                text("""
+                    UPDATE teacher_subjects
+                    SET is_head_of_subject = false, updated_at = :updated_at
+                    WHERE subject_id = :subject_id
+                    AND school_id = :school_id
+                    AND is_deleted = false
+                    AND id != :assignment_id
+                """),
+                {
+                    "subject_id": assignment_row.subject_id,
+                    "school_id": school_id,
+                    "assignment_id": assignment_id,
+                    "updated_at": datetime.datetime.utcnow().isoformat()
+                }
+            )
+
+        # Update the assignment
+        update_data = assignment_data.dict(exclude_unset=True)
+        if update_data:
+            set_clauses = []
+            params = {
+                "assignment_id": assignment_id,
+                "school_id": school_id,
+                "updated_at": datetime.datetime.utcnow().isoformat()
+            }
+
+            for field, value in update_data.items():
+                set_clauses.append(f"{field} = :{field}")
+                params[field] = value
+
+            if set_clauses:
+                update_query = text(f"""
+                    UPDATE teacher_subjects
+                    SET {', '.join(set_clauses)}, updated_at = :updated_at
+                    WHERE id = :assignment_id
+                    AND school_id = :school_id
+                    AND is_deleted = false
+                """)
+
+                await db.execute(update_query, params)
+
+        await db.commit()
+
+        # Return updated assignment
+        updated_result = await db.execute(check_query, {
+            "assignment_id": assignment_id,
+            "school_id": school_id
+        })
+        updated_row = updated_result.fetchone()
+
+        if updated_row:
+            return TeacherSubjectAssignmentResponse(
+                id=updated_row.id,
+                teacher_id=updated_row.teacher_id,
+                subject_id=updated_row.subject_id,
+                is_head_of_subject=updated_row.is_head_of_subject,
+                teacher_name=updated_row.teacher_name,
+                subject_name=updated_row.subject_name,
+                subject_code=updated_row.subject_code,
+                created_at=datetime.datetime.fromisoformat(updated_row.created_at),
+                updated_at=datetime.datetime.fromisoformat(updated_row.updated_at)
+            )
+
+        return None
+
+    @staticmethod
     async def remove_teacher_subject_assignment(
         db: AsyncSession,
         assignment_id: str,
@@ -443,6 +543,16 @@ class ClassSubjectService:
         await db.commit()
 
         # Return response
+        # Automatically enroll all students in the class to this subject
+        try:
+            await EnrollmentService.auto_enroll_students_in_class_subjects(
+                db, assignment_data.class_id, school_id, [assignment_data.subject_id]
+            )
+        except HTTPException as e:
+            # Log the error but don't fail the assignment
+            # The assignment was successful, enrollment might fail due to no current term
+            print(f"Warning: Could not auto-enroll students: {e.detail}")
+
         return ClassSubjectAssignmentResponse(
             id=assignment_id,
             class_id=assignment_data.class_id,
@@ -495,17 +605,92 @@ class ClassSubjectService:
 
         # Create new assignments
         assignments = []
+        assigned_subject_ids = []
         for subject_assignment in assignment_data.subject_assignments:
             try:
                 assignment = await ClassSubjectService.assign_subject_to_class(
                     db, subject_assignment, school_id
                 )
                 assignments.append(assignment)
+                assigned_subject_ids.append(subject_assignment.subject_id)
             except HTTPException:
                 # Skip if subject doesn't exist or other error
                 continue
 
+        # Automatically enroll all students in the class to the newly assigned subjects
+        if assigned_subject_ids:
+            try:
+                await EnrollmentService.auto_enroll_students_in_class_subjects(
+                    db, assignment_data.class_id, school_id, assigned_subject_ids
+                )
+            except HTTPException as e:
+                # Log the error but don't fail the assignment
+                print(f"Warning: Could not auto-enroll students: {e.detail}")
+
         return assignments
+
+    @staticmethod
+    async def update_class_subject_assignment(
+        db: AsyncSession,
+        assignment_id: str,
+        update_data: ClassSubjectAssignmentUpdate,
+        school_id: str
+    ) -> Optional[ClassSubjectAssignmentResponse]:
+        """Update a class-subject assignment"""
+        import datetime
+
+        # Check if assignment exists
+        query = text("""
+            SELECT cs.id, cs.class_id, cs.subject_id, cs.is_core, cs.created_at, cs.updated_at,
+                   c.name as class_name, s.name as subject_name, s.code as subject_code
+            FROM class_subjects cs
+            JOIN classes c ON cs.class_id = c.id
+            JOIN subjects s ON cs.subject_id = s.id
+            WHERE cs.id = :assignment_id
+            AND cs.school_id = :school_id
+            AND cs.is_deleted = false
+        """)
+
+        result = await db.execute(query, {
+            "assignment_id": assignment_id,
+            "school_id": school_id
+        })
+
+        assignment_row = result.fetchone()
+        if not assignment_row:
+            return None
+
+        # Update the assignment
+        update_query = text("""
+            UPDATE class_subjects
+            SET is_core = :is_core, updated_at = :updated_at
+            WHERE id = :assignment_id
+            AND school_id = :school_id
+            AND is_deleted = false
+        """)
+
+        now = datetime.datetime.utcnow().isoformat()
+        await db.execute(update_query, {
+            "assignment_id": assignment_id,
+            "school_id": school_id,
+            "is_core": update_data.is_core if update_data.is_core is not None else assignment_row.is_core,
+            "updated_at": now
+        })
+
+        await db.commit()
+
+        # Return updated assignment
+        return ClassSubjectAssignmentResponse(
+            id=assignment_row.id,
+            class_id=assignment_row.class_id,
+            subject_id=assignment_row.subject_id,
+            is_core=update_data.is_core if update_data.is_core is not None else assignment_row.is_core,
+            class_name=assignment_row.class_name,
+            subject_name=assignment_row.subject_name,
+            subject_code=assignment_row.subject_code,
+            created_at=datetime.datetime.fromisoformat(assignment_row.created_at) if isinstance(assignment_row.created_at, str) else assignment_row.created_at,
+            updated_at=datetime.datetime.fromisoformat(now)
+        )
 
     @staticmethod
     async def get_class_subjects(
@@ -605,7 +790,30 @@ class ClassSubjectService:
         assignment_id: str,
         school_id: str
     ) -> bool:
-        """Remove a class-subject assignment"""
+        """Remove a class-subject assignment and unenroll students"""
+        # First get the class and subject info before deleting
+        assignment_info = await db.execute(
+            text("""
+                SELECT class_id, subject_id
+                FROM class_subjects
+                WHERE id = :assignment_id
+                AND school_id = :school_id
+                AND is_deleted = false
+            """),
+            {
+                "assignment_id": assignment_id,
+                "school_id": school_id
+            }
+        )
+
+        assignment_row = assignment_info.fetchone()
+        if not assignment_row:
+            return False
+
+        class_id = assignment_row.class_id
+        subject_id = assignment_row.subject_id
+
+        # Remove the class-subject assignment
         result = await db.execute(
             text("""
                 UPDATE class_subjects
@@ -621,5 +829,30 @@ class ClassSubjectService:
             }
         )
 
+        if result.rowcount == 0:
+            return False
+
+        # Automatically unenroll students from this subject for this class
+        try:
+            await db.execute(
+                text("""
+                    UPDATE enrollments
+                    SET is_deleted = true, updated_at = :updated_at
+                    WHERE class_id = :class_id
+                    AND subject_id = :subject_id
+                    AND school_id = :school_id
+                    AND is_deleted = false
+                """),
+                {
+                    "class_id": class_id,
+                    "subject_id": subject_id,
+                    "school_id": school_id,
+                    "updated_at": __import__('datetime').datetime.utcnow().isoformat()
+                }
+            )
+        except Exception as e:
+            # Log the error but don't fail the assignment removal
+            print(f"Warning: Could not unenroll students from subject: {e}")
+
         await db.commit()
-        return result.rowcount > 0
+        return True

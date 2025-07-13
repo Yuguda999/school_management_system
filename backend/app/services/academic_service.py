@@ -191,16 +191,149 @@ class AcademicService:
             Subject.school_id == school_id,
             Subject.is_deleted == False
         )
-        
+
         if is_active is not None:
             query = query.where(Subject.is_active == is_active)
-        
+
         if is_core is not None:
             query = query.where(Subject.is_core == is_core)
-        
+
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
         return list(result.scalars().all())
+
+    @staticmethod
+    async def get_teacher_classes(
+        db: AsyncSession,
+        teacher_id: str,
+        school_id: str,
+        academic_session: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Class]:
+        """Get classes that a teacher can access (classes they teach or are class teacher for)"""
+        from sqlalchemy import text
+
+        base_query = """
+            SELECT DISTINCT c.id, c.name, c.level, c.section, c.academic_session,
+                   c.teacher_id, c.capacity, c.is_active, c.created_at, c.updated_at,
+                   c.school_id, c.is_deleted
+            FROM classes c
+            LEFT JOIN class_subjects cs ON c.id = cs.class_id
+            LEFT JOIN teacher_subjects ts ON cs.subject_id = ts.subject_id
+            WHERE c.school_id = :school_id
+            AND c.is_deleted = false
+            AND (
+                c.teacher_id = :teacher_id OR
+                (ts.teacher_id = :teacher_id AND ts.is_deleted = false)
+            )
+        """
+
+        params = {
+            "teacher_id": teacher_id,
+            "school_id": school_id
+        }
+
+        if academic_session:
+            base_query += " AND c.academic_session = :academic_session"
+            params["academic_session"] = academic_session
+
+        if is_active is not None:
+            base_query += " AND c.is_active = :is_active"
+            params["is_active"] = is_active
+
+        base_query += " ORDER BY c.name LIMIT :limit OFFSET :skip"
+        params["limit"] = limit
+        params["skip"] = skip
+
+        result = await db.execute(text(base_query), params)
+        rows = result.fetchall()
+
+        # Convert rows to Class objects
+        classes = []
+        for row in rows:
+            class_obj = Class(
+                id=row.id,
+                name=row.name,
+                level=row.level,
+                section=row.section,
+                academic_session=row.academic_session,
+                teacher_id=row.teacher_id,
+                capacity=row.capacity,
+                is_active=row.is_active,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                school_id=row.school_id,
+                is_deleted=row.is_deleted
+            )
+            classes.append(class_obj)
+
+        return classes
+
+    @staticmethod
+    async def get_teacher_subjects(
+        db: AsyncSession,
+        teacher_id: str,
+        school_id: str,
+        is_active: Optional[bool] = None,
+        is_core: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Subject]:
+        """Get subjects that a teacher is assigned to teach"""
+        from sqlalchemy import text
+
+        base_query = """
+            SELECT DISTINCT s.id, s.name, s.code, s.description, s.is_core,
+                   s.credit_units, s.is_active, s.created_at, s.updated_at, s.school_id, s.is_deleted
+            FROM subjects s
+            JOIN teacher_subjects ts ON s.id = ts.subject_id
+            WHERE s.school_id = :school_id
+            AND s.is_deleted = false
+            AND ts.teacher_id = :teacher_id
+            AND ts.is_deleted = false
+        """
+
+        params = {
+            "teacher_id": teacher_id,
+            "school_id": school_id
+        }
+
+        if is_active is not None:
+            base_query += " AND s.is_active = :is_active"
+            params["is_active"] = is_active
+
+        if is_core is not None:
+            base_query += " AND s.is_core = :is_core"
+            params["is_core"] = is_core
+
+        base_query += " ORDER BY s.name LIMIT :limit OFFSET :skip"
+        params["limit"] = limit
+        params["skip"] = skip
+
+        result = await db.execute(text(base_query), params)
+        rows = result.fetchall()
+
+        # Convert rows to Subject objects
+        subjects = []
+        for row in rows:
+            subject = Subject(
+                id=row.id,
+                name=row.name,
+                code=row.code,
+                description=row.description,
+                is_core=row.is_core,
+                credit_units=row.credit_units,
+                is_active=row.is_active,
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+                school_id=row.school_id,
+                is_deleted=row.is_deleted
+            )
+            subjects.append(subject)
+
+        return subjects
     
     # Term Management
     @staticmethod

@@ -3,10 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
-    get_current_active_user, 
-    require_admin, 
+    get_current_active_user,
+    require_admin,
     require_teacher_or_admin,
-    get_current_school
+    get_current_school,
+    check_teacher_can_access_student,
+    check_teacher_can_access_subject
 )
 from app.models.user import User, UserRole
 from app.models.school import School
@@ -188,6 +190,28 @@ async def create_grade(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new grade (Teacher/Admin only)"""
+    # Additional validation for teachers
+    if current_user.role == UserRole.TEACHER:
+        # Check if teacher can access the student
+        can_access_student = await check_teacher_can_access_student(
+            db, current_user.id, grade_data.student_id, current_school.id
+        )
+        if not can_access_student:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only grade students in your classes or subjects"
+            )
+
+        # Check if teacher can access the subject
+        can_access_subject = await check_teacher_can_access_subject(
+            db, current_user.id, grade_data.subject_id, current_school.id
+        )
+        if not can_access_subject:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only grade students in subjects you teach"
+            )
+
     grade = await GradeService.create_grade(
         db, grade_data, current_school.id, current_user.id
     )
@@ -214,6 +238,47 @@ async def create_bulk_grades(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create multiple grades for an exam (Teacher/Admin only)"""
+    # Additional validation for teachers
+    if current_user.role == UserRole.TEACHER:
+        # Get exam details to check subject
+        from sqlalchemy import select
+        from app.models.grade import Exam
+
+        exam_result = await db.execute(
+            select(Exam).where(
+                Exam.id == bulk_data.exam_id,
+                Exam.school_id == current_school.id,
+                Exam.is_deleted == False
+            )
+        )
+        exam = exam_result.scalar_one_or_none()
+        if not exam:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Exam not found"
+            )
+
+        # Check if teacher can access the subject
+        can_access_subject = await check_teacher_can_access_subject(
+            db, current_user.id, exam.subject_id, current_school.id
+        )
+        if not can_access_subject:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only grade exams for subjects you teach"
+            )
+
+        # Check if teacher can access all students
+        for grade_data in bulk_data.grades:
+            can_access_student = await check_teacher_can_access_student(
+                db, current_user.id, grade_data['student_id'], current_school.id
+            )
+            if not can_access_student:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"You cannot grade student {grade_data['student_id']} as they are not in your classes or subjects"
+                )
+
     grades = await GradeService.create_bulk_grades(
         db, bulk_data, current_school.id, current_user.id
     )
@@ -254,12 +319,71 @@ async def get_grades(
     if current_user.role == UserRole.STUDENT:
         student_id = current_user.student.id if current_user.student else None
         is_published = True
-    
+    elif current_user.role == UserRole.TEACHER:
+        # Teachers can only see grades for their subjects and students
+        # If specific filters are provided, validate teacher access
+        if subject_id:
+            can_access_subject = await check_teacher_can_access_subject(
+                db, current_user.id, subject_id, current_school.id
+            )
+            if not can_access_subject:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only view grades for subjects you teach"
+                )
+
+        if student_id:
+            can_access_student = await check_teacher_can_access_student(
+                db, current_user.id, student_id, current_school.id
+            )
+            if not can_access_student:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You can only view grades for students in your classes or subjects"
+                )
+
     skip = (page - 1) * size
-    grades = await GradeService.get_grades(
-        db, current_school.id, student_id, subject_id, exam_id, 
-        term_id, class_id, is_published, skip, size
-    )
+
+    # For teachers, we need to filter grades to only show those they can access
+    if current_user.role == UserRole.TEACHER:
+        # Get teacher's subjects and students
+        from app.services.teacher_subject_service import TeacherSubjectService
+        from app.services.student_service import StudentService
+
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id
+        )
+        teacher_subject_ids = [ts.subject_id for ts in teacher_subjects]
+
+        teacher_students = await StudentService.get_teacher_students(
+            db, current_user.id, current_school.id, None, None, 0, 1000  # Get all accessible students
+        )
+        teacher_student_ids = [s.id for s in teacher_students]
+
+        # Apply teacher-specific filters
+        if not subject_id:
+            subject_id = teacher_subject_ids[0] if teacher_subject_ids else None
+        if not student_id and teacher_student_ids:
+            # Don't set student_id to allow viewing all accessible students
+            pass
+
+        grades = await GradeService.get_grades(
+            db, current_school.id, student_id, subject_id, exam_id,
+            term_id, class_id, is_published, skip, size
+        )
+
+        # Additional filtering to ensure teacher can only see their grades
+        filtered_grades = []
+        for grade in grades:
+            if (grade.subject_id in teacher_subject_ids and
+                grade.student_id in teacher_student_ids):
+                filtered_grades.append(grade)
+        grades = filtered_grades
+    else:
+        grades = await GradeService.get_grades(
+            db, current_school.id, student_id, subject_id, exam_id,
+            term_id, class_id, is_published, skip, size
+        )
     
     response_grades = []
     for grade in grades:

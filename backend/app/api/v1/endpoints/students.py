@@ -8,7 +8,9 @@ from app.core.deps import (
     get_current_active_user,
     require_admin,
     require_super_admin,
-    get_current_school
+    get_current_school,
+    check_teacher_can_access_student,
+    check_teacher_can_access_subject
 )
 from app.models.user import User, UserRole
 from app.models.school import School
@@ -23,6 +25,7 @@ from app.schemas.student import (
     StudentImportResult
 )
 from app.services.csv_import_service import CSVImportService
+from app.services.student_service import StudentService
 import math
 
 router = APIRouter()
@@ -127,29 +130,58 @@ async def get_students(
         )
         query = query.where(search_filter)
     
-    # For parents, only show their children
+    # Role-based filtering
     if current_user.role == UserRole.PARENT:
+        # Parents can only see their children
         query = query.where(Student.parent_id == current_user.id)
-    
+    elif current_user.role == UserRole.TEACHER:
+        # Teachers can only see students in their classes/subjects
+        from app.services.student_service import StudentService
+
+        skip = (page - 1) * size
+        students = await StudentService.get_teacher_students(
+            db, current_user.id, current_school.id, class_id, search, skip, size
+        )
+        total = await StudentService.get_teacher_students_count(
+            db, current_user.id, current_school.id, class_id
+        )
+
+        # Enhance response
+        response_students = []
+        for student in students:
+            student_response = await enhance_student_response(student, db)
+            response_students.append(student_response)
+
+        pages = math.ceil(total / size) if total > 0 else 1
+
+        return StudentListResponse(
+            items=response_students,
+            total=total,
+            page=page,
+            size=size,
+            pages=pages
+        )
+
+    # For admins, continue with normal query
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar()
-    
+
     # Apply pagination
     skip = (page - 1) * size
     query = query.offset(skip).limit(size)
     result = await db.execute(query)
     students = result.scalars().all()
-    
+
     # Enhance response
     response_students = []
     for student in students:
         student_response = await enhance_student_response(student, db)
         response_students.append(student_response)
-    
+
     pages = math.ceil(total / size) if total > 0 else 1
-    
+
     return StudentListResponse(
         items=response_students,
         total=total,
@@ -175,23 +207,75 @@ async def get_student(
         )
     )
     student = result.scalar_one_or_none()
-    
+
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
-    
-    # Check permissions - parents can only view their children
-    if (current_user.role == UserRole.PARENT and 
-        student.parent_id != current_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
+
+    # Check permissions based on role
+    if current_user.role == UserRole.PARENT:
+        # Parents can only view their children
+        if student.parent_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+    elif current_user.role == UserRole.TEACHER:
+        # Teachers can only view students in their classes/subjects
+        can_access = await check_teacher_can_access_student(
+            db, current_user.id, student_id, current_school.id
         )
-    
+        if not can_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
     # Enhance response
     return await enhance_student_response(student, db)
+
+
+@router.get("/by-subject/{subject_id}", response_model=List[StudentResponse])
+async def get_students_by_subject(
+    subject_id: str,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get students enrolled in a specific subject (Teacher only for their subjects)"""
+    # Only teachers can use this endpoint for their own subjects
+    if current_user.role != UserRole.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access students by subject"
+        )
+
+    # Check if teacher teaches this subject
+    can_access_subject = await check_teacher_can_access_subject(
+        db, current_user.id, subject_id, current_school.id
+    )
+    if not can_access_subject:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view students for subjects you teach"
+        )
+
+    skip = (page - 1) * size
+    students = await StudentService.get_students_by_teacher_subject(
+        db, current_user.id, subject_id, current_school.id, skip, size
+    )
+
+    # Enhance response with related data
+    enhanced_students = []
+    for student in students:
+        enhanced_student = await enhance_student_response(student, db)
+        enhanced_students.append(enhanced_student)
+
+    return enhanced_students
 
 
 @router.put("/{student_id}", response_model=StudentResponse)

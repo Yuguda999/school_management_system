@@ -118,6 +118,11 @@ def require_teacher_or_admin():
     return require_roles([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TEACHER])
 
 
+def require_teacher_only():
+    """Dependency to require only teacher role (not admin)"""
+    return require_roles([UserRole.TEACHER])
+
+
 def require_parent():
     """Dependency to require parent role"""
     return require_roles([UserRole.PARENT])
@@ -144,11 +149,110 @@ async def get_optional_current_user(
 
 class TenantFilter:
     """Utility class for tenant-based filtering"""
-    
+
     def __init__(self, current_user: User = Depends(get_current_active_user)):
         self.current_user = current_user
         self.school_id = current_user.school_id
-    
+
     def filter_by_school(self, query):
         """Add school filter to query"""
         return query.where(query.column_descriptions[0]['type'].school_id == self.school_id)
+
+
+async def check_teacher_can_access_student(
+    db: AsyncSession,
+    teacher_id: str,
+    student_id: str,
+    school_id: str
+) -> bool:
+    """Check if a teacher can access a specific student"""
+    from sqlalchemy import text
+
+    # Teachers can access students if:
+    # 1. They are the class teacher for the student's class
+    # 2. They teach a subject that the student is enrolled in
+    query = text("""
+        SELECT DISTINCT s.id
+        FROM students s
+        LEFT JOIN classes c ON s.current_class_id = c.id
+        LEFT JOIN enrollments e ON s.id = e.student_id
+        LEFT JOIN teacher_subjects ts ON e.subject_id = ts.subject_id
+        WHERE s.id = :student_id
+        AND s.school_id = :school_id
+        AND s.is_deleted = false
+        AND (
+            c.teacher_id = :teacher_id OR
+            (ts.teacher_id = :teacher_id AND ts.is_deleted = false AND e.is_active = true)
+        )
+    """)
+
+    result = await db.execute(query, {
+        "student_id": student_id,
+        "teacher_id": teacher_id,
+        "school_id": school_id
+    })
+
+    return result.scalar_one_or_none() is not None
+
+
+async def check_teacher_can_access_class(
+    db: AsyncSession,
+    teacher_id: str,
+    class_id: str,
+    school_id: str
+) -> bool:
+    """Check if a teacher can access a specific class"""
+    from sqlalchemy import text
+
+    # Teachers can access classes if:
+    # 1. They are the class teacher
+    # 2. They teach a subject in that class
+    query = text("""
+        SELECT DISTINCT c.id
+        FROM classes c
+        LEFT JOIN class_subjects cs ON c.id = cs.class_id
+        LEFT JOIN teacher_subjects ts ON cs.subject_id = ts.subject_id
+        WHERE c.id = :class_id
+        AND c.school_id = :school_id
+        AND c.is_deleted = false
+        AND (
+            c.teacher_id = :teacher_id OR
+            (ts.teacher_id = :teacher_id AND ts.is_deleted = false)
+        )
+    """)
+
+    result = await db.execute(query, {
+        "class_id": class_id,
+        "teacher_id": teacher_id,
+        "school_id": school_id
+    })
+
+    return result.scalar_one_or_none() is not None
+
+
+async def check_teacher_can_access_subject(
+    db: AsyncSession,
+    teacher_id: str,
+    subject_id: str,
+    school_id: str
+) -> bool:
+    """Check if a teacher can access a specific subject"""
+    from sqlalchemy import text
+
+    # Teachers can access subjects if they are assigned to teach them
+    query = text("""
+        SELECT ts.id
+        FROM teacher_subjects ts
+        WHERE ts.teacher_id = :teacher_id
+        AND ts.subject_id = :subject_id
+        AND ts.school_id = :school_id
+        AND ts.is_deleted = false
+    """)
+
+    result = await db.execute(query, {
+        "teacher_id": teacher_id,
+        "subject_id": subject_id,
+        "school_id": school_id
+    })
+
+    return result.scalar_one_or_none() is not None

@@ -59,18 +59,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       roles: ['super_admin', 'admin', 'teacher'],
       description: 'Subject management'
     },
-    {
-      name: 'Terms',
-      href: '/terms',
-      icon: CalendarIcon,
-      roles: ['super_admin', 'admin'],
-      description: 'Academic term management'
-    },
+
     {
       name: 'Fees',
       href: '/fees',
       icon: CurrencyDollarIcon,
-      roles: ['super_admin', 'admin', 'teacher'],
+      roles: ['super_admin', 'admin'],
       description: 'Fee management'
     },
     {
@@ -91,14 +85,14 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       name: 'Reports',
       href: '/reports',
       icon: DocumentChartBarIcon,
-      roles: ['super_admin', 'admin', 'teacher'],
+      roles: ['super_admin', 'admin'],
       description: 'Analytics and reports'
     },
     {
       name: 'Settings',
       href: '/settings',
       icon: Cog6ToothIcon,
-      roles: ['super_admin', 'admin', 'teacher', 'student', 'parent'],
+      roles: ['super_admin', 'admin'],
       description: 'System preferences'
     },
   ];

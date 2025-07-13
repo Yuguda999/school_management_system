@@ -54,6 +54,7 @@ class User(TenantBaseModel):
     role = Column(Enum(UserRole), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
+    profile_completed = Column(Boolean, default=False, nullable=False)
     last_login = Column(String(50), nullable=True)
     
     # Profile
@@ -79,3 +80,26 @@ class User(TenantBaseModel):
         if self.middle_name:
             return f"{self.first_name} {self.middle_name} {self.last_name}"
         return f"{self.first_name} {self.last_name}"
+
+    def is_teacher_profile_complete(self) -> bool:
+        """Check if teacher profile has all required fields completed"""
+        if self.role != UserRole.TEACHER:
+            return True  # Only check for teachers
+
+        required_fields = [
+            self.phone,
+            self.date_of_birth,
+            self.gender,
+            self.qualification,
+            self.experience_years,
+            self.address_line1,
+            self.city,
+            self.state,
+            self.postal_code
+        ]
+
+        return all(field is not None and str(field).strip() != '' for field in required_fields)
+
+    def update_profile_completion_status(self):
+        """Update the profile_completed field based on current profile data"""
+        self.profile_completed = self.is_teacher_profile_complete()

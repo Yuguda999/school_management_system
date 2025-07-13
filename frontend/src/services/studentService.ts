@@ -27,6 +27,18 @@ class StudentService {
     return apiService.get<Student>(`/api/v1/students/${id}`);
   }
 
+  // Get students by subject (for teachers)
+  async getStudentsBySubject(subjectId: string, params?: {
+    page?: number;
+    size?: number;
+  }): Promise<Student[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.size) queryParams.append('size', params.size.toString());
+
+    return apiService.get<Student[]>(`/api/v1/students/by-subject/${subjectId}?${queryParams.toString()}`);
+  }
+
   // Create new student
   async createStudent(studentData: CreateStudentForm): Promise<Student> {
     return apiService.post<Student>('/api/v1/students/', studentData);

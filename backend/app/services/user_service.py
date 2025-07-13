@@ -215,10 +215,14 @@ class UserService:
         update_data = user_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(user, field, value)
-        
+
+        # Update profile completion status for teachers
+        if user.role == UserRole.TEACHER:
+            user.update_profile_completion_status()
+
         await db.commit()
         await db.refresh(user)
-        
+
         return user
     
     @staticmethod

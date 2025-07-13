@@ -8,9 +8,23 @@ export interface User {
   role: UserRole;
   is_active: boolean;
   is_verified: boolean;
+  profile_completed: boolean;
   school_id: string;
   phone?: string;
+  date_of_birth?: string;
+  gender?: Gender;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  qualification?: string;
+  experience_years?: string;
+  bio?: string;
   profile_picture_url?: string;
+  department?: string;
+  position?: string;
   subjects?: UserSubjectInfo[];
   created_at: string;
   updated_at: string;
@@ -41,6 +55,63 @@ export interface AuthResponse {
   role: UserRole;
   school_id: string;
   full_name: string;
+  profile_completed: boolean;
+}
+
+// Teacher Invitation Types
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
+export interface TeacherInvitation {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  department?: string;
+  position?: string;
+  invitation_token: string;
+  status: InvitationStatus;
+  expires_at: string;
+  invited_at: string;
+  accepted_at?: string;
+  invited_by: string;
+  school_id: string;
+  invitation_message?: string;
+  is_expired: boolean;
+  is_pending: boolean;
+}
+
+export interface TeacherInvitationCreate {
+  email: string;
+  first_name: string;
+  last_name: string;
+  department?: string;
+  position?: string;
+  invitation_message?: string;
+}
+
+export interface InvitationAcceptRequest {
+  invitation_token: string;
+  password: string;
+  confirm_password: string;
+  phone?: string;
+  date_of_birth?: string;
+  gender?: Gender;
+  qualification?: string;
+  experience_years?: string;
+  bio?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+}
+
+export interface InvitationValidationResponse {
+  valid: boolean;
+  invitation?: TeacherInvitation;
+  message: string;
 }
 
 // School Types

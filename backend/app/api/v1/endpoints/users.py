@@ -107,11 +107,11 @@ async def get_users(
 async def get_teachers(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get all teachers"""
+    """Get all teachers (Admin/Super Admin only)"""
     skip = (page - 1) * size
     teachers = await UserService.get_teachers(db, current_school.id, skip, size)
     return [UserResponse.from_orm(teacher) for teacher in teachers]

@@ -175,26 +175,28 @@ const StudentsPage: React.FC = () => {
             Manage student records and information
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          {user?.role === 'super_admin' && (
+        {(user?.role === 'super_admin' || user?.role === 'admin') && (
+          <div className="mt-4 sm:mt-0 flex space-x-3">
+            {user?.role === 'super_admin' && (
+              <button
+                type="button"
+                onClick={() => setShowCSVImportModal(true)}
+                className="btn-secondary"
+              >
+                <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
+                Import CSV
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setShowCSVImportModal(true)}
-              className="btn-secondary"
+              onClick={handleCreateStudent}
+              className="btn-primary"
             >
-              <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
-              Import CSV
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Add Student
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleCreateStudent}
-            className="btn-primary"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Add Student
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -230,8 +232,8 @@ const StudentsPage: React.FC = () => {
         />
       )}
 
-      {/* Bulk Actions */}
-      {selectedStudents.length > 0 && (
+      {/* Bulk Actions - Only for admins */}
+      {selectedStudents.length > 0 && (user?.role === 'super_admin' || user?.role === 'admin') && (
         <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm text-blue-700 dark:text-blue-300">
@@ -279,6 +281,8 @@ const StudentsPage: React.FC = () => {
               total: students?.total || 0,
               onPageChange: handlePageChange,
             }}
+            userRole={user?.role}
+            showActions={true}
           />
         )}
       </div>

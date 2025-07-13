@@ -2,8 +2,8 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school
-from app.models.user import User
+from app.core.deps import get_current_active_user, require_admin, get_current_school, check_teacher_can_access_subject
+from app.models.user import User, UserRole
 from app.models.school import School
 from app.schemas.academic import SubjectCreate, SubjectUpdate, SubjectResponse
 from app.services.academic_service import AcademicService
@@ -35,10 +35,18 @@ async def get_subjects(
 ) -> Any:
     """Get all subjects"""
     skip = (page - 1) * size
-    subjects = await AcademicService.get_subjects(
-        db, current_school.id, is_active, is_core, skip, size
-    )
-    
+
+    # Teachers can only see subjects they are assigned to teach
+    if current_user.role == UserRole.TEACHER:
+        subjects = await AcademicService.get_teacher_subjects(
+            db, current_user.id, current_school.id, is_active, is_core, skip, size
+        )
+    else:
+        # Admins can see all subjects
+        subjects = await AcademicService.get_subjects(
+            db, current_school.id, is_active, is_core, skip, size
+        )
+
     return [SubjectResponse.from_orm(subject) for subject in subjects]
 
 
@@ -61,13 +69,24 @@ async def get_subject(
         )
     )
     subject = result.scalar_one_or_none()
-    
+
     if not subject:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Subject not found"
         )
-    
+
+    # Check permissions for teachers
+    if current_user.role == UserRole.TEACHER:
+        can_access = await check_teacher_can_access_subject(
+            db, current_user.id, subject_id, current_school.id
+        )
+        if not can_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
     return SubjectResponse.from_orm(subject)
 
 
