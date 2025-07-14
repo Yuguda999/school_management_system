@@ -5,7 +5,7 @@ import { Subject, Student } from '../../types';
 import { academicService } from '../../services/academicService';
 import { studentService } from '../../services/studentService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { BookOpenIcon, AcademicCapIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, AcademicCapIcon, UserGroupIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 interface SubjectWithStudents extends Subject {
   students: Student[];
@@ -29,9 +29,22 @@ const TeacherSubjectsPage: React.FC = () => {
   const fetchTeacherSubjects = async () => {
     try {
       setLoading(true);
-      // Get teacher's subjects
-      const teacherSubjects = await academicService.getSubjects();
-      
+
+      if (!user?.id) {
+        showError('User not found. Please log in again.', 'Error');
+        return;
+      }
+
+      // Get teacher's assigned subjects
+      const teacherSubjectAssignments = await academicService.getTeacherSubjects(user.id);
+
+      // Get all subjects to get full subject details
+      const allSubjects = await academicService.getSubjects({ is_active: true });
+
+      // Filter subjects to only include those assigned to the teacher
+      const assignedSubjectIds = teacherSubjectAssignments.map(assignment => assignment.subject_id);
+      const teacherSubjects = allSubjects.filter(subject => assignedSubjectIds.includes(subject.id));
+
       // Initialize subjects with empty student arrays
       const subjectsWithStudents: SubjectWithStudents[] = teacherSubjects.map(subject => ({
         ...subject,
@@ -39,7 +52,7 @@ const TeacherSubjectsPage: React.FC = () => {
         studentCount: 0,
         loading: false
       }));
-      
+
       setSubjects(subjectsWithStudents);
     } catch (error) {
       console.error('Failed to fetch teacher subjects:', error);
@@ -102,6 +115,9 @@ const TeacherSubjectsPage: React.FC = () => {
       <div className="text-center py-12">
         <p className="text-gray-500 dark:text-gray-400">
           This page is only accessible to teachers.
+        </p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+          Current role: {user?.role}
         </p>
       </div>
     );
@@ -223,8 +239,13 @@ const TeacherSubjectsPage: React.FC = () => {
                     <button
                       onClick={() => handleSubjectClick(subject.id)}
                       className="text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
+                      title={selectedSubject === subject.id ? 'Hide Students' : 'View Students'}
                     >
-                      {selectedSubject === subject.id ? 'Hide Students' : 'View Students'}
+                      {selectedSubject === subject.id ? (
+                        <EyeSlashIcon className="h-4 w-4" />
+                      ) : (
+                        <EyeIcon className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -237,31 +258,56 @@ const TeacherSubjectsPage: React.FC = () => {
                         <LoadingSpinner className="h-8 w-8" />
                       </div>
                     ) : subject.students.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {subject.students.map((student) => (
-                          <div
-                            key={student.id}
-                            className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3"
-                          >
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8">
-                                <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    {student.first_name?.[0]}{student.last_name?.[0]}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="ml-3">
-                                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {student.first_name} {student.last_name}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                        <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                          <thead className="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Student
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Admission Number
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Gender
+                              </th>
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                Age
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            {subject.students.map((student) => (
+                              <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="flex-shrink-0 h-8 w-8">
+                                      <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                          {student.first_name?.[0]}{student.last_name?.[0]}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {student.first_name} {student.last_name}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                   {student.admission_number}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                  {student.gender}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                  {student.age ? `${student.age} years` : 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">

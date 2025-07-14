@@ -37,8 +37,47 @@ async def enhance_student_response(
 ) -> StudentResponse:
     """Helper function to enhance student response with related data"""
     response = StudentResponse.from_orm(student)
-    response.full_name = student.full_name
-    response.age = student.age
+
+    # Compute full_name manually
+    if student.middle_name:
+        response.full_name = f"{student.first_name} {student.middle_name} {student.last_name}"
+    else:
+        response.full_name = f"{student.first_name} {student.last_name}"
+
+    # Compute age manually
+    from datetime import date, datetime
+    today = date.today()
+
+    # Handle date_of_birth conversion if it's a string
+    if isinstance(student.date_of_birth, str):
+        try:
+            # Try parsing different date formats
+            if 'T' in student.date_of_birth:
+                # ISO format with time
+                birth_date = datetime.fromisoformat(student.date_of_birth.replace('Z', '+00:00')).date()
+            else:
+                # Try common date formats
+                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
+                    try:
+                        birth_date = datetime.strptime(student.date_of_birth, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+                else:
+                    # If no format works, set age to None
+                    response.age = None
+                    birth_date = None
+        except (ValueError, AttributeError):
+            response.age = None
+            birth_date = None
+    else:
+        birth_date = student.date_of_birth
+
+    # Calculate age if we have a valid birth date
+    if birth_date:
+        response.age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    else:
+        response.age = None
 
     # Load parent name if exists
     if student.parent_id:
@@ -246,28 +285,37 @@ async def get_students_by_subject(
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get students enrolled in a specific subject (Teacher only for their subjects)"""
-    # Only teachers can use this endpoint for their own subjects
-    if current_user.role != UserRole.TEACHER:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only teachers can access students by subject"
+    """Get students enrolled in a specific subject (Teacher only for their subjects, Admins can view all)"""
+    # Teachers can only access their own subjects, admins can access all
+    if current_user.role == UserRole.TEACHER:
+        # Check if teacher teaches this subject
+        can_access_subject = await check_teacher_can_access_subject(
+            db, current_user.id, subject_id, current_school.id
         )
-
-    # Check if teacher teaches this subject
-    can_access_subject = await check_teacher_can_access_subject(
-        db, current_user.id, subject_id, current_school.id
-    )
-    if not can_access_subject:
+        if not can_access_subject:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view students for subjects you teach"
+            )
+    elif current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only view students for subjects you teach"
+            detail="Only teachers and admins can access students by subject"
         )
 
     skip = (page - 1) * size
-    students = await StudentService.get_students_by_teacher_subject(
-        db, current_user.id, subject_id, current_school.id, skip, size
-    )
+
+    # For teachers, get students by teacher-subject relationship
+    # For admins, get all students enrolled in the subject
+    if current_user.role == UserRole.TEACHER:
+        students = await StudentService.get_students_by_teacher_subject(
+            db, current_user.id, subject_id, current_school.id, skip, size
+        )
+    else:
+        # Admin access - get all students enrolled in the subject
+        students = await StudentService.get_students_by_subject(
+            db, subject_id, current_school.id, skip, size
+        )
 
     # Enhance response with related data
     enhanced_students = []

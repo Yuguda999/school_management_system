@@ -281,18 +281,34 @@ class AcademicService:
         skip: int = 0,
         limit: int = 100
     ) -> List[Subject]:
-        """Get subjects that a teacher is assigned to teach"""
+        """Get subjects that a teacher is assigned to teach (including class subjects if they are a class teacher)"""
         from sqlalchemy import text
 
+        # Get subjects directly assigned to teacher OR subjects assigned to their class
         base_query = """
             SELECT DISTINCT s.id, s.name, s.code, s.description, s.is_core,
                    s.credit_units, s.is_active, s.created_at, s.updated_at, s.school_id, s.is_deleted
             FROM subjects s
-            JOIN teacher_subjects ts ON s.id = ts.subject_id
             WHERE s.school_id = :school_id
             AND s.is_deleted = false
-            AND ts.teacher_id = :teacher_id
-            AND ts.is_deleted = false
+            AND (
+                s.id IN (
+                    SELECT ts.subject_id
+                    FROM teacher_subjects ts
+                    WHERE ts.teacher_id = :teacher_id
+                    AND ts.school_id = :school_id
+                    AND ts.is_deleted = false
+                )
+                OR s.id IN (
+                    SELECT cs.subject_id
+                    FROM class_subjects cs
+                    JOIN classes c ON cs.class_id = c.id
+                    WHERE c.teacher_id = :teacher_id
+                    AND cs.school_id = :school_id
+                    AND cs.is_deleted = false
+                    AND c.is_deleted = false
+                )
+            )
         """
 
         params = {

@@ -250,8 +250,9 @@ class TeacherSubjectService:
         teacher_id: str,
         school_id: str
     ) -> List[TeacherSubjectAssignmentResponse]:
-        """Get all subjects assigned to a teacher"""
-        query = text("""
+        """Get all subjects assigned to a teacher (including class subjects if they are a class teacher)"""
+        # Get subjects directly assigned to the teacher
+        direct_subjects_query = text("""
             SELECT
                 ts.id,
                 ts.teacher_id,
@@ -261,17 +262,55 @@ class TeacherSubjectService:
                 ts.updated_at,
                 u.first_name || ' ' || u.last_name as teacher_name,
                 s.name as subject_name,
-                s.code as subject_code
+                s.code as subject_code,
+                'direct' as assignment_type
             FROM teacher_subjects ts
             JOIN users u ON ts.teacher_id = u.id
             JOIN subjects s ON ts.subject_id = s.id
             WHERE ts.teacher_id = :teacher_id
             AND ts.school_id = :school_id
             AND ts.is_deleted = false
-            ORDER BY s.name
         """)
 
-        result = await db.execute(query, {"teacher_id": teacher_id, "school_id": school_id})
+        # Get subjects assigned to the teacher's class (if they are a class teacher)
+        class_subjects_query = text("""
+            SELECT
+                cs.id,
+                :teacher_id as teacher_id,
+                cs.subject_id,
+                false as is_head_of_subject,
+                cs.created_at,
+                cs.updated_at,
+                u.first_name || ' ' || u.last_name as teacher_name,
+                s.name as subject_name,
+                s.code as subject_code,
+                'class' as assignment_type
+            FROM class_subjects cs
+            JOIN classes c ON cs.class_id = c.id
+            JOIN users u ON c.teacher_id = u.id
+            JOIN subjects s ON cs.subject_id = s.id
+            WHERE c.teacher_id = :teacher_id
+            AND cs.school_id = :school_id
+            AND cs.is_deleted = false
+            AND c.is_deleted = false
+            AND s.id NOT IN (
+                SELECT ts.subject_id
+                FROM teacher_subjects ts
+                WHERE ts.teacher_id = :teacher_id
+                AND ts.school_id = :school_id
+                AND ts.is_deleted = false
+            )
+        """)
+
+        # Combine both queries
+        combined_query = text(f"""
+            {direct_subjects_query.text}
+            UNION ALL
+            {class_subjects_query.text}
+            ORDER BY subject_name
+        """)
+
+        result = await db.execute(combined_query, {"teacher_id": teacher_id, "school_id": school_id})
         rows = result.fetchall()
 
         assignments = []

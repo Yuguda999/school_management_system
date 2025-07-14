@@ -9,7 +9,13 @@ import {
   BookOpenIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { Class, Student, Subject, ClassLevel } from '../../types';
+import { Class, Student, Subject, ClassLevel, TimetableEntry, Term } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
+import { getClassLevelDisplay } from '../../utils/classUtils';
+import { studentService } from '../../services/studentService';
+import { academicService } from '../../services/academicService';
+import DetailedStudentProfile from '../students/DetailedStudentProfile';
 
 interface ClassDetailsProps {
   classData: Class;
@@ -22,10 +28,29 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
   onEdit,
   onClose
 }) => {
+  const { user } = useAuth();
+  const { canManageUsers } = usePermissions();
   const [activeTab, setActiveTab] = useState('overview');
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showStudentProfile, setShowStudentProfile] = useState(false);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
+
+  // Check if user can edit classes (only admins and super admins, not teachers)
+  const canEditClass = user && ['super_admin', 'admin'].includes(user.role);
+
+  // Check if user is class teacher (can view detailed student info)
+  const isClassTeacher = user && user.role === 'teacher' && classData.teacher_id === user.id;
+
+  const handleViewStudent = (student: Student) => {
+    if (isClassTeacher || canEditClass) {
+      setSelectedStudent(student);
+      setShowStudentProfile(true);
+    }
+  };
 
   const getClassLevelDisplay = (level: ClassLevel): string => {
     const levelMap: Record<ClassLevel, string> = {
@@ -52,58 +77,38 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
       fetchStudents();
     } else if (activeTab === 'subjects') {
       fetchSubjects();
+    } else if (activeTab === 'schedule') {
+      fetchTimetable();
     }
   }, [activeTab, classData.id]);
+
+  useEffect(() => {
+    // Fetch current term on component mount
+    const fetchCurrentTerm = async () => {
+      try {
+        const term = await academicService.getCurrentTerm();
+        setCurrentTerm(term);
+      } catch (error) {
+        console.error('Failed to fetch current term:', error);
+      }
+    };
+
+    fetchCurrentTerm();
+  }, []);
 
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockStudents: Student[] = [
-        {
-          id: '1',
-          user_id: 'student1',
-          student_id: 'STU001',
-          class_id: classData.id,
-          admission_date: '2024-01-15',
-          status: 'active',
-          user: {
-            id: 'student1',
-            email: 'student1@school.com',
-            first_name: 'Alice',
-            last_name: 'Johnson',
-            full_name: 'Alice Johnson',
-            role: 'student',
-            is_active: true,
-            is_verified: true,
-            school_id: classData.school_id,
-            created_at: '2024-01-15T00:00:00Z',
-            updated_at: '2024-01-15T00:00:00Z',
-          },
-        },
-        {
-          id: '2',
-          user_id: 'student2',
-          student_id: 'STU002',
-          class_id: classData.id,
-          admission_date: '2024-01-20',
-          status: 'active',
-          user: {
-            id: 'student2',
-            email: 'student2@school.com',
-            first_name: 'Bob',
-            last_name: 'Smith',
-            full_name: 'Bob Smith',
-            role: 'student',
-            is_active: true,
-            is_verified: true,
-            school_id: classData.school_id,
-            created_at: '2024-01-20T00:00:00Z',
-            updated_at: '2024-01-20T00:00:00Z',
-          },
-        },
-      ];
-      setStudents(mockStudents);
+
+      // Fetch real students data for this class
+      const response = await studentService.getStudents({
+        class_id: classData.id,
+        status: 'active',
+        page: 1,
+        size: 100
+      });
+
+      setStudents(response.items || []);
     } catch (error) {
       console.error('Failed to fetch students:', error);
     } finally {
@@ -114,37 +119,55 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
   const fetchSubjects = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockSubjects: Subject[] = [
-        {
-          id: 'math1',
-          name: 'Mathematics',
-          code: 'MATH101',
-          credits: 3,
-          school_id: classData.school_id,
-          teacher_id: 'teacher1',
-          teacher: classData.teacher,
-        },
-        {
-          id: 'sci1',
-          name: 'Science',
-          code: 'SCI101',
-          credits: 3,
-          school_id: classData.school_id,
-          teacher_id: 'teacher2',
-        },
-        {
-          id: 'eng1',
-          name: 'English',
-          code: 'ENG101',
-          credits: 3,
-          school_id: classData.school_id,
-          teacher_id: 'teacher3',
-        },
-      ];
-      setSubjects(mockSubjects);
+
+      // Fetch real subjects assigned to this class
+      const classSubjects = await academicService.getClassSubjects(classData.id);
+
+      // Extract subject information from class subjects
+      const subjectsList: Subject[] = classSubjects.map(cs => ({
+        id: cs.subject_id,
+        name: cs.subject_name || 'Unknown Subject',
+        code: cs.subject_code || '',
+        credits: 0, // Credits not available in ClassSubjectAssignmentResponse
+        school_id: classData.school_id,
+        teacher_id: undefined,
+        teacher: undefined,
+        description: '',
+        is_core: cs.is_core,
+        is_active: true,
+        created_at: cs.created_at || '',
+        updated_at: cs.updated_at || ''
+      }));
+
+      setSubjects(subjectsList);
     } catch (error) {
       console.error('Failed to fetch subjects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchTimetable = async () => {
+    try {
+      setLoading(true);
+      if (!currentTerm) {
+        // Try to get current term if not already loaded
+        const term = await academicService.getCurrentTerm();
+        if (!term) {
+          console.warn('No current term found');
+          setTimetable([]);
+          return;
+        }
+        setCurrentTerm(term);
+        const timetableEntries = await academicService.getClassTimetable(classData.id, term.id);
+        setTimetable(timetableEntries);
+      } else {
+        const timetableEntries = await academicService.getClassTimetable(classData.id, currentTerm.id);
+        setTimetable(timetableEntries);
+      }
+    } catch (error) {
+      console.error('Failed to fetch timetable:', error);
+      setTimetable([]);
     } finally {
       setLoading(false);
     }
@@ -178,7 +201,7 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
           </div>
         </div>
         <div className="flex space-x-2">
-          {onEdit && (
+          {onEdit && canEditClass && (
             <button onClick={onEdit} className="btn btn-primary">
               <PencilIcon className="h-4 w-4 mr-2" />
               Edit Class
@@ -307,53 +330,75 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 Students ({classData.student_count || 0}/{classData.capacity})
               </h3>
-              <button className="btn btn-primary btn-sm">
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Add Student
-              </button>
+              {canEditClass && (
+                <button className="btn btn-primary btn-sm">
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Add Student
+                </button>
+              )}
             </div>
             
-            <div className="card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead className="table-header">
-                    <tr>
-                      <th className="table-header-cell">Student</th>
-                      <th className="table-header-cell">Student ID</th>
-                      <th className="table-header-cell">Email</th>
-                      <th className="table-header-cell">Status</th>
-                      <th className="table-header-cell">Admission Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="table-body">
-                    {students.map((student) => (
-                      <tr key={student.id}>
-                        <td className="table-cell">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center mr-3">
-                              <AcademicCapIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                            </div>
-                            {student.user.full_name}
-                          </div>
-                        </td>
-                        <td className="table-cell">{student.student_id}</td>
-                        <td className="table-cell">{student.user.email}</td>
-                        <td className="table-cell">
-                          <span className={`badge ${
-                            student.status === 'active' ? 'badge-success' : 'badge-error'
-                          }`}>
-                            {student.status}
-                          </span>
-                        </td>
-                        <td className="table-cell">
-                          {new Date(student.admission_date).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
               </div>
-            </div>
+            ) : students.length > 0 ? (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead className="table-header">
+                      <tr>
+                        <th className="table-header-cell">Student</th>
+                        <th className="table-header-cell">Student ID</th>
+                        <th className="table-header-cell">Email</th>
+                        <th className="table-header-cell">Status</th>
+                        <th className="table-header-cell">Admission Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="table-body">
+                      {students.map((student) => (
+                        <tr
+                          key={student.id}
+                          className={`${(isClassTeacher || canEditClass) ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : ''}`}
+                          onClick={() => handleViewStudent(student)}
+                        >
+                          <td className="table-cell">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center mr-3">
+                                <AcademicCapIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              </div>
+                              {student.first_name} {student.last_name}
+                            </div>
+                          </td>
+                          <td className="table-cell">{student.admission_number}</td>
+                          <td className="table-cell">{student.email}</td>
+                          <td className="table-cell">
+                            <span className={`badge ${
+                              student.status === 'active' ? 'badge-success' : 'badge-error'
+                            }`}>
+                              {student.status}
+                            </span>
+                          </td>
+                          <td className="table-cell">
+                            {new Date(student.admission_date).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="card p-6">
+                <div className="text-center py-8">
+                  <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No students found in this class</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Students will appear here once they are assigned to this class
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -363,47 +408,146 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                 Subjects ({subjects.length})
               </h3>
-              <button className="btn btn-primary btn-sm">
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Assign Subject
-              </button>
+              {canEditClass && (
+                <button className="btn btn-primary btn-sm">
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Assign Subject
+                </button>
+              )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subjects.map((subject) => (
-                <div key={subject.id} className="card p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-10 w-10 rounded-lg bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center">
-                      <BookOpenIcon className="h-5 w-5 text-secondary-600 dark:text-secondary-400" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {subject.name}
-                      </h4>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {subject.code} • {subject.credits} credits
-                      </p>
-                      {subject.teacher && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Teacher: {subject.teacher.user.full_name}
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : subjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {subjects.map((subject) => (
+                  <div key={subject.id} className="card p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-10 w-10 rounded-lg bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center">
+                        <BookOpenIcon className="h-5 w-5 text-secondary-600 dark:text-secondary-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {subject.name}
+                        </h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {subject.code} • {subject.credits} credits
                         </p>
-                      )}
+                        {subject.teacher && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Teacher: {subject.teacher.user?.full_name || subject.teacher.first_name + ' ' + subject.teacher.last_name}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card p-6">
+                <div className="text-center py-8">
+                  <BookOpenIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">No subjects assigned to this class</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                    Subjects will appear here once they are assigned to this class
+                  </p>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'schedule' && (
-          <div className="card p-6">
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              Class schedule feature coming soon
-            </p>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                Class Timetable {currentTerm && `- ${currentTerm.name}`}
+              </h3>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : timetable.length > 0 ? (
+              <div className="card overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="table">
+                    <thead className="table-header">
+                      <tr>
+                        <th className="table-header-cell">Day</th>
+                        <th className="table-header-cell">Time</th>
+                        <th className="table-header-cell">Subject</th>
+                        <th className="table-header-cell">Teacher</th>
+                        <th className="table-header-cell">Room</th>
+                      </tr>
+                    </thead>
+                    <tbody className="table-body">
+                      {timetable
+                        .sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time))
+                        .map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="table-cell">
+                              <span className="font-medium">
+                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][entry.day_of_week]}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="text-sm">
+                                {entry.start_time} - {entry.end_time}
+                              </span>
+                            </td>
+                            <td className="table-cell">
+                              <div className="flex items-center">
+                                <div className="h-8 w-8 rounded-lg bg-secondary-100 dark:bg-secondary-900 flex items-center justify-center mr-3">
+                                  <BookOpenIcon className="h-4 w-4 text-secondary-600 dark:text-secondary-400" />
+                                </div>
+                                <span className="font-medium">{entry.subject_name}</span>
+                              </div>
+                            </td>
+                            <td className="table-cell">
+                              <span className="text-sm">{entry.teacher_name || 'Not assigned'}</span>
+                            </td>
+                            <td className="table-cell">
+                              <span className="text-sm">{entry.room || 'TBA'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="card p-6">
+                <div className="text-center py-8">
+                  <ClockIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400">
+                    {currentTerm ? 'No timetable entries found for this class' : 'No active term found'}
+                  </p>
+                  {!currentTerm && (
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                      Please ensure there is an active academic term to view the timetable
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Student Profile Modal */}
+      {showStudentProfile && selectedStudent && (
+        <DetailedStudentProfile
+          student={selectedStudent}
+          onClose={() => {
+            setShowStudentProfile(false);
+            setSelectedStudent(null);
+          }}
+        />
+      )}
     </div>
   );
 };

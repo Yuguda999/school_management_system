@@ -374,6 +374,26 @@ export interface BulkTermResponse {
   message: string;
 }
 
+// Timetable Types
+export interface TimetableEntry {
+  id: string;
+  day_of_week: number; // 0=Monday, 6=Sunday
+  start_time: string;
+  end_time: string;
+  class_id: string;
+  subject_id: string;
+  teacher_id: string;
+  term_id: string;
+  room?: string;
+  notes?: string;
+  class_name?: string;
+  subject_name?: string;
+  teacher_name?: string;
+  term_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Grade Types
 export type ExamType =
   | 'continuous_assessment'

@@ -15,6 +15,7 @@ from app.schemas.academic import (
     ClassTimetableResponse
 )
 from app.services.academic_service import AcademicService
+from app.utils.enum_converter import convert_class_level_enum
 
 router = APIRouter()
 
@@ -72,7 +73,21 @@ async def get_classes(
     # Enhance response with teacher names and student counts
     response_classes = []
     for class_obj in classes:
-        class_response = ClassResponse.from_orm(class_obj)
+        # Convert class object to dict and fix enum values
+        class_dict = {
+            'id': class_obj.id,
+            'name': class_obj.name,
+            'level': convert_class_level_enum(class_obj.level),
+            'section': class_obj.section,
+            'academic_session': class_obj.academic_session,
+            'teacher_id': class_obj.teacher_id,
+            'capacity': class_obj.capacity,
+            'is_active': class_obj.is_active,
+            'created_at': class_obj.created_at,
+            'updated_at': class_obj.updated_at,
+            'school_id': class_obj.school_id
+        }
+        class_response = ClassResponse(**class_dict)
 
         # Add teacher name - use eager loading to avoid lazy loading issues
         if class_obj.teacher_id:
@@ -217,7 +232,18 @@ async def get_class_timetable(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Class not found"
         )
-    
+
+    # Check permissions for teachers
+    if current_user.role == UserRole.TEACHER:
+        can_access = await check_teacher_can_access_class(
+            db, current_user.id, class_id, current_school.id
+        )
+        if not can_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+
     timetable_entries = await AcademicService.get_class_timetable(
         db, class_id, term_id, current_school.id
     )

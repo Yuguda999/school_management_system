@@ -15,15 +15,26 @@ import {
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
 
 interface SidebarProps {
   onClose?: () => void;
 }
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  roles: string[];
+  description: string;
+  teacherCondition?: 'hasAssignedClasses' | 'isClassTeacher';
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const { user } = useAuth();
+  const { hasAssignedClasses, isClassTeacher } = useTeacherPermissions();
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -35,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       name: 'Students',
       href: '/students',
       icon: AcademicCapIcon,
-      roles: ['super_admin', 'admin', 'teacher'],
+      roles: ['super_admin', 'admin'],
       description: 'Manage student records'
     },
     {
@@ -46,11 +57,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       description: 'Manage teaching staff'
     },
     {
-      name: 'Classes',
+      name: 'Classroom',
       href: '/classes',
       icon: BuildingOfficeIcon,
       roles: ['super_admin', 'admin', 'teacher'],
-      description: 'Class management'
+      description: 'Classroom management',
+      teacherCondition: 'isClassTeacher' // Only show for teachers who are class teachers
     },
     {
       name: 'Subjects',
@@ -97,9 +109,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
     },
   ];
 
-  const filteredNavigation = navigation.filter(item => 
-    user && item.roles.includes(user.role)
-  );
+  const filteredNavigation = navigation.filter(item => {
+    if (!user || !item.roles.includes(user.role)) {
+      return false;
+    }
+
+    // Special condition for teachers
+    if (user.role === 'teacher' && item.teacherCondition) {
+      if (item.teacherCondition === 'hasAssignedClasses') {
+        return hasAssignedClasses;
+      } else if (item.teacherCondition === 'isClassTeacher') {
+        return isClassTeacher;
+      }
+    }
+
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-0 flex-1 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">

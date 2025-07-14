@@ -372,7 +372,7 @@ const ClassesPage: React.FC = () => {
           setSelectedClass(null);
         }}
         title="Class Details"
-        size="2xl"
+        size="3xl"
       >
         {selectedClass && (
           <ClassDetails

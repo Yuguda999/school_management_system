@@ -32,6 +32,24 @@ class AcademicService {
     return apiService.get<Class[]>(url);
   }
 
+  // Get teacher's assigned classes (for teachers only)
+  async getTeacherClasses(params?: {
+    academic_session?: string;
+    is_active?: boolean;
+    page?: number;
+    size?: number;
+  }): Promise<Class[]> {
+    const queryParams = new URLSearchParams();
+
+    if (params?.academic_session) queryParams.append('academic_session', params.academic_session);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.size) queryParams.append('size', params.size.toString());
+
+    const url = `/api/v1/classes${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return apiService.get<Class[]>(url);
+  }
+
   async getClass(classId: string): Promise<Class> {
     return apiService.get<Class>(`/api/v1/classes/${classId}`);
   }
@@ -213,6 +231,24 @@ class AcademicService {
     return apiService.get<ClassSubjectAssignment[]>(
       `/api/v1/assignments/classes/${classId}/subjects`
     );
+  }
+
+  // Get class timetable
+  async getClassTimetable(classId: string, termId: string): Promise<TimetableEntry[]> {
+    return apiService.get<TimetableEntry[]>(
+      `/api/v1/classes/${classId}/timetable?term_id=${termId}`
+    );
+  }
+
+  // Get current term (we'll need this for timetable)
+  async getCurrentTerm(): Promise<Term | null> {
+    try {
+      const terms = await apiService.get<Term[]>('/api/v1/terms?is_current=true&size=1');
+      return terms.length > 0 ? terms[0] : null;
+    } catch (error) {
+      console.error('Failed to get current term:', error);
+      return null;
+    }
   }
 
   async getSubjectClasses(subjectId: string): Promise<ClassSubjectAssignment[]> {
