@@ -14,6 +14,7 @@ import GradeService, { ReportCardCreateData, ReportCardUpdateData } from '../../
 import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface ReportCardProps {
   reportCard?: ReportCardType;
@@ -39,10 +40,10 @@ const ReportCard: React.FC<ReportCardProps> = ({
 }) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
+  const { currentTerm, allTerms } = useCurrentTerm();
 
   const {
     register,
@@ -69,15 +70,13 @@ const ReportCard: React.FC<ReportCardProps> = ({
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsResponse, classesData, termsData] = await Promise.all([
+      const [studentsResponse, classesData] = await Promise.all([
         studentService.getStudents({ status: 'active' }),
-        academicService.getClasses({ is_active: true }),
-        academicService.getTerms({ is_current: true })
+        academicService.getClasses({ is_active: true })
       ]);
 
       setStudents(studentsResponse.items);
       setClasses(classesData);
-      setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       showError('Failed to load form data');
@@ -427,9 +426,9 @@ const ReportCard: React.FC<ReportCardProps> = ({
                   className="input"
                 >
                   <option value="">Select term</option>
-                  {terms.map((term) => (
+                  {allTerms.map((term) => (
                     <option key={term.id} value={term.id}>
-                      {term.name} ({term.academic_year})
+                      {term.name} ({term.academic_session})
                     </option>
                   ))}
                 </select>

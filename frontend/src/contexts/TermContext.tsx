@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Term } from '../types';
 import { academicService } from '../services/academicService';
+import { useAuth } from './AuthContext';
 import { useToast } from '../hooks/useToast';
 
 interface TermContextType {
@@ -28,6 +29,7 @@ interface TermProviderProps {
 }
 
 export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
   const [currentTerm, setCurrentTermState] = useState<Term | null>(null);
   const [allTerms, setAllTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +60,10 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
   }, [currentTerm]);
 
   const refreshCurrentTerm = async () => {
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     try {
       setError(null);
       const term = await academicService.getCurrentTerm();
@@ -75,6 +81,10 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
   };
 
   const refreshTerms = async () => {
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
     try {
       setError(null);
       const terms = await academicService.getTerms();
@@ -108,9 +118,14 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
     }
   };
 
-  // Initial data load
+  // Initial data load - only when user is authenticated
   useEffect(() => {
     const loadInitialData = async () => {
+      if (!isAuthenticated || !user) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         // Load both current term and all terms in parallel
@@ -123,7 +138,7 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
     };
 
     loadInitialData();
-  }, []);
+  }, [isAuthenticated, user]);
 
   const value: TermContextType = {
     currentTerm,

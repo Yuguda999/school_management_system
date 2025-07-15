@@ -12,6 +12,7 @@ import {
 import { Class, Student, Subject, ClassLevel, TimetableEntry, Term } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { getClassLevelDisplay } from '../../utils/classUtils';
 import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
@@ -30,6 +31,7 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
 }) => {
   const { user } = useAuth();
   const { canManageUsers } = usePermissions();
+  const { currentTerm } = useCurrentTerm();
   const [activeTab, setActiveTab] = useState('overview');
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -37,7 +39,6 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [showStudentProfile, setShowStudentProfile] = useState(false);
   const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
-  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
 
   // Check if user can edit classes (only admins and super admins, not teachers)
   const canEditClass = user && ['super_admin', 'admin'].includes(user.role);
@@ -82,19 +83,7 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
     }
   }, [activeTab, classData.id]);
 
-  useEffect(() => {
-    // Fetch current term on component mount
-    const fetchCurrentTerm = async () => {
-      try {
-        const term = await academicService.getCurrentTerm();
-        setCurrentTerm(term);
-      } catch (error) {
-        console.error('Failed to fetch current term:', error);
-      }
-    };
 
-    fetchCurrentTerm();
-  }, []);
 
   const fetchStudents = async () => {
     try {
@@ -151,20 +140,13 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
     try {
       setLoading(true);
       if (!currentTerm) {
-        // Try to get current term if not already loaded
-        const term = await academicService.getCurrentTerm();
-        if (!term) {
-          console.warn('No current term found');
-          setTimetable([]);
-          return;
-        }
-        setCurrentTerm(term);
-        const timetableEntries = await academicService.getClassTimetable(classData.id, term.id);
-        setTimetable(timetableEntries);
-      } else {
-        const timetableEntries = await academicService.getClassTimetable(classData.id, currentTerm.id);
-        setTimetable(timetableEntries);
+        console.warn('No current term found');
+        setTimetable([]);
+        return;
       }
+
+      const timetableEntries = await academicService.getClassTimetable(classData.id, currentTerm.id);
+      setTimetable(timetableEntries);
     } catch (error) {
       console.error('Failed to fetch timetable:', error);
       setTimetable([]);

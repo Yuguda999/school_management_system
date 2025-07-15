@@ -5,6 +5,7 @@ import { Exam, ExamType, Class, Subject, Term } from '../../types';
 import GradeService, { ExamCreateData, ExamUpdateData } from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface ExamFormProps {
   exam?: Exam;
@@ -33,7 +34,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
+  const { currentTerm, allTerms } = useCurrentTerm();
 
   const {
     register,
@@ -68,15 +69,13 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
 
   const fetchData = async () => {
     try {
-      const [classesData, subjectsData, termsData] = await Promise.all([
+      const [classesData, subjectsData] = await Promise.all([
         academicService.getClasses({ is_active: true }),
-        academicService.getSubjects({ is_active: true }),
-        academicService.getTerms({ is_current: true })
+        academicService.getSubjects({ is_active: true })
       ]);
-      
+
       setClasses(classesData);
       setSubjects(subjectsData);
-      setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       showError('Failed to load form data');
@@ -261,9 +260,9 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
               disabled={!!exam}
             >
               <option value="">Select term</option>
-              {terms.map((term) => (
+              {allTerms.map((term) => (
                 <option key={term.id} value={term.id}>
-                  {term.name} ({term.academic_year})
+                  {term.name} ({term.academic_session})
                 </option>
               ))}
             </select>

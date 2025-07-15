@@ -27,12 +27,11 @@ interface ExamListProps {
 
 const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   const { user } = useAuth();
-  const { currentTerm } = useCurrentTerm();
+  const { currentTerm, allTerms } = useCurrentTerm();
   const { showSuccess, showError } = useToast();
   const [exams, setExams] = useState<Exam[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -66,15 +65,13 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
 
   const fetchData = async () => {
     try {
-      const [classesData, subjectsData, termsData] = await Promise.all([
+      const [classesData, subjectsData] = await Promise.all([
         academicService.getClasses({ is_active: true }),
-        academicService.getSubjects({ is_active: true }),
-        academicService.getTerms({ is_current: true })
+        academicService.getSubjects({ is_active: true })
       ]);
-      
+
       setClasses(classesData);
       setSubjects(subjectsData);
-      setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       showError('Failed to load data');
@@ -250,7 +247,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
               className="input"
             >
               <option value="">All Terms</option>
-              {terms.map((term) => (
+              {allTerms.map((term) => (
                 <option key={term.id} value={term.id}>
                   {term.name}
                 </option>

@@ -12,6 +12,7 @@ import { Class, Term, GradeStatistics as GradeStatsType } from '../../types';
 import GradeService from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface GradeStatisticsProps {
   selectedClassId?: string;
@@ -23,9 +24,9 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
   selectedTermId
 }) => {
   const { showError } = useToast();
+  const { currentTerm, allTerms } = useCurrentTerm();
   const [statistics, setStatistics] = useState<GradeStatsType | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     class_id: selectedClassId || '',
@@ -42,13 +43,8 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
 
   const fetchData = async () => {
     try {
-      const [classesData, termsData] = await Promise.all([
-        academicService.getClasses({ is_active: true }),
-        academicService.getTerms({ is_current: true })
-      ]);
-      
+      const classesData = await academicService.getClasses({ is_active: true });
       setClasses(classesData);
-      setTerms(termsData);
     } catch (error) {
       console.error('Error fetching data:', error);
       showError('Failed to load data');
@@ -171,7 +167,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
             className="input"
           >
             <option value="">All Terms</option>
-            {terms.map((term) => (
+            {allTerms.map((term) => (
               <option key={term.id} value={term.id}>
                 {term.name}
               </option>
