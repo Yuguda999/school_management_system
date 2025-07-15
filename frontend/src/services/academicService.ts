@@ -240,16 +240,7 @@ class AcademicService {
     );
   }
 
-  // Get current term (we'll need this for timetable)
-  async getCurrentTerm(): Promise<Term | null> {
-    try {
-      const terms = await apiService.get<Term[]>('/api/v1/terms?is_current=true&size=1');
-      return terms.length > 0 ? terms[0] : null;
-    } catch (error) {
-      console.error('Failed to get current term:', error);
-      return null;
-    }
-  }
+
 
   async getSubjectClasses(subjectId: string): Promise<ClassSubjectAssignment[]> {
     return apiService.get<ClassSubjectAssignment[]>(
