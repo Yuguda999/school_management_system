@@ -239,14 +239,29 @@ async def check_teacher_can_access_subject(
     """Check if a teacher can access a specific subject"""
     from sqlalchemy import text
 
-    # Teachers can access subjects if they are assigned to teach them
+    # Teachers can access subjects if:
+    # 1. They are directly assigned to teach the subject
+    # 2. They are a class teacher and the subject is assigned to their class
     query = text("""
-        SELECT ts.id
+        SELECT 1
         FROM teacher_subjects ts
         WHERE ts.teacher_id = :teacher_id
         AND ts.subject_id = :subject_id
         AND ts.school_id = :school_id
         AND ts.is_deleted = false
+
+        UNION
+
+        SELECT 1
+        FROM class_subjects cs
+        JOIN classes c ON cs.class_id = c.id
+        WHERE c.teacher_id = :teacher_id
+        AND cs.subject_id = :subject_id
+        AND cs.school_id = :school_id
+        AND cs.is_deleted = false
+        AND c.is_deleted = false
+
+        LIMIT 1
     """)
 
     result = await db.execute(query, {

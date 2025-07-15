@@ -64,30 +64,30 @@ const TeacherSubjectsPage: React.FC = () => {
 
   const fetchStudentsForSubject = async (subjectId: string) => {
     try {
-      setSubjects(prev => prev.map(subject => 
-        subject.id === subjectId 
+      setSubjects(prev => prev.map(subject =>
+        subject.id === subjectId
           ? { ...subject, loading: true }
           : subject
       ));
 
       const students = await studentService.getStudentsBySubject(subjectId);
-      
-      setSubjects(prev => prev.map(subject => 
-        subject.id === subjectId 
-          ? { 
-              ...subject, 
-              students, 
+
+      setSubjects(prev => prev.map(subject =>
+        subject.id === subjectId
+          ? {
+              ...subject,
+              students,
               studentCount: students.length,
-              loading: false 
+              loading: false
             }
           : subject
       ));
     } catch (error) {
       console.error('Failed to fetch students for subject:', error);
       showError('Failed to load students for this subject.', 'Error');
-      
-      setSubjects(prev => prev.map(subject => 
-        subject.id === subjectId 
+
+      setSubjects(prev => prev.map(subject =>
+        subject.id === subjectId
           ? { ...subject, loading: false }
           : subject
       ));

@@ -81,12 +81,13 @@ class EnrollmentService:
             )
 
         # Get all active students in the class
+        from app.models.student import StudentStatus
         students_result = await db.execute(
             select(Student).where(
                 Student.current_class_id == class_id,
                 Student.school_id == school_id,
                 Student.is_deleted == False,
-                Student.status == "active"
+                Student.status == StudentStatus.ACTIVE
             )
         )
         students = students_result.scalars().all()

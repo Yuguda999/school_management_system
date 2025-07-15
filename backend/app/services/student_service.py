@@ -572,13 +572,32 @@ class StudentService:
                    s.medical_conditions, s.allergies, s.blood_group, s.profile_picture_url, s.notes
             FROM students s
             JOIN enrollments e ON s.id = e.student_id
-            JOIN teacher_subjects ts ON e.subject_id = ts.subject_id
-            WHERE ts.teacher_id = :teacher_id
-            AND ts.subject_id = :subject_id
+            WHERE e.subject_id = :subject_id
             AND s.school_id = :school_id
             AND s.is_deleted = false
-            AND ts.is_deleted = false
             AND e.is_active = true
+            AND (
+                -- Direct teacher-subject assignment
+                EXISTS (
+                    SELECT 1 FROM teacher_subjects ts
+                    WHERE ts.teacher_id = :teacher_id
+                    AND ts.subject_id = :subject_id
+                    AND ts.school_id = :school_id
+                    AND ts.is_deleted = false
+                )
+                OR
+                -- Class-based assignment (teacher is class teacher)
+                EXISTS (
+                    SELECT 1 FROM classes c
+                    JOIN class_subjects cs ON c.id = cs.class_id
+                    WHERE c.teacher_id = :teacher_id
+                    AND cs.subject_id = :subject_id
+                    AND cs.school_id = :school_id
+                    AND c.is_deleted = false
+                    AND cs.is_deleted = false
+                    AND s.current_class_id = c.id
+                )
+            )
             ORDER BY s.first_name, s.last_name
             LIMIT :limit OFFSET :skip
         """)
