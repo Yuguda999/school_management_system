@@ -63,14 +63,24 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
-      return JSON.parse(savedTheme);
+      try {
+        const parsedTheme = JSON.parse(savedTheme);
+        // Validate that it's a proper theme object
+        if (parsedTheme && typeof parsedTheme === 'object' && parsedTheme.mode) {
+          return parsedTheme;
+        }
+      } catch (error) {
+        console.warn('Invalid theme data in localStorage, using default theme');
+        // Clear invalid data
+        localStorage.removeItem('theme');
+      }
     }
-    
+
     // Check user's system preference for dark mode
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return { ...defaultTheme, mode: 'dark' };
     }
-    
+
     return defaultTheme;
   });
 
