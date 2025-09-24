@@ -174,7 +174,7 @@ async def get_current_school(
 
 def require_roles(allowed_roles: List[UserRole]):
     """Dependency to check if user has required role"""
-    def role_checker(school_context: SchoolContext = Depends(get_school_context)) -> SchoolContext:
+    def role_checker(school_context: SchoolContext = Depends(get_current_school_context)) -> SchoolContext:
         if school_context.user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

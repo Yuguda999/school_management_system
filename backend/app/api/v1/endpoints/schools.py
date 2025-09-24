@@ -1,6 +1,7 @@
 from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.core.database import get_db
 from app.core.deps import get_current_active_user, require_platform_admin, get_current_school, get_current_school_context, SchoolContext, require_school_owner
 from app.models.user import User
@@ -92,10 +93,30 @@ async def register_additional_school(
 
 @router.get("/me", response_model=SchoolResponse)
 async def get_my_school(
-    school_context: SchoolContext = Depends(get_current_school_context)
+    school_context: SchoolContext = Depends(get_current_school_context),
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get current user's school information from JWT context"""
-    return SchoolResponse.from_orm(school_context.school)
+    # Expunge any cached school objects to ensure fresh data
+    if school_context.school:
+        db.expunge(school_context.school)
+
+    # Always fetch fresh data from database to ensure we have the latest settings
+    result = await db.execute(
+        select(School).where(
+            School.id == school_context.school_id,
+            School.is_deleted == False
+        )
+    )
+    fresh_school = result.scalar_one_or_none()
+
+    if fresh_school is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+
+    return SchoolResponse.from_orm(fresh_school)
 
 
 @router.put("/me", response_model=SchoolResponse)
@@ -259,19 +280,16 @@ async def delete_school_logo(
 @router.put("/me/theme")
 async def update_school_theme(
     theme_settings: SchoolThemeSettings,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update school theme settings (School Owner only)"""
-    # Verify user owns this school
-    ownership = await SchoolOwnershipService.get_user_school_ownership(
-        db, current_user.id, current_school.id
-    )
-    if not ownership:
+    current_school = school_context.school
+
+    if not current_school:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to edit this school"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
         )
 
     # Get current settings
@@ -296,6 +314,9 @@ async def update_school_theme(
             detail="School not found"
         )
 
+    # Update the cached school object in the context to reflect the changes
+    school_context.school = updated_school
+
     return {
         "message": "Theme settings updated successfully",
         "theme_settings": updated_school.settings.get("theme_settings", {})
@@ -304,10 +325,10 @@ async def update_school_theme(
 
 @router.get("/me/settings")
 async def get_school_settings(
-    current_school: School = Depends(get_current_school)
+    school_context: SchoolContext = Depends(get_current_school_context)
 ) -> Any:
     """Get current school settings"""
-    return {"settings": current_school.settings or {}}
+    return {"settings": school_context.school.settings or {}}
 
 
 @router.post("/me/deactivate")

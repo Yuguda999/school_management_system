@@ -286,23 +286,27 @@ class SchoolService:
     
     @staticmethod
     async def update_school(
-        db: AsyncSession, 
-        school_id: str, 
+        db: AsyncSession,
+        school_id: str,
         school_data: SchoolUpdate
     ) -> Optional[School]:
         """Update school information"""
         school = await SchoolService.get_school_by_id(db, school_id)
         if not school:
             return None
-        
+
         # Update fields
         update_data = school_data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(school, field, value)
-        
+            # For JSON fields like settings, explicitly mark as modified
+            if field == 'settings':
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(school, 'settings')
+
         await db.commit()
         await db.refresh(school)
-        
+
         return school
     
     @staticmethod
