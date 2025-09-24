@@ -946,6 +946,51 @@ export interface UpdateClassForm {
   is_active?: boolean;
 }
 
+// Document Types
+export interface Document {
+  id: string;
+  title: string;
+  description?: string;
+  document_type: DocumentType;
+  status: DocumentStatus;
+  file_name: string;
+  original_file_name: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  student_id: string;
+  verified_by?: string;
+  verified_at?: string;
+  verification_notes?: string;
+  expires_at?: string;
+  tags?: string;
+  is_public: boolean;
+  school_id: string;
+  created_at: string;
+  updated_at: string;
+  file_size_mb?: number;
+  is_expired?: boolean;
+  is_image?: boolean;
+  is_pdf?: boolean;
+  uploader_name?: string;
+  verifier_name?: string;
+  student_name?: string;
+}
+
+export type DocumentType =
+  | 'birth_certificate'
+  | 'passport'
+  | 'national_id'
+  | 'medical_record'
+  | 'academic_transcript'
+  | 'immunization_record'
+  | 'photo'
+  | 'parent_id'
+  | 'proof_of_address'
+  | 'other';
+
+export type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'expired';
+
 // Dashboard Types
 export interface DashboardStats {
   total_students: number;

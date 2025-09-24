@@ -114,9 +114,10 @@ class StudentService {
 
   // Download CSV template
   async downloadTemplate(): Promise<Blob> {
-    return apiService.get('/api/v1/students/import/template', {
+    const response = await apiService.api.get('/api/v1/students/import/template', {
       responseType: 'blob',
     });
+    return response.data;
   }
 
   // Export students to CSV

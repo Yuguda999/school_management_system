@@ -3,7 +3,7 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 class ApiService {
-  private api: AxiosInstance;
+  public api: AxiosInstance;
   private isRefreshing = false;
   private failedQueue: Array<{
     resolve: (value?: any) => void;

@@ -8,8 +8,11 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   DocumentTextIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 import { Student, Grade, Parent } from '../../types';
+import DocumentList from '../documents/DocumentList';
+import DocumentUpload from '../documents/DocumentUpload';
 
 interface StudentProfileProps {
   student: Student;
@@ -488,13 +491,68 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
         )}
 
         {activeTab === 'documents' && (
-          <div className="card p-6">
-            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-              Document management feature coming soon
-            </p>
-          </div>
+          <DocumentsTab student={student} />
         )}
       </div>
+    </div>
+  );
+};
+
+// Documents Tab Component
+const DocumentsTab: React.FC<{ student: Student }> = ({ student }) => {
+  const [showUpload, setShowUpload] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleUploadComplete = () => {
+    setRefreshKey(prev => prev + 1);
+    setShowUpload(false);
+  };
+
+  const handleDocumentUpdate = () => {
+    setRefreshKey(prev => prev + 1);
+  };
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Documents
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Manage student documents and files
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowUpload(!showUpload)}
+          className="btn btn-primary flex items-center"
+        >
+          <PlusIcon className="h-4 w-4 mr-2" />
+          Upload Document
+        </button>
+      </div>
+
+      {showUpload && (
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-4">
+            Upload New Document
+          </h4>
+          <DocumentUpload
+            studentId={student.id}
+            onUploadComplete={handleUploadComplete}
+            onClose={() => setShowUpload(false)}
+          />
+        </div>
+      )}
+
+      <DocumentList
+        key={refreshKey}
+        studentId={student.id}
+        onDocumentUpdate={handleDocumentUpdate}
+        showActions={true}
+        isAdmin={true} // You might want to pass this as a prop based on user role
+      />
     </div>
   );
 };

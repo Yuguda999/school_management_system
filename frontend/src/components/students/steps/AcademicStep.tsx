@@ -8,13 +8,15 @@ interface AcademicStepProps {
   onUpdate: (data: Partial<CreateStudentForm>) => void;
   classes: Class[];
   loadingClasses: boolean;
+  validationErrors?: Record<string, string>;
 }
 
-const AcademicStep: React.FC<AcademicStepProps> = ({ 
-  data, 
-  onUpdate, 
-  classes, 
-  loadingClasses 
+const AcademicStep: React.FC<AcademicStepProps> = ({
+  data,
+  onUpdate,
+  classes,
+  loadingClasses,
+  validationErrors = {}
 }) => {
   const {
     register,
@@ -54,7 +56,7 @@ const AcademicStep: React.FC<AcademicStepProps> = ({
             Admission Date <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('admission_date', { 
+            {...register('admission_date', {
               required: 'Admission date is required',
               validate: (value) => {
                 const admissionDate = new Date(value);
@@ -63,7 +65,7 @@ const AcademicStep: React.FC<AcademicStepProps> = ({
                 oneYearAgo.setFullYear(today.getFullYear() - 1);
                 const oneYearFromNow = new Date();
                 oneYearFromNow.setFullYear(today.getFullYear() + 1);
-                
+
                 if (admissionDate < oneYearAgo) {
                   return 'Admission date cannot be more than 1 year in the past';
                 }
@@ -74,11 +76,11 @@ const AcademicStep: React.FC<AcademicStepProps> = ({
               }
             })}
             type="date"
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.admission_date ? 'input-error' : 'input'}`}
           />
-          {errors.admission_date && (
+          {(errors.admission_date || validationErrors.admission_date) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.admission_date.message}
+              {errors.admission_date?.message || validationErrors.admission_date}
             </p>
           )}
         </div>

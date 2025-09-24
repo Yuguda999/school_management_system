@@ -5,9 +5,10 @@ import { StudentParentForm, CreateStudentForm } from '../../../types';
 interface ParentStepProps {
   data: Partial<CreateStudentForm>;
   onUpdate: (data: Partial<CreateStudentForm>) => void;
+  validationErrors?: Record<string, string>;
 }
 
-const ParentStep: React.FC<ParentStepProps> = ({ data, onUpdate }) => {
+const ParentStep: React.FC<ParentStepProps> = ({ data, onUpdate, validationErrors = {} }) => {
   const {
     register,
     handleSubmit,

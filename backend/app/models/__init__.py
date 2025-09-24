@@ -11,3 +11,4 @@ from .fee import *  # noqa
 from .grade import *  # noqa
 from .communication import *  # noqa
 from .teacher_invitation import *  # noqa
+from .document import *  # noqa

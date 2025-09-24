@@ -5,9 +5,10 @@ import { StudentMedicalForm, CreateStudentForm } from '../../../types';
 interface MedicalStepProps {
   data: Partial<CreateStudentForm>;
   onUpdate: (data: Partial<CreateStudentForm>) => void;
+  validationErrors?: Record<string, string>;
 }
 
-const MedicalStep: React.FC<MedicalStepProps> = ({ data, onUpdate }) => {
+const MedicalStep: React.FC<MedicalStepProps> = ({ data, onUpdate, validationErrors = {} }) => {
   const {
     register,
     handleSubmit,

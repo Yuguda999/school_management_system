@@ -6,9 +6,10 @@ interface BasicInfoStepProps {
   data: Partial<CreateStudentForm>;
   onUpdate: (data: Partial<CreateStudentForm>) => void;
   isEdit?: boolean;
+  validationErrors?: Record<string, string>;
 }
 
-const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = false }) => {
+const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = false, validationErrors = {} }) => {
   // Generate a suggested admission number if not editing and no admission number exists
   const generateSuggestedAdmissionNumber = () => {
     const year = new Date().getFullYear();
@@ -70,7 +71,7 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
                 }
               })}
               type="text"
-              className="flex-1 input rounded-r-none"
+              className={`flex-1 rounded-r-none ${validationErrors.admission_number ? 'input-error' : 'input'}`}
               placeholder="Enter admission number"
               disabled={isEdit}
             />
@@ -88,9 +89,9 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
               </button>
             )}
           </div>
-          {errors.admission_number && (
+          {(errors.admission_number || validationErrors.admission_number) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.admission_number.message}
+              {errors.admission_number?.message || validationErrors.admission_number}
             </p>
           )}
           {isEdit ? (
@@ -109,7 +110,7 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
             First Name <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('first_name', { 
+            {...register('first_name', {
               required: 'First name is required',
               minLength: {
                 value: 2,
@@ -117,12 +118,12 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
               }
             })}
             type="text"
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.first_name ? 'input-error' : 'input'}`}
             placeholder="Enter first name"
           />
-          {errors.first_name && (
+          {(errors.first_name || validationErrors.first_name) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.first_name.message}
+              {errors.first_name?.message || validationErrors.first_name}
             </p>
           )}
         </div>
@@ -132,7 +133,7 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
             Last Name <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('last_name', { 
+            {...register('last_name', {
               required: 'Last name is required',
               minLength: {
                 value: 2,
@@ -140,12 +141,12 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
               }
             })}
             type="text"
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.last_name ? 'input-error' : 'input'}`}
             placeholder="Enter last name"
           />
-          {errors.last_name && (
+          {(errors.last_name || validationErrors.last_name) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.last_name.message}
+              {errors.last_name?.message || validationErrors.last_name}
             </p>
           )}
         </div>
@@ -167,7 +168,7 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
             Date of Birth <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('date_of_birth', { 
+            {...register('date_of_birth', {
               required: 'Date of birth is required',
               validate: (value) => {
                 const birthDate = new Date(value);
@@ -180,12 +181,12 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
               }
             })}
             type="date"
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.date_of_birth ? 'input-error' : 'input'}`}
             max={new Date().toISOString().split('T')[0]}
           />
-          {errors.date_of_birth && (
+          {(errors.date_of_birth || validationErrors.date_of_birth) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.date_of_birth.message}
+              {errors.date_of_birth?.message || validationErrors.date_of_birth}
             </p>
           )}
         </div>
@@ -196,15 +197,15 @@ const BasicInfoStep: React.FC<BasicInfoStepProps> = ({ data, onUpdate, isEdit = 
           </label>
           <select
             {...register('gender', { required: 'Gender is required' })}
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.gender ? 'input-error' : 'input'}`}
           >
             <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
           </select>
-          {errors.gender && (
+          {(errors.gender || validationErrors.gender) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.gender.message}
+              {errors.gender?.message || validationErrors.gender}
             </p>
           )}
         </div>

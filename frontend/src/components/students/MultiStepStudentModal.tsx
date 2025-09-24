@@ -50,6 +50,7 @@ const MultiStepStudentModal: React.FC<MultiStepStudentModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const { showSuccess, showError } = useToast();
 
   // Form data state for all steps
@@ -121,6 +122,17 @@ const MultiStepStudentModal: React.FC<MultiStepStudentModalProps> = ({
 
   const updateFormData = (stepData: Partial<CreateStudentForm>) => {
     setFormData(prev => ({ ...prev, ...stepData }));
+
+    // Clear validation errors for fields that are being updated
+    if (Object.keys(validationErrors).length > 0) {
+      const updatedErrors = { ...validationErrors };
+      Object.keys(stepData).forEach(field => {
+        if (stepData[field as keyof CreateStudentForm] && updatedErrors[field]) {
+          delete updatedErrors[field];
+        }
+      });
+      setValidationErrors(updatedErrors);
+    }
   };
 
   const nextStep = () => {
@@ -144,12 +156,24 @@ const MultiStepStudentModal: React.FC<MultiStepStudentModalProps> = ({
         'gender', 'address_line1', 'city', 'state', 'postal_code', 'admission_date'
       ];
 
-      const missingFields = requiredFields.filter(field => !formData[field as keyof CreateStudentForm]);
+      const errors: Record<string, string> = {};
+      requiredFields.forEach(field => {
+        if (!formData[field as keyof CreateStudentForm]) {
+          errors[field] = `${field.replace('_', ' ')} is required`;
+        }
+      });
 
-      if (missingFields.length > 0) {
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        const missingFields = Object.keys(errors).map(field =>
+          field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+        );
         showError(`Please fill in required fields: ${missingFields.join(', ')}`);
         return;
       }
+
+      // Clear validation errors if all fields are valid
+      setValidationErrors({});
 
       // Prepare data for submission - clean up empty strings for optional fields
       const submitData = {
@@ -223,47 +247,53 @@ const MultiStepStudentModal: React.FC<MultiStepStudentModalProps> = ({
     switch (STEPS[currentStep].id) {
       case 'basic':
         return (
-          <BasicInfoStep 
-            data={formData} 
+          <BasicInfoStep
+            data={formData}
             onUpdate={updateFormData}
             isEdit={!!student}
+            validationErrors={validationErrors}
           />
         );
       case 'address':
         return (
-          <AddressStep 
-            data={formData} 
-            onUpdate={updateFormData} 
+          <AddressStep
+            data={formData}
+            onUpdate={updateFormData}
+            validationErrors={validationErrors}
           />
         );
       case 'parent':
         return (
-          <ParentStep 
-            data={formData} 
-            onUpdate={updateFormData} 
+          <ParentStep
+            data={formData}
+            onUpdate={updateFormData}
+            validationErrors={validationErrors}
           />
         );
       case 'emergency':
         return (
-          <EmergencyContactStep 
-            data={formData} 
-            onUpdate={updateFormData} 
+          <EmergencyContactStep
+            data={formData}
+            onUpdate={updateFormData}
+            validationErrors={validationErrors}
           />
         );
       case 'medical':
         return (
-          <MedicalStep 
-            data={formData} 
-            onUpdate={updateFormData} 
+          <MedicalStep
+            data={formData}
+            onUpdate={updateFormData}
+            validationErrors={validationErrors}
           />
         );
       case 'academic':
         return (
-          <AcademicStep 
-            data={formData} 
+          <AcademicStep
+            data={formData}
             onUpdate={updateFormData}
             classes={classes}
             loadingClasses={loadingClasses}
+            validationErrors={validationErrors}
           />
         );
       default:

@@ -179,7 +179,7 @@ const StudentsPage: React.FC = () => {
         </div>
         {canManageStudents() && (
           <div className="mt-4 sm:mt-0 flex space-x-3">
-            {user?.role === 'platform_super_admin' && (
+            {(user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin') && (
               <button
                 type="button"
                 onClick={() => setShowCSVImportModal(true)}

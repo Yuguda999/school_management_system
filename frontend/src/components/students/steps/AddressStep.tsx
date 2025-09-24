@@ -5,9 +5,10 @@ import { StudentAddressForm, CreateStudentForm } from '../../../types';
 interface AddressStepProps {
   data: Partial<CreateStudentForm>;
   onUpdate: (data: Partial<CreateStudentForm>) => void;
+  validationErrors?: Record<string, string>;
 }
 
-const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
+const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate, validationErrors = {} }) => {
   const {
     register,
     handleSubmit,
@@ -48,7 +49,7 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
             Address Line 1 <span className="text-red-500">*</span>
           </label>
           <input
-            {...register('address_line1', { 
+            {...register('address_line1', {
               required: 'Address line 1 is required',
               minLength: {
                 value: 5,
@@ -56,12 +57,12 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
               }
             })}
             type="text"
-            className="mt-1 input"
+            className={`mt-1 ${validationErrors.address_line1 ? 'input-error' : 'input'}`}
             placeholder="Enter street address, house number, etc."
           />
-          {errors.address_line1 && (
+          {(errors.address_line1 || validationErrors.address_line1) && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {errors.address_line1.message}
+              {errors.address_line1?.message || validationErrors.address_line1}
             </p>
           )}
         </div>
@@ -84,7 +85,7 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
               City <span className="text-red-500">*</span>
             </label>
             <input
-              {...register('city', { 
+              {...register('city', {
                 required: 'City is required',
                 minLength: {
                   value: 2,
@@ -92,12 +93,12 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
                 }
               })}
               type="text"
-              className="mt-1 input"
+              className={`mt-1 ${validationErrors.city ? 'input-error' : 'input'}`}
               placeholder="Enter city"
             />
-            {errors.city && (
+            {(errors.city || validationErrors.city) && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.city.message}
+                {errors.city?.message || validationErrors.city}
               </p>
             )}
           </div>
@@ -107,7 +108,7 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
               State/Province <span className="text-red-500">*</span>
             </label>
             <input
-              {...register('state', { 
+              {...register('state', {
                 required: 'State/Province is required',
                 minLength: {
                   value: 2,
@@ -115,12 +116,12 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
                 }
               })}
               type="text"
-              className="mt-1 input"
+              className={`mt-1 ${validationErrors.state ? 'input-error' : 'input'}`}
               placeholder="Enter state or province"
             />
-            {errors.state && (
+            {(errors.state || validationErrors.state) && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.state.message}
+                {errors.state?.message || validationErrors.state}
               </p>
             )}
           </div>
@@ -130,7 +131,7 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
               Postal Code <span className="text-red-500">*</span>
             </label>
             <input
-              {...register('postal_code', { 
+              {...register('postal_code', {
                 required: 'Postal code is required',
                 pattern: {
                   value: /^[A-Za-z0-9\s-]{3,10}$/,
@@ -138,12 +139,12 @@ const AddressStep: React.FC<AddressStepProps> = ({ data, onUpdate }) => {
                 }
               })}
               type="text"
-              className="mt-1 input"
+              className={`mt-1 ${validationErrors.postal_code ? 'input-error' : 'input'}`}
               placeholder="Enter postal/ZIP code"
             />
-            {errors.postal_code && (
+            {(errors.postal_code || validationErrors.postal_code) && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors.postal_code.message}
+                {errors.postal_code?.message || validationErrors.postal_code}
               </p>
             )}
           </div>

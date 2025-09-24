@@ -5,9 +5,10 @@ import { StudentEmergencyContactForm, CreateStudentForm } from '../../../types';
 interface EmergencyContactStepProps {
   data: Partial<CreateStudentForm>;
   onUpdate: (data: Partial<CreateStudentForm>) => void;
+  validationErrors?: Record<string, string>;
 }
 
-const EmergencyContactStep: React.FC<EmergencyContactStepProps> = ({ data, onUpdate }) => {
+const EmergencyContactStep: React.FC<EmergencyContactStepProps> = ({ data, onUpdate, validationErrors = {} }) => {
   const {
     register,
     handleSubmit,

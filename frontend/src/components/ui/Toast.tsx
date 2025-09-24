@@ -103,7 +103,7 @@ const Toast: React.FC<ToastProps> = ({
   const IconComponent = getIcon();
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-md animate-in slide-in-from-right duration-300">
+    <div className="fixed top-4 right-4 z-[60] max-w-md animate-in slide-in-from-right duration-300">
       <div className={`border rounded-lg p-4 shadow-lg ${styles.container}`}>
         <div className="flex items-start">
           <IconComponent className={`h-5 w-5 mt-0.5 mr-3 flex-shrink-0 ${styles.icon}`} />
