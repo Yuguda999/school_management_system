@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_teacher_or_admin,
-    require_admin,
+    require_school_admin,
     get_current_school
 )
 from app.models.user import User
@@ -80,7 +80,7 @@ async def get_financial_report(
     start_date: Optional[str] = Query(None, description="Start date"),
     end_date: Optional[str] = Query(None, description="End date"),
     term_id: Optional[str] = Query(None, description="Filter by term"),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

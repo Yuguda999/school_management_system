@@ -41,8 +41,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         };
       case 'info':
         return {
-          iconBg: 'bg-blue-100 dark:bg-blue-900/20',
-          iconColor: 'text-blue-600 dark:text-blue-400',
+          iconBg: 'bg-primary-100 dark:bg-primary-900/20',
+          iconColor: 'text-primary-600 dark:text-primary-400',
           confirmButton: 'btn-primary'
         };
       default:

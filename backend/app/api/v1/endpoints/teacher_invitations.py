@@ -6,8 +6,7 @@ import logging
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
-    require_admin,
-    require_super_admin,
+    require_school_admin,
     get_current_school
 )
 from app.models.user import User
@@ -34,7 +33,7 @@ router = APIRouter()
 async def create_teacher_invitation(
     invitation_data: TeacherInvitationCreate,
     request: Request,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -66,7 +65,7 @@ async def get_teacher_invitations(
     size: int = Query(20, ge=1, le=100),
     status: Optional[InvitationStatus] = Query(None),
     search: Optional[str] = Query(None),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -140,7 +139,7 @@ async def get_teacher_invitations(
 @router.get("/{invitation_id}", response_model=TeacherInvitationResponse)
 async def get_teacher_invitation(
     invitation_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -170,7 +169,7 @@ async def get_teacher_invitation(
 async def update_invitation_status(
     invitation_id: str,
     status_data: InvitationStatusUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -204,7 +203,7 @@ async def update_invitation_status(
 async def resend_teacher_invitation(
     resend_data: InvitationResendRequest,
     request: Request,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -318,7 +317,7 @@ async def resend_teacher_invitation(
 @router.delete("/{invitation_id}")
 async def delete_teacher_invitation(
     invitation_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

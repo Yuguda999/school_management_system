@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school, check_teacher_can_access_class
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school, get_current_school_context, SchoolContext, check_teacher_can_access_class
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.models.student import Student
@@ -23,11 +23,11 @@ router = APIRouter()
 @router.post("/", response_model=ClassResponse)
 async def create_class(
     class_data: ClassCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new class (Admin/Super Admin only)"""
+    """Create a new class (School Admin only)"""
     new_class = await AcademicService.create_class(db, class_data, current_school.id)
 
     # Get teacher name if assigned - use eager loading to avoid lazy loading issues
@@ -52,22 +52,22 @@ async def get_classes(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all classes"""
+    current_user = school_context.user
     skip = (page - 1) * size
 
     # Teachers can only see classes they teach or are class teachers for
     if current_user.role == UserRole.TEACHER:
         classes = await AcademicService.get_teacher_classes(
-            db, current_user.id, current_school.id, academic_session, is_active, skip, size
+            db, current_user.id, school_context.school_id, academic_session, is_active, skip, size
         )
     else:
         # Admins can see all classes
         classes = await AcademicService.get_classes(
-            db, current_school.id, academic_session, is_active, skip, size
+            db, school_context.school_id, academic_session, is_active, skip, size
         )
     
     # Enhance response with teacher names and student counts
@@ -165,11 +165,11 @@ async def get_class(
 async def update_class(
     class_id: str,
     class_data: ClassUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Update class information (Admin/Super Admin only)"""
+    """Update class information (School Admin only)"""
     updated_class = await AcademicService.update_class(
         db, class_id, current_school.id, class_data
     )
@@ -197,11 +197,11 @@ async def update_class(
 @router.delete("/{class_id}")
 async def delete_class(
     class_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Delete class (Admin/Super Admin only)"""
+    """Delete class (School Admin only)"""
     class_obj = await AcademicService.get_class_by_id(db, class_id, current_school.id)
     if not class_obj:
         raise HTTPException(

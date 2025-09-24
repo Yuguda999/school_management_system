@@ -73,15 +73,15 @@ const PerformanceChart: React.FC = () => {
               labelStyle={{ color: 'var(--tw-color-gray-900)' }}
             />
             <Legend />
-            <Bar 
-              dataKey="average" 
-              fill="#0ea5e9" 
+            <Bar
+              dataKey="average"
+              fill="rgb(var(--color-primary-500))"
               name="Current Average"
               radius={[2, 2, 0, 0]}
             />
-            <Bar 
-              dataKey="target" 
-              fill="#8b5cf6" 
+            <Bar
+              dataKey="target"
+              fill="rgb(var(--color-secondary-500))"
               name="Target"
               radius={[2, 2, 0, 0]}
             />

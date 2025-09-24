@@ -107,14 +107,14 @@ const SettingsPage: React.FC = () => {
       name: 'School',
       icon: BuildingOfficeIcon,
       description: 'School information and settings',
-      allowedRoles: ['super_admin', 'admin'],
+      allowedRoles: ['platform_super_admin', 'school_owner', 'school_admin'],
     },
     {
       id: 'system' as SettingsTab,
       name: 'System',
       icon: Cog6ToothIcon,
       description: 'System configuration and advanced settings',
-      allowedRoles: ['super_admin'],
+      allowedRoles: ['platform_super_admin', 'school_owner'],
     },
   ];
 

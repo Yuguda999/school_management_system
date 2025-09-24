@@ -1,8 +1,10 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database_init import check_and_initialize_database
 from app.api.v1.api import api_router
@@ -61,6 +63,13 @@ if not settings.debug:
 
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
+
+# Mount static files for uploads
+upload_dir = settings.upload_dir
+if not os.path.exists(upload_dir):
+    os.makedirs(upload_dir, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
 
 
 @app.get("/")

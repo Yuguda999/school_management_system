@@ -23,7 +23,7 @@ const SubjectOverview: React.FC<SubjectOverviewProps> = ({ subjectId }) => {
   const [teachers, setTeachers] = useState<TeacherSubjectAssignment[]>([]);
   const [classes, setClasses] = useState<ClassSubjectAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const { showToast } = useToast();
+  const { showError } = useToast();
 
   useEffect(() => {
     loadData();
@@ -43,7 +43,7 @@ const SubjectOverview: React.FC<SubjectOverviewProps> = ({ subjectId }) => {
       setClasses(classesData);
     } catch (error) {
       console.error('Error loading subject data:', error);
-      showToast('Failed to load subject information', 'error');
+      showError('Failed to load subject information');
     } finally {
       setLoading(false);
     }

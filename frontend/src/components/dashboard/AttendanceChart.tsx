@@ -12,7 +12,7 @@ import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 const AttendanceChart: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
   const [data, setData] = useState([
-    { name: 'Present', value: 85, color: '#10b981' },
+    { name: 'Present', value: 85, color: 'rgb(var(--color-primary-500))' },
     { name: 'Absent', value: 10, color: '#ef4444' },
     { name: 'Late', value: 5, color: '#f59e0b' },
   ]);
@@ -23,7 +23,7 @@ const AttendanceChart: React.FC = () => {
     if (currentTerm) {
       // Mock different data for different terms
       const termBasedData = [
-        { name: 'Present', value: 85 + (currentTerm.name.includes('First') ? 0 : 3), color: '#10b981' },
+        { name: 'Present', value: 85 + (currentTerm.name.includes('First') ? 0 : 3), color: 'rgb(var(--color-primary-500))' },
         { name: 'Absent', value: 10 - (currentTerm.name.includes('First') ? 0 : 2), color: '#ef4444' },
         { name: 'Late', value: 5 - (currentTerm.name.includes('First') ? 0 : 1), color: '#f59e0b' },
       ];

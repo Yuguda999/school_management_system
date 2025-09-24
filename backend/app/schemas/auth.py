@@ -1,12 +1,26 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, validator
 from app.models.user import UserRole, Gender
-from datetime import date
+from datetime import date, datetime
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class SchoolOption(BaseModel):
+    """School option for selection"""
+    id: str
+    name: str
+    code: str
+    logo_url: Optional[str] = None
+    is_primary: bool
+
+
+class SchoolSelectionRequest(BaseModel):
+    """Request to select a school for a school owner"""
+    school_id: str
 
 
 class LoginResponse(BaseModel):
@@ -16,9 +30,12 @@ class LoginResponse(BaseModel):
     user_id: str
     email: str
     role: UserRole
-    school_id: str
+    school_id: Optional[str]
     full_name: str
     profile_completed: bool
+    # For school owners with multiple schools
+    requires_school_selection: bool = False
+    available_schools: Optional[List[SchoolOption]] = None
 
 
 class RefreshTokenRequest(BaseModel):

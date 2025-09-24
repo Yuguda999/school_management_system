@@ -13,35 +13,43 @@ export const usePermissions = () => {
   };
 
   const canManageUsers = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin']);
   };
 
   const canManageTeachers = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin']);
   };
 
   const canManageStudents = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin', 'teacher']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin', 'teacher']);
   };
 
   const canManageFees = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin', 'teacher']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin', 'teacher']);
   };
 
   const canManageGrades = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin', 'teacher']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin', 'teacher']);
   };
 
-  const canViewReports = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin', 'teacher']);
+  const canManagePlatform = (): boolean => {
+    return hasRole('platform_super_admin');
+  };
+
+  const canManageSchool = (): boolean => {
+    return hasAnyRole(['platform_super_admin', 'school_owner']);
   };
 
   const canManageSchoolSettings = (): boolean => {
-    return hasRole('super_admin');
+    return hasAnyRole(['platform_super_admin', 'school_owner']);
+  };
+
+  const canViewReports = (): boolean => {
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin', 'teacher']);
   };
 
   const canViewAllStudents = (): boolean => {
-    return hasAnyRole(['super_admin', 'admin', 'teacher']);
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin', 'teacher']);
   };
 
   const canViewOwnChildren = (): boolean => {
@@ -52,12 +60,16 @@ export const usePermissions = () => {
     return hasRole('student');
   };
 
-  const isSuperAdmin = (): boolean => {
-    return hasRole('super_admin');
+  const isPlatformSuperAdmin = (): boolean => {
+    return hasRole('platform_super_admin');
   };
 
-  const isAdmin = (): boolean => {
-    return hasRole('admin');
+  const isSchoolOwner = (): boolean => {
+    return hasRole('school_owner');
+  };
+
+  const isSchoolAdmin = (): boolean => {
+    return hasRole('school_admin');
   };
 
   const isTeacher = (): boolean => {
@@ -82,12 +94,15 @@ export const usePermissions = () => {
     canManageFees,
     canManageGrades,
     canViewReports,
+    canManagePlatform,
+    canManageSchool,
     canManageSchoolSettings,
     canViewAllStudents,
     canViewOwnChildren,
     canViewOwnGrades,
-    isSuperAdmin,
-    isAdmin,
+    isPlatformSuperAdmin,
+    isSchoolOwner,
+    isSchoolAdmin,
     isTeacher,
     isParent,
     isStudent,

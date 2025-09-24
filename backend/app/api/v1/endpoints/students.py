@@ -6,9 +6,10 @@ from sqlalchemy import select, func, or_
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
-    require_admin,
-    require_super_admin,
+    require_school_admin,
     get_current_school,
+    get_current_school_context,
+    SchoolContext,
     check_teacher_can_access_student,
     check_teacher_can_access_subject
 )
@@ -104,8 +105,7 @@ async def enhance_student_response(
 @router.post("/", response_model=StudentResponse)
 async def create_student(
     student_data: StudentCreate,
-    current_user: User = Depends(require_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new student (Admin/Super Admin only)"""
@@ -113,7 +113,7 @@ async def create_student(
     result = await db.execute(
         select(Student).where(
             Student.admission_number == student_data.admission_number,
-            Student.school_id == current_school.id,
+            Student.school_id == school_context.school_id,
             Student.is_deleted == False
         )
     )
@@ -122,10 +122,10 @@ async def create_student(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Admission number already exists"
         )
-    
+
     # Create student
     student_dict = student_data.dict()
-    student_dict['school_id'] = current_school.id
+    student_dict['school_id'] = school_context.school_id
     
     student = Student(**student_dict)
     db.add(student)
@@ -143,14 +143,16 @@ async def get_students(
     search: Optional[str] = Query(None, description="Search by name or admission number"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get students with filtering and pagination"""
+    current_user = school_context.user
+    current_school = school_context.school
+
     # Build query
     query = select(Student).where(
-        Student.school_id == current_school.id,
+        Student.school_id == school_context.school_id,
         Student.is_deleted == False
     )
     
@@ -179,10 +181,10 @@ async def get_students(
 
         skip = (page - 1) * size
         students = await StudentService.get_teacher_students(
-            db, current_user.id, current_school.id, class_id, search, skip, size
+            db, current_user.id, school_context.school_id, class_id, search, skip, size
         )
         total = await StudentService.get_teacher_students_count(
-            db, current_user.id, current_school.id, class_id
+            db, current_user.id, school_context.school_id, class_id
         )
 
         # Enhance response
@@ -330,7 +332,7 @@ async def get_students_by_subject(
 async def update_student(
     student_id: str,
     student_data: StudentUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -366,7 +368,7 @@ async def update_student(
 async def update_student_status(
     student_id: str,
     status_data: StudentStatusUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -402,7 +404,7 @@ async def update_student_status(
 async def update_student_class(
     student_id: str,
     class_data: StudentClassUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -433,7 +435,7 @@ async def update_student_class(
 @router.delete("/{student_id}")
 async def delete_student(
     student_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -462,7 +464,7 @@ async def delete_student(
 
 @router.get("/import/template")
 async def download_csv_template(
-    current_user: User = Depends(require_super_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school)
 ) -> Response:
     """Download CSV template for student import (Super Admin only)"""
@@ -480,7 +482,7 @@ async def download_csv_template(
 @router.post("/import", response_model=StudentImportResult)
 async def import_students_from_csv(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_super_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

@@ -65,11 +65,64 @@ class SchoolResponse(SchoolBase):
     settings: Optional[Dict[str, Any]] = None
     is_active: bool
     is_verified: bool
+
+    # Subscription & Trial Information
+    subscription_plan: str
+    subscription_status: str
+    trial_started_at: Optional[datetime] = None
+    trial_expires_at: Optional[datetime] = None
+    trial_days: int
+    trial_days_remaining: Optional[int] = None
+    is_trial: Optional[bool] = None
+    trial_expired: Optional[bool] = None
+
+    # Usage Limits
+    max_students: Optional[int] = None
+    max_teachers: Optional[int] = None
+    max_classes: Optional[int] = None
+
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+class FreemiumRegistration(BaseModel):
+    """Schema for freemium trial registration"""
+    # School Information
+    school_name: str
+    school_code: str
+    email: EmailStr
+    phone: Optional[str] = None
+
+    # Location Information
+    address: str
+    city: str
+    state: str
+    country: str = "Nigeria"
+    postal_code: Optional[str] = "00000"
+
+    # Academic Information
+    current_session: Optional[str] = "2024/2025"
+    current_term: Optional[str] = "First Term"
+
+    # Admin Information
+    admin_name: str
+    admin_email: EmailStr
+    admin_password: str
+
+    @validator('admin_password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters long')
+        return v
+
+    @validator('school_code')
+    def validate_code(cls, v):
+        if len(v) < 3:
+            raise ValueError('School code must be at least 3 characters long')
+        return v.upper()
 
 
 class SchoolRegistration(SchoolCreate):
@@ -79,7 +132,7 @@ class SchoolRegistration(SchoolCreate):
     admin_email: EmailStr
     admin_password: str
     admin_phone: Optional[str] = None
-    
+
     @validator('admin_password')
     def validate_password(cls, v):
         if len(v) < 8:
@@ -91,6 +144,8 @@ class SchoolRegistrationResponse(BaseModel):
     school: SchoolResponse
     admin_user_id: str
     message: str
+    trial_expires_at: Optional[datetime] = None
+    trial_days_remaining: Optional[int] = None
 
 
 class SchoolSettings(BaseModel):
@@ -100,6 +155,15 @@ class SchoolSettings(BaseModel):
     fee_settings: Optional[Dict[str, Any]] = None
     communication_settings: Optional[Dict[str, Any]] = None
     general_settings: Optional[Dict[str, Any]] = None
+    theme_settings: Optional[Dict[str, Any]] = None
+
+
+class SchoolThemeSettings(BaseModel):
+    """Schema for school theme settings"""
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    dark_mode_enabled: Optional[bool] = None
+    custom_css: Optional[str] = None
 
 
 class SchoolStats(BaseModel):

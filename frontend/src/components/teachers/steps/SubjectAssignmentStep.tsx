@@ -17,7 +17,7 @@ const SubjectAssignmentStep: React.FC<SubjectAssignmentStepProps> = ({
 }) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
-  const { showToast } = useToast();
+  const { showError } = useToast();
 
   useEffect(() => {
     loadSubjects();
@@ -30,7 +30,7 @@ const SubjectAssignmentStep: React.FC<SubjectAssignmentStepProps> = ({
       setSubjects(subjectsData);
     } catch (error) {
       console.error('Error loading subjects:', error);
-      showToast('Failed to load subjects', 'error');
+      showError('Failed to load subjects');
     } finally {
       setLoading(false);
     }

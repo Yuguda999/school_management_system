@@ -41,7 +41,7 @@ const RecentActivity: React.FC = () => {
     description: 'John Smith paid $500 for tuition fees',
     time: '4 hours ago',
     icon: CurrencyDollarIcon,
-    iconColor: 'text-blue-600',
+    iconColor: 'text-primary-600',
   },
   {
     id: '3',
@@ -50,7 +50,7 @@ const RecentActivity: React.FC = () => {
     description: 'Math test results published for Grade 9-B',
     time: '6 hours ago',
     icon: AcademicCapIcon,
-    iconColor: 'text-purple-600',
+    iconColor: 'text-secondary-600',
   },
   {
     id: '4',

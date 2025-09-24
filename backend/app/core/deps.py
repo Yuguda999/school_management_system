@@ -1,15 +1,25 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from app.core.database import get_db
 from app.core.security import verify_token
 from app.models.user import User, UserRole
 from app.models.school import School
+from app.models.school_ownership import SchoolOwnership
+from dataclasses import dataclass
 
 # Security scheme
 security = HTTPBearer()
+
+
+@dataclass
+class SchoolContext:
+    """Context object that holds current school information from JWT token"""
+    school_id: str
+    user: User
+    school: Optional[School] = None
 
 
 async def get_current_user(
@@ -19,31 +29,96 @@ async def get_current_user(
     """Get current authenticated user"""
     token = credentials.credentials
     payload = verify_token(token)
-    
+
     user_id: str = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
-    
+
     # Get user from database
     result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
     user = result.scalar_one_or_none()
-    
+
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
-    
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive",
         )
-    
+
     return user
+
+
+async def get_school_context(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db)
+) -> SchoolContext:
+    """Get current school context from JWT token"""
+    token = credentials.credentials
+    payload = verify_token(token)
+
+    user_id: str = payload.get("sub")
+    school_id: str = payload.get("school_id")
+
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+    # Get user from database
+    result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is inactive",
+        )
+
+    # Use school_id from JWT token if available, otherwise fall back to user's school_id
+    current_school_id = school_id or user.school_id
+
+    if not current_school_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No school context available",
+        )
+
+    # For school owners, verify they have access to the school in the JWT
+    if user.role == UserRole.SCHOOL_OWNER and school_id and school_id != user.school_id:
+        # Verify ownership
+        ownership_result = await db.execute(
+            select(SchoolOwnership).where(
+                and_(
+                    SchoolOwnership.user_id == user.id,
+                    SchoolOwnership.school_id == school_id,
+                    SchoolOwnership.is_active == True
+                )
+            )
+        )
+        ownership = ownership_result.scalar_one_or_none()
+
+        if not ownership:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have access to this school",
+            )
+
+    return SchoolContext(school_id=current_school_id, user=user)
 
 
 async def get_current_active_user(
@@ -58,36 +133,59 @@ async def get_current_active_user(
     return current_user
 
 
-async def get_current_school(
-    current_user: User = Depends(get_current_active_user),
+async def get_current_school_context(
+    school_context: SchoolContext = Depends(get_school_context),
     db: AsyncSession = Depends(get_db)
+) -> SchoolContext:
+    """Get current school context with school details loaded"""
+    if school_context.school is None:
+        # Load school details
+        result = await db.execute(
+            select(School).where(
+                School.id == school_context.school_id,
+                School.is_deleted == False
+            )
+        )
+        school = result.scalar_one_or_none()
+
+        if school is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="School not found"
+            )
+
+        if not school.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="School is inactive"
+            )
+
+        school_context.school = school
+
+    return school_context
+
+
+async def get_current_school(
+    school_context: SchoolContext = Depends(get_current_school_context)
 ) -> School:
-    """Get current user's school"""
-    result = await db.execute(
-        select(School).where(
-            School.id == current_user.school_id,
-            School.is_deleted == False
-        )
-    )
-    school = result.scalar_one_or_none()
-    
-    if school is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="School not found"
-        )
-    
-    if not school.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="School is inactive"
-        )
-    
-    return school
+    """Get current school from context"""
+    return school_context.school
 
 
 def require_roles(allowed_roles: List[UserRole]):
     """Dependency to check if user has required role"""
+    def role_checker(school_context: SchoolContext = Depends(get_school_context)) -> SchoolContext:
+        if school_context.user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions"
+            )
+        return school_context
+    return role_checker
+
+
+def require_roles_user_only(allowed_roles: List[UserRole]):
+    """Dependency to check if user has required role - returns user only"""
     def role_checker(current_user: User = Depends(get_current_active_user)) -> User:
         if current_user.role not in allowed_roles:
             raise HTTPException(
@@ -98,39 +196,85 @@ def require_roles(allowed_roles: List[UserRole]):
     return role_checker
 
 
-def require_super_admin():
-    """Dependency to require super admin role"""
-    return require_roles([UserRole.SUPER_ADMIN])
+def require_platform_admin():
+    """Dependency to require platform super admin role - returns SchoolContext"""
+    return require_roles([UserRole.PLATFORM_SUPER_ADMIN])
 
 
-def require_admin():
-    """Dependency to require admin or super admin role"""
-    return require_roles([UserRole.SUPER_ADMIN, UserRole.ADMIN])
+def require_school_owner():
+    """Dependency to require school owner or platform admin role - returns SchoolContext"""
+    return require_roles([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER])
+
+
+def require_school_admin():
+    """Dependency to require school admin, school owner, or platform admin role - returns SchoolContext"""
+    return require_roles([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN])
 
 
 def require_teacher():
-    """Dependency to require teacher, admin, or super admin role"""
-    return require_roles([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TEACHER])
+    """Dependency to require teacher or higher role - returns SchoolContext"""
+    return require_roles([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN, UserRole.TEACHER])
 
 
 def require_teacher_or_admin():
-    """Dependency to require teacher, admin, or super admin role (alias for require_teacher)"""
-    return require_roles([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TEACHER])
+    """Dependency to require teacher or admin role - returns SchoolContext"""
+    return require_roles([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN, UserRole.TEACHER])
 
 
 def require_teacher_only():
-    """Dependency to require only teacher role (not admin)"""
+    """Dependency to require only teacher role - returns SchoolContext"""
     return require_roles([UserRole.TEACHER])
 
 
 def require_parent():
-    """Dependency to require parent role"""
+    """Dependency to require parent role - returns SchoolContext"""
     return require_roles([UserRole.PARENT])
 
 
 def require_student():
-    """Dependency to require student role"""
+    """Dependency to require student role - returns SchoolContext"""
     return require_roles([UserRole.STUDENT])
+
+
+# User-only versions for backward compatibility
+def require_platform_admin_user():
+    """Dependency to require platform super admin role - returns User only"""
+    return require_roles_user_only([UserRole.PLATFORM_SUPER_ADMIN])
+
+
+def require_school_owner_user():
+    """Dependency to require school owner or platform admin role - returns User only"""
+    return require_roles_user_only([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER])
+
+
+def require_school_admin_user():
+    """Dependency to require school admin, school owner, or platform admin role - returns User only"""
+    return require_roles_user_only([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN])
+
+
+def require_teacher_user():
+    """Dependency to require teacher or higher role - returns User only"""
+    return require_roles_user_only([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN, UserRole.TEACHER])
+
+
+def require_teacher_or_admin_user():
+    """Dependency to require teacher or admin role - returns User only"""
+    return require_roles_user_only([UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN, UserRole.TEACHER])
+
+
+def require_teacher_only_user():
+    """Dependency to require only teacher role - returns User only"""
+    return require_roles_user_only([UserRole.TEACHER])
+
+
+def require_parent_user():
+    """Dependency to require parent role - returns User only"""
+    return require_roles_user_only([UserRole.PARENT])
+
+
+def require_student_user():
+    """Dependency to require student role - returns User only"""
+    return require_roles_user_only([UserRole.STUDENT])
 
 
 async def get_optional_current_user(
@@ -150,9 +294,9 @@ async def get_optional_current_user(
 class TenantFilter:
     """Utility class for tenant-based filtering"""
 
-    def __init__(self, current_user: User = Depends(get_current_active_user)):
-        self.current_user = current_user
-        self.school_id = current_user.school_id
+    def __init__(self, school_context: SchoolContext = Depends(get_school_context)):
+        self.school_context = school_context
+        self.school_id = school_context.school_id
 
     def filter_by_school(self, query):
         """Add school filter to query"""

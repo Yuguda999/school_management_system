@@ -252,7 +252,7 @@ const TeachersPage: React.FC = () => {
         title="Teacher Management"
         description="Manage teaching staff and invitations"
         actions={
-          user?.role === 'super_admin' || user?.role === 'admin' ? (
+          user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin' ? (
             <div className="flex space-x-3">
               {activeTab === 'teachers' && (
                 <>
@@ -330,7 +330,7 @@ const TeachersPage: React.FC = () => {
               >
                 <EyeIcon className="h-4 w-4" />
               </button>
-              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              {(user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin') && (
                 <>
                   <button
                     onClick={() => {

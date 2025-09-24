@@ -5,6 +5,9 @@ interface ThemeContextType {
   theme: Theme;
   toggleDarkMode: () => void;
   updateThemeColors: (primaryColor: string, secondaryColor: string) => void;
+  setSchoolTheme: (schoolTheme: { primary_color?: string; secondary_color?: string; dark_mode_enabled?: boolean }) => void;
+  clearSchoolTheme: () => void;
+  isSchoolThemeActive: boolean;
 }
 
 const defaultTheme: Theme = {
@@ -84,29 +87,35 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     return defaultTheme;
   });
 
+  const [isSchoolThemeActive, setIsSchoolThemeActive] = useState(false);
+
   useEffect(() => {
-    // Apply theme to document
-    document.documentElement.classList.toggle('dark', theme.mode === 'dark');
+    // Always apply dark mode toggle - this is the user's preference
+    const isDark = theme.mode === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
 
-    // Save theme to localStorage
+    // Only apply colors if no school theme is active
+    if (!isSchoolThemeActive) {
+      // Generate and apply primary color palette
+      const primaryPalette = generateColorPalette(theme.primaryColor);
+      Object.entries(primaryPalette).forEach(([shade, rgb]) => {
+        document.documentElement.style.setProperty(`--color-primary-${shade}`, rgb);
+      });
+
+      // Generate and apply secondary color palette
+      const secondaryPalette = generateColorPalette(theme.secondaryColor);
+      Object.entries(secondaryPalette).forEach(([shade, rgb]) => {
+        document.documentElement.style.setProperty(`--color-secondary-${shade}`, rgb);
+      });
+
+      // Keep legacy variables for backward compatibility
+      document.documentElement.style.setProperty('--color-primary', theme.primaryColor);
+      document.documentElement.style.setProperty('--color-secondary', theme.secondaryColor);
+    }
+
+    // Always save theme to localStorage for user preferences
     localStorage.setItem('theme', JSON.stringify(theme));
-
-    // Generate and apply primary color palette
-    const primaryPalette = generateColorPalette(theme.primaryColor);
-    Object.entries(primaryPalette).forEach(([shade, rgb]) => {
-      document.documentElement.style.setProperty(`--color-primary-${shade}`, rgb);
-    });
-
-    // Generate and apply secondary color palette
-    const secondaryPalette = generateColorPalette(theme.secondaryColor);
-    Object.entries(secondaryPalette).forEach(([shade, rgb]) => {
-      document.documentElement.style.setProperty(`--color-secondary-${shade}`, rgb);
-    });
-
-    // Keep legacy variables for backward compatibility
-    document.documentElement.style.setProperty('--color-primary', theme.primaryColor);
-    document.documentElement.style.setProperty('--color-secondary', theme.secondaryColor);
-  }, [theme]);
+  }, [theme, isSchoolThemeActive]);
 
   const toggleDarkMode = () => {
     setTheme(prev => ({
@@ -123,10 +132,31 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }));
   };
 
+  const setSchoolTheme = (schoolTheme: { primary_color?: string; secondary_color?: string; dark_mode_enabled?: boolean }) => {
+    setIsSchoolThemeActive(true);
+
+    // Update theme state to reflect school theme
+    // Only update dark mode if explicitly provided in school theme
+    setTheme(prev => ({
+      ...prev,
+      primaryColor: schoolTheme.primary_color || prev.primaryColor,
+      secondaryColor: schoolTheme.secondary_color || prev.secondaryColor,
+      mode: schoolTheme.dark_mode_enabled !== undefined ? (schoolTheme.dark_mode_enabled ? 'dark' : 'light') : prev.mode,
+    }));
+  };
+
+  const clearSchoolTheme = () => {
+    setIsSchoolThemeActive(false);
+    // Theme will be reapplied by the useEffect when isSchoolThemeActive changes
+  };
+
   const value: ThemeContextType = {
     theme,
     toggleDarkMode,
     updateThemeColors,
+    setSchoolTheme,
+    clearSchoolTheme,
+    isSchoolThemeActive,
   };
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

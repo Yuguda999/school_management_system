@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
-import { Navigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { LoginCredentials } from '../../types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SchoolSelectionModal from '../../components/auth/SchoolSelectionModal';
 
 const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -20,10 +22,28 @@ const LoginPage: React.FC = () => {
     formState: { errors },
   } = useForm<LoginCredentials>();
 
-  if (isAuthenticated) {
+  // Handle navigation after authentication
+  useEffect(() => {
+    if (isAuthenticated && !requiresSchoolSelection) {
+      const from = location.state?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, requiresSchoolSelection, navigate, location.state?.from?.pathname]);
+
+  if (isAuthenticated && !requiresSchoolSelection) {
     // Redirect to the page they were trying to visit or dashboard
     const from = location.state?.from?.pathname || '/dashboard';
     return <Navigate to={from} replace />;
+  }
+
+  // Show school selection modal if required
+  if (requiresSchoolSelection && availableSchools.length > 0) {
+    return (
+      <SchoolSelectionModal
+        schools={availableSchools}
+        onSelectSchool={selectSchool}
+      />
+    );
   }
 
   const onSubmit = async (data: LoginCredentials) => {
@@ -38,11 +58,6 @@ const LoginPage: React.FC = () => {
 
       if (errorMessage) {
         setError(errorMessage);
-
-        // If it's a development error with credentials info, show the dev credentials helper
-        if (errorMessage.includes('Available test users') || errorMessage.includes('Incorrect password')) {
-          setShowDevCredentials(true);
-        }
       } else {
         // Provide more specific fallback messages based on the error type
         if (err.response?.status === 401) {
@@ -73,6 +88,15 @@ const LoginPage: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             School Management System
           </p>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+            Don't have an account?{' '}
+            <Link
+              to="/register"
+              className="font-medium text-primary-600 hover:text-primary-500"
+            >
+              Register your school
+            </Link>
+          </p>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -83,7 +107,8 @@ const LoginPage: React.FC = () => {
               </div>
             </div>
           )}
-          
+
+
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

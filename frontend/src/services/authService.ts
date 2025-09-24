@@ -17,7 +17,25 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await apiService.get<any>('/api/v1/auth/me');
+    // Add cache-busting headers to ensure fresh data
+    const cacheHeaders = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
+
+    const response = await apiService.get<any>('/api/v1/auth/me', { headers: cacheHeaders });
+
+    // Fetch school information if user has a school_id
+    let school = null;
+    if (response.school_id) {
+      try {
+        school = await apiService.get<any>('/api/v1/schools/me', { headers: cacheHeaders });
+      } catch (error) {
+        console.warn('Failed to fetch school information:', error);
+      }
+    }
+
     return {
       id: response.id,
       email: response.email,
@@ -29,6 +47,7 @@ class AuthService {
       is_verified: response.is_verified,
       profile_completed: response.profile_completed || false,
       school_id: response.school_id,
+      school: school,
       phone: response.phone,
       date_of_birth: response.date_of_birth,
       gender: response.gender,

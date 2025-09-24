@@ -5,6 +5,7 @@ import {
   PlusIcon,
   Cog6ToothIcon,
   BuildingOfficeIcon,
+  BuildingStorefrontIcon,
 } from '@heroicons/react/24/outline';
 import { Term } from '../../types';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
@@ -13,8 +14,9 @@ import TermList from '../terms/TermList';
 import TermForm from '../terms/TermForm';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import TermSwitcher from '../terms/TermSwitcher';
+import SchoolManagement from './SchoolManagement';
 
-type SchoolSettingsTab = 'overview' | 'terms' | 'academic' | 'general';
+type SchoolSettingsTab = 'overview' | 'schools' | 'terms' | 'academic' | 'general';
 
 const SchoolSettings: React.FC = () => {
   const { user } = useAuth();
@@ -45,6 +47,12 @@ const SchoolSettings: React.FC = () => {
       icon: BuildingOfficeIcon,
       description: 'School overview and current term'
     },
+    ...(user?.role === 'school_owner' ? [{
+      id: 'schools' as SchoolSettingsTab,
+      name: 'My Schools',
+      icon: BuildingStorefrontIcon,
+      description: 'Manage your schools'
+    }] : []),
     {
       id: 'terms' as SchoolSettingsTab,
       name: 'Terms',
@@ -131,6 +139,9 @@ const SchoolSettings: React.FC = () => {
             </div>
           </div>
         );
+
+      case 'schools':
+        return user?.role === 'school_owner' ? <SchoolManagement /> : null;
 
       case 'terms':
         return (

@@ -1,13 +1,17 @@
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import Layout from './components/Layout/Layout';
+import RoleBasedLayout from './components/Layout/RoleBasedLayout';
+import PlatformAdminRoute from './components/auth/PlatformAdminRoute';
+import SchoolRoute from './components/auth/SchoolRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileCompletionCheck from './components/auth/ProfileCompletionCheck';
 import LoginPage from './pages/auth/LoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import TeacherSetupPage from './pages/auth/TeacherSetupPage';
+import FreemiumRegistrationPage from './pages/public/FreemiumRegistrationPage';
+import LandingPage from './pages/public/LandingPage';
 import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileCompletionPage';
 import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
@@ -27,6 +31,12 @@ import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import TermManagementPage from './pages/terms/TermManagementPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
+import PlatformAdminPage from './pages/platform/PlatformAdminPage';
+import PlatformSchoolsPage from './pages/platform/PlatformSchoolsPage';
+import SchoolOwnersPage from './pages/platform/SchoolOwnersPage';
+import PlatformAnalyticsPage from './pages/platform/PlatformAnalyticsPage';
+import PlatformSettingsPage from './pages/platform/PlatformSettingsPage';
+import RoleBasedRedirect from './components/auth/RoleBasedRedirect';
 
 function App() {
   const { loading } = useAuth();
@@ -39,33 +49,51 @@ function App() {
     <>
       <Routes>
       {/* Public Routes */}
+      <Route path="/home" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/teacher/accept-invitation" element={<TeacherSetupPage />} />
       <Route path="/teacher/complete-profile" element={<TeacherProfileCompletionPage />} />
+      <Route path="/register" element={<FreemiumRegistrationPage />} />
 
-      {/* Protected Routes */}
+      {/* Platform Admin Routes - Completely Isolated */}
+      <Route
+        path="/platform/*"
+        element={
+          <PlatformAdminRoute>
+            <RoleBasedLayout />
+          </PlatformAdminRoute>
+        }
+      >
+        <Route index element={<PlatformAdminPage />} />
+        <Route path="schools" element={<PlatformSchoolsPage />} />
+        <Route path="school-owners" element={<SchoolOwnersPage />} />
+        <Route path="analytics" element={<PlatformAnalyticsPage />} />
+        <Route path="settings" element={<PlatformSettingsPage />} />
+      </Route>
+
+      {/* School Routes - Completely Isolated */}
       <Route
         path="/"
         element={
-          <ProtectedRoute>
+          <SchoolRoute>
             <ProfileCompletionCheck>
-              <Layout />
+              <RoleBasedLayout />
             </ProfileCompletionCheck>
-          </ProtectedRoute>
+          </SchoolRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route index element={<RoleBasedRedirect />} />
         <Route path="dashboard" element={<DashboardPage />} />
 
         {/* Teacher Dashboard */}
         <Route
           path="teacher/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['teacher']}>
+            <SchoolRoute allowedRoles={['teacher']}>
               <TeacherDashboardPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
 
@@ -73,52 +101,83 @@ function App() {
         <Route
           path="teacher/profile"
           element={
-            <ProtectedRoute allowedRoles={['teacher']}>
+            <SchoolRoute allowedRoles={['teacher']}>
               <TeacherProfilePage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
-        
+
+        {/* Teacher Subjects */}
+        <Route
+          path="teacher/subjects"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <TeacherSubjectsPage />
+            </SchoolRoute>
+          }
+        />
+
         {/* Student Management */}
-        <Route path="students" element={<StudentsPage />} />
-        <Route path="students/:studentId" element={<StudentDetailPage />} />
+        <Route
+          path="students"
+          element={
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+              <StudentsPage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="students/:studentId"
+          element={
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+              <StudentDetailPage />
+            </SchoolRoute>
+          }
+        />
         
         {/* Teacher Management */}
         <Route
           path="teachers"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <TeachersPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
         <Route
           path="teacher-invitations"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <TeacherInvitationsPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
 
         {/* Class Management */}
-        <Route path="classes" element={<ClassesPage />} />
+        <Route
+          path="classes"
+          element={
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']}>
+              <ClassesPage />
+            </SchoolRoute>
+          }
+        />
 
         {/* Subject Management */}
         <Route
           path="subjects"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']}>
               <SubjectsPageWrapper />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
         <Route
           path="subjects/:subjectId"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <SubjectDetailPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
 
@@ -126,25 +185,39 @@ function App() {
         <Route
           path="fees"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <FeesPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
-        
+
         {/* Grades */}
-        <Route path="grades" element={<GradesPage />} />
-        
+        <Route
+          path="grades"
+          element={
+            <SchoolRoute>
+              <GradesPage />
+            </SchoolRoute>
+          }
+        />
+
         {/* Communication */}
-        <Route path="communication" element={<CommunicationPage />} />
+        <Route
+          path="communication"
+          element={
+            <SchoolRoute>
+              <CommunicationPage />
+            </SchoolRoute>
+          }
+        />
 
         {/* Reports */}
         <Route
           path="reports"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin', 'teacher']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <ReportsPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
 
@@ -152,18 +225,26 @@ function App() {
         <Route
           path="terms"
           element={
-            <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <TermManagementPage />
-            </ProtectedRoute>
+            </SchoolRoute>
           }
         />
 
         {/* Settings */}
-        <Route path="settings" element={<SettingsPage />} />
+        <Route
+          path="settings"
+          element={
+            <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+              <SettingsPage />
+            </SchoolRoute>
+          }
+        />
+
       </Route>
       
       {/* Catch all route */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<RoleBasedRedirect />} />
     </Routes>
     </>
   );

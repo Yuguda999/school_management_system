@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
-    require_admin,
+    require_school_admin,
     require_teacher_or_admin,
     get_current_school,
     check_teacher_can_access_student,
@@ -166,7 +166,7 @@ async def update_exam(
 @router.delete("/exams/{exam_id}")
 async def delete_exam(
     exam_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -470,7 +470,7 @@ async def update_grade(
 @router.delete("/grades/{grade_id}")
 async def delete_grade(
     grade_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

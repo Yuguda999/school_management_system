@@ -3,9 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
-    get_current_active_user, 
-    require_admin, 
-    require_super_admin,
+    get_current_active_user,
+    require_school_admin,
     get_current_school
 )
 from app.models.user import User, UserRole
@@ -32,7 +31,7 @@ router = APIRouter()
 @router.post("/structures", response_model=FeeStructureResponse)
 async def create_fee_structure(
     fee_data: FeeStructureCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -49,7 +48,7 @@ async def get_fee_structures(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -66,7 +65,7 @@ async def get_fee_structures(
 async def update_fee_structure(
     structure_id: str,
     fee_data: FeeStructureUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -87,7 +86,7 @@ async def update_fee_structure(
 @router.delete("/structures/{structure_id}")
 async def delete_fee_structure(
     structure_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -109,7 +108,7 @@ async def delete_fee_structure(
 @router.post("/assignments", response_model=FeeAssignmentResponse)
 async def create_fee_assignment(
     assignment_data: FeeAssignmentCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -126,7 +125,7 @@ async def create_fee_assignment(
 @router.post("/assignments/bulk", response_model=List[FeeAssignmentResponse])
 async def bulk_create_fee_assignments(
     bulk_data: BulkFeeAssignmentCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -180,7 +179,7 @@ async def get_student_fee_assignments(
 @router.post("/payments", response_model=FeePaymentResponse)
 async def create_fee_payment(
     payment_data: FeePaymentCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -245,7 +244,7 @@ async def get_student_payments(
 async def get_fee_collection_report(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

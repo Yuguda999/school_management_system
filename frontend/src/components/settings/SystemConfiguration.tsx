@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  Cog6ToothIcon, 
-  ClockIcon, 
+import {
+  Cog6ToothIcon,
+  ClockIcon,
   CalendarDaysIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  UserGroupIcon
 } from '@heroicons/react/24/outline';
+import { usePermissions } from '../../hooks/usePermissions';
+import UserManagement from './UserManagement';
 
 interface SystemConfig {
   academic_year_start: string;
@@ -26,6 +29,8 @@ interface SystemConfig {
 }
 
 const SystemConfiguration: React.FC = () => {
+  const { canManagePlatform } = usePermissions();
+  const [activeTab, setActiveTab] = useState<'config' | 'users'>('config');
   const [config, setConfig] = useState<SystemConfig>({
     academic_year_start: '2024-04-01',
     academic_year_end: '2025-03-31',
@@ -74,7 +79,42 @@ const SystemConfiguration: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Academic Settings */}
+      {/* Tab Navigation for Platform Admin */}
+      {canManagePlatform() && (
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'config'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <Cog6ToothIcon className="h-5 w-5 mr-2 inline" />
+              System Configuration
+            </button>
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'users'
+                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <UserGroupIcon className="h-5 w-5 mr-2 inline" />
+              User Management
+            </button>
+          </nav>
+        </div>
+      )}
+
+      {/* Tab Content */}
+      {activeTab === 'users' && canManagePlatform() ? (
+        <UserManagement />
+      ) : (
+        <>
+          {/* Academic Settings */}
       <div className="card p-6">
         <div className="flex items-center space-x-3 mb-4">
           <AcademicCapIcon className="h-6 w-6 text-blue-600" />
@@ -388,6 +428,8 @@ const SystemConfiguration: React.FC = () => {
           <span>{loading ? 'Saving...' : 'Save Configuration'}</span>
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 };

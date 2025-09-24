@@ -10,6 +10,7 @@ export interface User {
   is_verified: boolean;
   profile_completed: boolean;
   school_id: string;
+  school?: SchoolInfo;
   phone?: string;
   date_of_birth?: string;
   gender?: Gender;
@@ -30,6 +31,43 @@ export interface User {
   updated_at: string;
 }
 
+export interface SchoolInfo {
+  id: string;
+  name: string;
+  code: string;
+  logo_url?: string;
+  email: string;
+  phone?: string;
+  website?: string;
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  description?: string;
+  motto?: string;
+  established_year?: string;
+  current_session: string;
+  current_term: string;
+  settings?: Record<string, any>;
+  is_active: boolean;
+  is_verified: boolean;
+  subscription_plan: string;
+  subscription_status: string;
+  trial_started_at?: string;
+  trial_expires_at?: string;
+  trial_days: number;
+  trial_days_remaining?: number;
+  is_trial?: boolean;
+  trial_expired?: boolean;
+  max_students?: number;
+  max_teachers?: number;
+  max_classes?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface UserSubjectInfo {
   subject_id: string;
   subject_name: string;
@@ -37,13 +75,41 @@ export interface UserSubjectInfo {
   is_head_of_subject: boolean;
 }
 
-export type UserRole = 'super_admin' | 'admin' | 'teacher' | 'student' | 'parent';
+export type UserRole = 'platform_super_admin' | 'school_owner' | 'school_admin' | 'teacher' | 'student' | 'parent';
 
 export type Gender = 'male' | 'female' | 'other';
 
 export interface LoginCredentials {
   email: string;
   password: string;
+}
+
+export interface SchoolSelectionRequest {
+  school_id: string;
+}
+
+export interface SchoolSelectionResponse {
+  access_token: string;
+  school: SchoolOption;
+  message: string;
+}
+
+export interface OwnedSchoolsResponse {
+  schools: SchoolOption[];
+  total_count: number;
+  has_multiple_schools: boolean;
+}
+
+export interface SchoolOption {
+  id: string;
+  name: string;
+  code: string;
+  logo_url?: string;
+  is_primary: boolean;
+  subscription_plan?: string;
+  subscription_status?: string;
+  is_trial?: boolean;
+  trial_expires_at?: string;
 }
 
 export interface AuthResponse {
@@ -56,6 +122,8 @@ export interface AuthResponse {
   school_id: string;
   full_name: string;
   profile_completed: boolean;
+  requires_school_selection?: boolean;
+  available_schools?: SchoolOption[];
 }
 
 // Teacher Invitation Types

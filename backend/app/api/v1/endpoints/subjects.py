@@ -2,7 +2,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school, check_teacher_can_access_subject
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school, get_current_school_context, SchoolContext, check_teacher_can_access_subject
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.schemas.academic import SubjectCreate, SubjectUpdate, SubjectResponse
@@ -14,11 +14,11 @@ router = APIRouter()
 @router.post("/", response_model=SubjectResponse)
 async def create_subject(
     subject_data: SubjectCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new subject (Admin/Super Admin only)"""
+    """Create a new subject (School Admin only)"""
     subject = await AcademicService.create_subject(db, subject_data, current_school.id)
     return SubjectResponse.from_orm(subject)
 
@@ -29,22 +29,22 @@ async def get_subjects(
     is_core: Optional[bool] = Query(None, description="Filter by core subjects"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all subjects"""
+    current_user = school_context.user
     skip = (page - 1) * size
 
     # Teachers can only see subjects they are assigned to teach
     if current_user.role == UserRole.TEACHER:
         subjects = await AcademicService.get_teacher_subjects(
-            db, current_user.id, current_school.id, is_active, is_core, skip, size
+            db, current_user.id, school_context.school_id, is_active, is_core, skip, size
         )
     else:
         # Admins can see all subjects
         subjects = await AcademicService.get_subjects(
-            db, current_school.id, is_active, is_core, skip, size
+            db, school_context.school_id, is_active, is_core, skip, size
         )
 
     return [SubjectResponse.from_orm(subject) for subject in subjects]
@@ -94,11 +94,11 @@ async def get_subject(
 async def update_subject(
     subject_id: str,
     subject_data: SubjectUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Update subject information (Admin/Super Admin only)"""
+    """Update subject information (School Admin only)"""
     from sqlalchemy import select
     from app.models.academic import Subject
     
@@ -148,11 +148,11 @@ async def update_subject(
 @router.delete("/{subject_id}")
 async def delete_subject(
     subject_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Delete subject (Admin/Super Admin only)"""
+    """Delete subject (School Admin only)"""
     from sqlalchemy import select
     from app.models.academic import Subject
     

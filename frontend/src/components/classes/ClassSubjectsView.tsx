@@ -31,7 +31,7 @@ const ClassSubjectsView: React.FC<ClassSubjectsViewProps> = ({
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedSubjects, setSelectedSubjects] = useState<{[key: string]: boolean}>({});
   const [submitting, setSubmitting] = useState(false);
-  const { showToast } = useToast();
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadData();
@@ -78,13 +78,13 @@ const ClassSubjectsView: React.FC<ClassSubjectsViewProps> = ({
 
       await academicService.bulkAssignSubjectsToClass(classId, assignmentData);
       
-      showToast('Subject assignments updated successfully', 'success');
+      showSuccess('Subject assignments updated successfully');
       setShowAssignModal(false);
       loadData();
       onUpdate?.();
     } catch (error) {
       console.error('Error updating subject assignments:', error);
-      showToast('Failed to update subject assignments', 'error');
+      showError('Failed to update subject assignments');
     } finally {
       setSubmitting(false);
     }
@@ -97,12 +97,12 @@ const ClassSubjectsView: React.FC<ClassSubjectsViewProps> = ({
 
     try {
       await academicService.removeClassSubjectAssignment(assignmentId);
-      showToast('Subject assignment removed successfully', 'success');
+      showSuccess('Subject assignment removed successfully');
       loadData();
       onUpdate?.();
     } catch (error) {
       console.error('Error removing assignment:', error);
-      showToast('Failed to remove subject assignment', 'error');
+      showError('Failed to remove subject assignment');
     }
   };
 

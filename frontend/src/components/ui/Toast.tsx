@@ -67,11 +67,11 @@ const Toast: React.FC<ToastProps> = ({
         };
       case 'info':
         return {
-          container: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
-          icon: 'text-blue-600 dark:text-blue-400',
-          title: 'text-blue-800 dark:text-blue-200',
-          message: 'text-blue-700 dark:text-blue-300',
-          closeButton: 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200',
+          container: 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800',
+          icon: 'text-primary-600 dark:text-primary-400',
+          title: 'text-primary-800 dark:text-primary-200',
+          message: 'text-primary-700 dark:text-primary-300',
+          closeButton: 'text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-200',
         };
       default:
         return {

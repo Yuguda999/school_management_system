@@ -15,17 +15,21 @@ from app.core.security import (
     generate_password_reset_token,
     verify_password_reset_token
 )
-from app.core.deps import get_current_active_user
-from app.models.user import User
+from app.core.deps import get_current_active_user, get_school_context, SchoolContext
+from app.models.user import User, UserRole
+from app.models.school import School
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
+    SchoolOption,
+    SchoolSelectionRequest,
     RefreshTokenRequest,
     RefreshTokenResponse,
     PasswordResetRequest,
     PasswordResetConfirm,
     ChangePasswordRequest
 )
+from app.services.school_ownership_service import SchoolOwnershipService
 
 router = APIRouter()
 
@@ -66,15 +70,9 @@ async def login(
             )
 
         if not verify_password(login_data.password, user.password_hash):
-            # In development mode, provide more helpful error messages
-            if settings.debug or settings.environment == "development":
-                detail = f"Incorrect password for {user.email}. Hint: Check the test credentials in your documentation."
-            else:
-                detail = "Incorrect email or password"
-
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=detail
+                detail="Incorrect email or password"
             )
     except HTTPException:
         raise
@@ -90,26 +88,54 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive"
         )
-    
+
+    # Handle school owners - all school owners must select a school
+    requires_school_selection = False
+    available_schools = None
+    school_id = user.school_id
+
+    if user.role == UserRole.SCHOOL_OWNER:
+        owned_schools = await SchoolOwnershipService.get_owned_schools(db, user.id)
+        if len(owned_schools) > 0:
+            requires_school_selection = True
+            # Get ownership information for each school
+            school_ownerships = await SchoolOwnershipService.get_user_ownerships(db, user.id)
+            ownership_map = {ownership.school_id: ownership for ownership in school_ownerships}
+
+            available_schools = [
+                SchoolOption(
+                    id=school.id,
+                    name=school.name,
+                    code=school.code,
+                    logo_url=school.logo_url,
+                    is_primary=ownership_map.get(school.id).is_primary_owner if ownership_map.get(school.id) else False
+                )
+                for school in owned_schools
+            ]
+            # Don't set school_id for school owners until they select
+            school_id = None
+
     # Create tokens
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
-        data={"sub": user.id, "email": user.email, "role": user.role, "school_id": user.school_id},
+        data={"sub": user.id, "email": user.email, "role": user.role, "school_id": school_id},
         expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(
         data={"sub": user.id, "email": user.email}
     )
-    
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         user_id=user.id,
         email=user.email,
         role=user.role,
-        school_id=user.school_id,
+        school_id=school_id,
         full_name=user.full_name,
-        profile_completed=user.profile_completed
+        profile_completed=user.profile_completed,
+        requires_school_selection=requires_school_selection,
+        available_schools=available_schools
     )
 
 
@@ -246,15 +272,16 @@ async def change_password(
 
 @router.get("/me")
 async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
+    school_context: SchoolContext = Depends(get_school_context)
 ) -> Any:
-    """Get current user information"""
+    """Get current user information with current school context"""
+    current_user = school_context.user
     return {
         "id": current_user.id,
         "email": current_user.email,
         "full_name": current_user.full_name,
         "role": current_user.role,
-        "school_id": current_user.school_id,
+        "school_id": school_context.school_id,  # Use school_id from JWT context
         "is_active": current_user.is_active,
         "is_verified": current_user.is_verified,
         "profile_completed": current_user.profile_completed,
@@ -275,38 +302,72 @@ async def get_current_user_info(
     }
 
 
-@router.get("/dev/test-credentials")
-async def get_test_credentials(db: AsyncSession = Depends(get_db)) -> Any:
-    """Get test credentials for development (only available in development mode)"""
-    if not (settings.debug or settings.environment == "development"):
+@router.post("/select-school", response_model=LoginResponse)
+async def select_school(
+    request: SchoolSelectionRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Select a school for a school owner"""
+
+    # Verify user is a school owner
+    if current_user.role != UserRole.SCHOOL_OWNER:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not found"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only school owners can select schools"
         )
 
-    # Get sample users for testing
-    result = await db.execute(
-        select(User.email, User.first_name, User.last_name, User.role).where(
-            User.is_deleted == False,
-            User.is_active == True
-        ).limit(5)
+    # Verify user owns the selected school
+    ownership = await SchoolOwnershipService.get_ownership_details(
+        db, current_user.id, request.school_id
     )
-    users = result.fetchall()
+    if not ownership:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have access to this school"
+        )
 
-    test_credentials = []
-    for user in users:
-        # For development, we'll show a hint about the password
-        full_name = f"{user.first_name} {user.last_name}".strip()
-        test_credentials.append({
-            "email": user.email,
-            "full_name": full_name,
-            "role": user.role,
-            "password_hint": "Check your test documentation or memories for the password"
-        })
+    # Get school details
+    result = await db.execute(
+        select(School).where(
+            School.id == request.school_id,
+            School.is_deleted == False,
+            School.is_active == True
+        )
+    )
+    school = result.scalar_one_or_none()
+    if not school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
 
-    return {
-        "message": "Development test credentials",
-        "note": "This endpoint is only available in development mode",
-        "credentials": test_credentials,
-        "common_test_password": "P@$w0rd (for elemenx93@gmail.com)"
-    }
+    # Create new tokens with school context
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={
+            "sub": current_user.id,
+            "email": current_user.email,
+            "role": current_user.role,
+            "school_id": school.id
+        },
+        expires_delta=access_token_expires
+    )
+
+    refresh_token = create_refresh_token(
+        data={"sub": current_user.id, "email": current_user.email}
+    )
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user_id=current_user.id,
+        email=current_user.email,
+        role=current_user.role,
+        school_id=school.id,
+        full_name=current_user.full_name,
+        profile_completed=current_user.profile_completed,
+        requires_school_selection=False,
+        available_schools=None
+    )
+

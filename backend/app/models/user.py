@@ -5,11 +5,12 @@ import enum
 
 
 class UserRole(str, enum.Enum):
-    SUPER_ADMIN = "super_admin"      # School owner/administrator
-    ADMIN = "admin"                  # School admin staff
-    TEACHER = "teacher"              # Teaching staff
-    PARENT = "parent"                # Parent/Guardian
-    STUDENT = "student"              # Student (for login access)
+    PLATFORM_SUPER_ADMIN = "platform_super_admin"  # Platform owner (CLI only, once)
+    SCHOOL_OWNER = "school_owner"                   # School owner (can register school)
+    SCHOOL_ADMIN = "school_admin"                   # School admin staff
+    TEACHER = "teacher"                             # Teaching staff
+    PARENT = "parent"                               # Parent/Guardian
+    STUDENT = "student"                             # Student (for login access)
 
 
 class Gender(str, enum.Enum):
@@ -61,11 +62,12 @@ class User(TenantBaseModel):
     profile_picture_url = Column(String(500), nullable=True)
     bio = Column(Text, nullable=True)
     
-    # Foreign Keys
-    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
+    # Foreign Keys (nullable for platform super admin)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=True)
     
     # Relationships
     school = relationship("School", back_populates="users")
+    owned_schools = relationship("SchoolOwnership", foreign_keys="SchoolOwnership.user_id", back_populates="user")
     taught_classes = relationship("Class", back_populates="teacher")
     children = relationship("Student", back_populates="parent")
     sent_messages = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender")

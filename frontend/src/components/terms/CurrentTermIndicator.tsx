@@ -106,7 +106,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
   const termContent = (
     <>
       <div className="flex-shrink-0">
-        <AcademicCapIcon className="h-6 w-6 text-blue-600" />
+        <AcademicCapIcon className="h-6 w-6 text-primary-600" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center space-x-2">
@@ -144,7 +144,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
   switch (variant) {
     case 'banner':
       return (
-        <div className={`bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 ${className}`}>
+        <div className={`bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-4 ${className}`}>
           <div className="flex items-start space-x-3">
             {termContent}
           </div>
@@ -154,7 +154,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
     case 'compact':
       return (
         <div className={`flex items-center space-x-2 ${className}`}>
-          <AcademicCapIcon className="h-4 w-4 text-blue-600" />
+          <AcademicCapIcon className="h-4 w-4 text-primary-600" />
           <span className="text-sm font-medium text-gray-900 dark:text-white">
             {termInfo.name}
           </span>
@@ -167,7 +167,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
     case 'inline':
       return (
         <span className={`inline-flex items-center space-x-1 ${className}`}>
-          <AcademicCapIcon className="h-4 w-4 text-blue-600" />
+          <AcademicCapIcon className="h-4 w-4 text-primary-600" />
           <span className="text-sm font-medium text-gray-900 dark:text-white">
             {termInfo.name}
           </span>
@@ -189,7 +189,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
           {showDetails && termInfo.status !== 'current' && (
             <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="flex items-center space-x-2">
-                <InformationCircleIcon className="h-4 w-4 text-blue-500" />
+                <InformationCircleIcon className="h-4 w-4 text-primary-500" />
                 <span className="text-xs text-gray-600 dark:text-gray-400">
                   {termInfo.status === 'upcoming' 
                     ? 'This term has not started yet.'

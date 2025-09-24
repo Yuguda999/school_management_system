@@ -3,9 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
-    get_current_active_user, 
-    require_admin, 
-    require_super_admin,
+    get_current_active_user,
+    require_school_admin,
     get_current_school
 )
 from app.models.user import User, UserRole
@@ -30,7 +29,7 @@ router = APIRouter()
 @router.post("/", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -42,11 +41,11 @@ async def create_user(
 @router.post("/staff", response_model=UserResponse)
 async def create_staff(
     staff_data: StaffCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new staff member (Admin/Super Admin only)"""
+    """Create a new staff member (School Admin only)"""
     user = await UserService.create_user(db, staff_data, current_school.id)
     return UserResponse.from_orm(user)
 
@@ -54,11 +53,11 @@ async def create_staff(
 @router.post("/parents", response_model=UserResponse)
 async def create_parent(
     parent_data: ParentCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new parent (Admin/Super Admin only)"""
+    """Create a new parent (School Admin only)"""
     user = await UserService.create_user(db, parent_data, current_school.id)
     return UserResponse.from_orm(user)
 
@@ -66,11 +65,11 @@ async def create_parent(
 @router.post("/teachers", response_model=UserResponse)
 async def create_teacher_with_subjects(
     teacher_data: TeacherCreateWithSubjects,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new teacher with subject assignments (Admin/Super Admin only)"""
+    """Create a new teacher with subject assignments (School Admin only)"""
     user = await UserService.create_teacher_with_subjects(db, teacher_data, current_school.id)
     return UserResponse.from_orm(user)
 
@@ -82,11 +81,11 @@ async def get_users(
     search: Optional[str] = Query(None, description="Search by name, email, or employee ID"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Page size"),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get users with filtering and pagination (Admin/Super Admin only)"""
+    """Get users with filtering and pagination (School Admin only)"""
     skip = (page - 1) * size
     users, total = await UserService.get_users(
         db, current_school.id, role, is_active, search, skip, size
@@ -107,11 +106,11 @@ async def get_users(
 async def get_teachers(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get all teachers (Admin/Super Admin only)"""
+    """Get all teachers (School Admin only)"""
     skip = (page - 1) * size
     teachers = await UserService.get_teachers(db, current_school.id, skip, size)
     return [UserResponse.from_orm(teacher) for teacher in teachers]
@@ -121,11 +120,11 @@ async def get_teachers(
 async def get_parents(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get all parents (Admin/Super Admin only)"""
+    """Get all parents (School Admin only)"""
     skip = (page - 1) * size
     parents = await UserService.get_parents(db, current_school.id, skip, size)
     return [UserResponse.from_orm(parent) for parent in parents]
@@ -186,11 +185,11 @@ async def update_user(
 async def update_user_status(
     user_id: str,
     status_data: UserStatusUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Update user status (Admin/Super Admin only)"""
+    """Update user status (School Admin only)"""
     user = await UserService.update_user_status(db, user_id, current_school.id, status_data)
     if not user:
         raise HTTPException(
@@ -205,7 +204,7 @@ async def update_user_status(
 async def update_user_role(
     user_id: str,
     role_data: UserRoleUpdate,
-    current_user: User = Depends(require_super_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -223,11 +222,11 @@ async def update_user_role(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Delete user (Admin/Super Admin only)"""
+    """Delete user (School Admin only)"""
     # Prevent self-deletion
     if user_id == current_user.id:
         raise HTTPException(

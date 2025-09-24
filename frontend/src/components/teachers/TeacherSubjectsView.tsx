@@ -32,7 +32,7 @@ const TeacherSubjectsView: React.FC<TeacherSubjectsViewProps> = ({
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [headOfSubject, setHeadOfSubject] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
-  const { showToast } = useToast();
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     loadData();
@@ -55,7 +55,7 @@ const TeacherSubjectsView: React.FC<TeacherSubjectsViewProps> = ({
       setHeadOfSubject(headSubject?.subject_id || '');
     } catch (error) {
       console.error('Error loading teacher subjects:', error);
-      showToast('Failed to load teacher subjects', 'error');
+      showError('Failed to load teacher subjects');
     } finally {
       setLoading(false);
     }
@@ -72,13 +72,13 @@ const TeacherSubjectsView: React.FC<TeacherSubjectsViewProps> = ({
 
       await academicService.bulkAssignSubjectsToTeacher(teacherId, assignmentData);
       
-      showToast('Subject assignments updated successfully', 'success');
+      showSuccess('Subject assignments updated successfully');
       setShowAssignModal(false);
       loadData();
       onUpdate?.();
     } catch (error) {
       console.error('Error updating subject assignments:', error);
-      showToast('Failed to update subject assignments', 'error');
+      showError('Failed to update subject assignments');
     } finally {
       setSubmitting(false);
     }
@@ -91,12 +91,12 @@ const TeacherSubjectsView: React.FC<TeacherSubjectsViewProps> = ({
 
     try {
       await academicService.removeTeacherSubjectAssignment(assignmentId);
-      showToast('Subject assignment removed successfully', 'success');
+      showSuccess('Subject assignment removed successfully');
       loadData();
       onUpdate?.();
     } catch (error) {
       console.error('Error removing assignment:', error);
-      showToast('Failed to remove subject assignment', 'error');
+      showError('Failed to remove subject assignment');
     }
   };
 

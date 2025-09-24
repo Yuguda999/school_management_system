@@ -12,7 +12,7 @@ const ThemeCustomizer: React.FC = () => {
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   // Only allow theme customization for school owners/admins
-  if (!user || !['super_admin', 'admin'].includes(user.role)) {
+  if (!user || !['platform_super_admin', 'school_owner', 'school_admin'].includes(user.role)) {
     return (
       <div className="card p-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">

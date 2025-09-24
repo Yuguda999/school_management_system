@@ -64,6 +64,11 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
       return;
     }
 
+    // Skip term loading for platform admins
+    if (user.role === 'platform_super_admin') {
+      return;
+    }
+
     try {
       setError(null);
       const term = await academicService.getCurrentTerm();
@@ -82,6 +87,11 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
 
   const refreshTerms = async () => {
     if (!isAuthenticated || !user) {
+      return;
+    }
+
+    // Skip term loading for platform admins
+    if (user.role === 'platform_super_admin') {
       return;
     }
 
@@ -118,10 +128,16 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
     }
   };
 
-  // Initial data load - only when user is authenticated
+  // Initial data load - only when user is authenticated and not a platform admin
   useEffect(() => {
     const loadInitialData = async () => {
       if (!isAuthenticated || !user) {
+        setLoading(false);
+        return;
+      }
+
+      // Skip term loading for platform admins
+      if (user.role === 'platform_super_admin') {
         setLoading(false);
         return;
       }

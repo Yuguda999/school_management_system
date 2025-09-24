@@ -3,6 +3,7 @@
 
 from .base import *  # noqa
 from .school import *  # noqa
+from .school_ownership import *  # noqa
 from .user import *  # noqa
 from .student import *  # noqa
 from .academic import *  # noqa

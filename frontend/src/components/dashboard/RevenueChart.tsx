@@ -70,7 +70,7 @@ const RevenueChart: React.FC = () => {
             />
             <Bar
               dataKey="revenue"
-              fill="#8b5cf6"
+              fill="rgb(var(--color-secondary-500))"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

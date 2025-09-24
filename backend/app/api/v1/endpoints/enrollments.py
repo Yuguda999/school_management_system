@@ -2,7 +2,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.schemas.academic import EnrollmentCreate, EnrollmentResponse
@@ -14,7 +14,7 @@ router = APIRouter()
 @router.post("/", response_model=EnrollmentResponse)
 async def create_enrollment(
     enrollment_data: EnrollmentCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -72,7 +72,7 @@ async def get_enrollments(
 async def auto_enroll_class_students(
     class_id: str,
     subject_ids: Optional[List[str]] = Query(None, description="Specific subject IDs to enroll in"),
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -92,7 +92,7 @@ async def auto_enroll_class_students(
 @router.post("/auto-enroll/student/{student_id}")
 async def auto_enroll_student_in_class(
     student_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -128,7 +128,7 @@ async def auto_enroll_student_in_class(
 @router.delete("/{enrollment_id}")
 async def delete_enrollment(
     enrollment_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

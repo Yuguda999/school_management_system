@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -16,53 +17,59 @@ const MobileNavigation: React.FC = () => {
   const { user } = useAuth();
 
   const navigation = [
-    { 
-      name: 'Dashboard', 
-      href: '/dashboard', 
-      icon: HomeIcon, 
-      roles: ['super_admin', 'admin', 'teacher', 'student', 'parent']
+    {
+      name: 'Platform',
+      href: '/platform',
+      icon: BuildingOfficeIcon,
+      roles: ['platform_super_admin']
     },
-    { 
-      name: 'Students', 
-      href: '/students', 
-      icon: AcademicCapIcon, 
-      roles: ['super_admin', 'admin', 'teacher']
+    {
+      name: 'Dashboard',
+      href: '/dashboard',
+      icon: HomeIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent']
     },
-    { 
-      name: 'Teachers', 
-      href: '/teachers', 
-      icon: UserGroupIcon, 
-      roles: ['super_admin', 'admin']
+    {
+      name: 'Students',
+      href: '/students',
+      icon: AcademicCapIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher']
     },
-    { 
-      name: 'Classes', 
-      href: '/classes', 
-      icon: BuildingOfficeIcon, 
-      roles: ['super_admin', 'admin', 'teacher']
+    {
+      name: 'Teachers',
+      href: '/teachers',
+      icon: UserGroupIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin']
     },
-    { 
-      name: 'Fees', 
-      href: '/fees', 
-      icon: CurrencyDollarIcon, 
-      roles: ['super_admin', 'admin', 'teacher']
+    {
+      name: 'Classes',
+      href: '/classes',
+      icon: CalendarIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher']
     },
-    { 
-      name: 'Grades', 
-      href: '/grades', 
-      icon: ChartBarIcon, 
-      roles: ['super_admin', 'admin', 'teacher', 'student', 'parent']
+    {
+      name: 'Fees',
+      href: '/fees',
+      icon: CurrencyDollarIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher']
     },
-    { 
-      name: 'Communication', 
-      href: '/communication', 
-      icon: ChatBubbleLeftRightIcon, 
-      roles: ['super_admin', 'admin', 'teacher', 'student', 'parent']
+    {
+      name: 'Grades',
+      href: '/grades',
+      icon: ChartBarIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent']
     },
-    { 
-      name: 'Settings', 
-      href: '/settings', 
-      icon: Cog6ToothIcon, 
-      roles: ['super_admin', 'admin', 'teacher', 'student', 'parent']
+    {
+      name: 'Communication',
+      href: '/communication',
+      icon: ChatBubbleLeftRightIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent']
+    },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: Cog6ToothIcon,
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent']
     },
   ];
 

@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
-    get_current_active_user, 
-    require_admin, 
+    get_current_active_user,
+    require_school_admin,
     require_teacher_or_admin,
     get_current_school
 )
@@ -216,7 +216,7 @@ async def mark_messages_as_read(
 @router.post("/announcements", response_model=AnnouncementResponse)
 async def create_announcement(
     announcement_data: AnnouncementCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -267,7 +267,7 @@ async def get_announcements(
 @router.post("/announcements/{announcement_id}/publish")
 async def publish_announcement(
     announcement_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

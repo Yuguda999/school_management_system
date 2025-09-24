@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_admin, get_current_school
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school
 from app.models.user import User
 from app.models.school import School
 from app.models.academic import Term
@@ -16,11 +16,11 @@ router = APIRouter()
 @router.post("/", response_model=TermResponse)
 async def create_term(
     term_data: TermCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create a new term (Admin/Super Admin only)"""
+    """Create a new term (School Admin only)"""
     term = await AcademicService.create_term(db, term_data, current_school.id)
     return TermResponse.from_orm(term)
 
@@ -112,11 +112,11 @@ async def get_term(
 async def update_term(
     term_id: str,
     term_data: TermUpdate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Update term information (Admin/Super Admin only)"""
+    """Update term information (School Admin only)"""
     result = await db.execute(
         select(Term).where(
             Term.id == term_id,
@@ -146,11 +146,11 @@ async def update_term(
 @router.post("/{term_id}/set-current")
 async def set_current_term(
     term_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Set term as current (Admin/Super Admin only)"""
+    """Set term as current (School Admin only)"""
     success = await AcademicService.set_current_term(db, term_id, current_school.id)
     
     if not success:
@@ -165,11 +165,11 @@ async def set_current_term(
 @router.delete("/{term_id}")
 async def delete_term(
     term_id: str,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Delete term (Admin/Super Admin only)"""
+    """Delete term (School Admin only)"""
     result = await db.execute(
         select(Term).where(
             Term.id == term_id,
@@ -195,11 +195,11 @@ async def delete_term(
 @router.post("/bulk", response_model=BulkTermResponse)
 async def create_bulk_terms(
     bulk_data: BulkTermCreate,
-    current_user: User = Depends(require_admin()),
+    current_user: User = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Create all terms for an academic session at once (Admin/Super Admin only)"""
+    """Create all terms for an academic session at once (School Admin only)"""
     terms = await AcademicService.create_bulk_terms(db, bulk_data, current_school.id)
 
     return BulkTermResponse(

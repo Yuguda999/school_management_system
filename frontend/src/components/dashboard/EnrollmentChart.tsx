@@ -80,10 +80,10 @@ const EnrollmentChart: React.FC = () => {
             <Line
               type="monotone"
               dataKey="students"
-              stroke="#0ea5e9"
+              stroke="rgb(var(--color-primary-500))"
               strokeWidth={2}
-              dot={{ fill: '#0ea5e9', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#0ea5e9', strokeWidth: 2 }}
+              dot={{ fill: 'rgb(var(--color-primary-500))', strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: 'rgb(var(--color-primary-500))', strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
