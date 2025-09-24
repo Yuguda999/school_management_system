@@ -60,6 +60,18 @@ export const usePermissions = () => {
     return hasRole('student');
   };
 
+  const canManageClasses = (): boolean => {
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin']);
+  };
+
+  const canManageSubjects = (): boolean => {
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin']);
+  };
+
+  const canManageTerms = (): boolean => {
+    return hasAnyRole(['platform_super_admin', 'school_owner', 'school_admin']);
+  };
+
   const isPlatformSuperAdmin = (): boolean => {
     return hasRole('platform_super_admin');
   };
@@ -100,6 +112,9 @@ export const usePermissions = () => {
     canViewAllStudents,
     canViewOwnChildren,
     canViewOwnGrades,
+    canManageClasses,
+    canManageSubjects,
+    canManageTerms,
     isPlatformSuperAdmin,
     isSchoolOwner,
     isSchoolAdmin,

@@ -19,6 +19,7 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 import ExamForm from './ExamForm';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
 interface ExamListProps {
@@ -27,6 +28,7 @@ interface ExamListProps {
 
 const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   const { user } = useAuth();
+  const { canManageGrades } = usePermissions();
   const { currentTerm, allTerms } = useCurrentTerm();
   const { showSuccess, showError } = useToast();
   const [exams, setExams] = useState<Exam[]>([]);
@@ -173,7 +175,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
     );
   };
 
-  const canManageExams = user?.role === 'admin' || user?.role === 'teacher';
+  // Permission check is now handled by the usePermissions hook
 
   return (
     <div className="space-y-6">
@@ -187,7 +189,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
             Manage exams and assessments
           </p>
         </div>
-        {canManageExams && (
+        {canManageGrades() && (
           <button
             onClick={handleCreateExam}
             className="btn btn-primary"

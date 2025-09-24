@@ -18,11 +18,13 @@ import { Subject, CreateSubjectForm, TeacherSubjectAssignment } from '../../type
 import { academicService } from '../../services/academicService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { usePermissions } from '../../hooks/usePermissions';
 import SubjectForm from './SubjectForm';
 import SubjectTeacherAssignmentModal from './SubjectTeacherAssignmentModal';
 
 const SubjectsPage: React.FC = () => {
   const { user } = useAuth();
+  const { canManageSubjects } = usePermissions();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -134,7 +136,7 @@ const SubjectsPage: React.FC = () => {
     subject.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const canManageSubjects = user && ['super_admin', 'admin'].includes(user.role);
+  // Permission check is now handled by the usePermissions hook
 
   return (
     <div className="space-y-6">
@@ -148,7 +150,7 @@ const SubjectsPage: React.FC = () => {
             Manage academic subjects and their configurations
           </p>
         </div>
-        {canManageSubjects && (
+        {canManageSubjects() && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="btn btn-primary"
@@ -245,7 +247,7 @@ const SubjectsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center space-x-2">
-                  {canManageSubjects && (
+                  {canManageSubjects() && (
                     <button
                       onClick={() => navigate(`/subjects/${subject.id}`)}
                       className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
@@ -254,7 +256,7 @@ const SubjectsPage: React.FC = () => {
                       <EyeIcon className="h-4 w-4" />
                     </button>
                   )}
-                  {canManageSubjects && (
+                  {canManageSubjects() && (
                     <button
                       onClick={() => openTeacherAssignModal(subject)}
                       className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
@@ -263,7 +265,7 @@ const SubjectsPage: React.FC = () => {
                       <UserGroupIcon className="h-4 w-4" />
                     </button>
                   )}
-                  {canManageSubjects && (
+                  {canManageSubjects() && (
                     <button
                       onClick={() => openEditModal(subject)}
                       className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -272,7 +274,7 @@ const SubjectsPage: React.FC = () => {
                       <PencilIcon className="h-4 w-4" />
                     </button>
                   )}
-                  {canManageSubjects && (
+                  {canManageSubjects() && (
                     <button
                       onClick={() => handleDeleteSubject(subject)}
                       className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400"

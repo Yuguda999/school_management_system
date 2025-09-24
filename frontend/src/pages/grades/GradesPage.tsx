@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Exam } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import PageHeader from '../../components/Layout/PageHeader';
 import ExamList from '../../components/grades/ExamList';
 import BulkGradeEntry from '../../components/grades/BulkGradeEntry';
@@ -22,12 +23,13 @@ type TabType = 'exams' | 'grades' | 'statistics' | 'students' | 'reports';
 
 const GradesPage: React.FC = () => {
   const { user } = useAuth();
+  const { canManageGrades } = usePermissions();
   const [activeTab, setActiveTab] = useState<TabType>('exams');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showBulkGradeEntry, setShowBulkGradeEntry] = useState(false);
   const [showReportCardModal, setShowReportCardModal] = useState(false);
 
-  const canManageGrades = user?.role === 'admin' || user?.role === 'teacher';
+  // Permission check is now handled by the usePermissions hook
 
   const tabs = [
     {
@@ -96,7 +98,7 @@ const GradesPage: React.FC = () => {
                     {selectedExam.subject_name} • {selectedExam.class_name}
                   </p>
                 </div>
-                {canManageGrades && (
+                {canManageGrades() && (
                   <button
                     onClick={handleBulkGradeEntry}
                     className="btn btn-primary"
@@ -146,7 +148,7 @@ const GradesPage: React.FC = () => {
                   Generate and manage student report cards
                 </p>
               </div>
-              {canManageGrades && (
+              {canManageGrades() && (
                 <button
                   onClick={() => setShowReportCardModal(true)}
                   className="btn btn-primary"

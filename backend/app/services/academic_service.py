@@ -40,8 +40,8 @@ class AcademicService:
                 detail="Class name already exists for this academic session"
             )
         
-        # Verify teacher exists if provided
-        if class_data.teacher_id:
+        # Verify teacher exists if provided (and not empty string)
+        if class_data.teacher_id and class_data.teacher_id.strip():
             teacher_result = await db.execute(
                 select(User).where(
                     User.id == class_data.teacher_id,
@@ -58,7 +58,11 @@ class AcademicService:
         # Create class
         class_dict = class_data.dict()
         class_dict['school_id'] = school_id
-        
+
+        # Convert empty string teacher_id to None for proper foreign key handling
+        if class_dict.get('teacher_id') == '':
+            class_dict['teacher_id'] = None
+
         new_class = Class(**class_dict)
         db.add(new_class)
         await db.commit()
@@ -119,8 +123,8 @@ class AcademicService:
         if not class_obj:
             return None
         
-        # Verify teacher exists if being updated
-        if class_data.teacher_id:
+        # Verify teacher exists if being updated (and not empty string)
+        if class_data.teacher_id and class_data.teacher_id.strip():
             teacher_result = await db.execute(
                 select(User).where(
                     User.id == class_data.teacher_id,
@@ -136,6 +140,11 @@ class AcademicService:
         
         # Update fields
         update_data = class_data.dict(exclude_unset=True)
+
+        # Convert empty string teacher_id to None for proper foreign key handling
+        if 'teacher_id' in update_data and update_data['teacher_id'] == '':
+            update_data['teacher_id'] = None
+
         for field, value in update_data.items():
             setattr(class_obj, field, value)
         

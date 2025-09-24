@@ -14,6 +14,7 @@ import Modal from '../ui/Modal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface GradeListProps {
   exam: Exam;
@@ -28,6 +29,7 @@ interface GradeEditData {
 
 const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
   const { user } = useAuth();
+  const { canManageGrades } = usePermissions();
   const { showSuccess, showError } = useToast();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +172,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
     );
   };
 
-  const canManageGrades = user?.role === 'admin' || user?.role === 'teacher';
+  // Permission check is now handled by the usePermissions hook
 
   const calculateStatistics = () => {
     if (grades.length === 0) return null;
@@ -319,7 +321,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Graded By
                   </th>
-                  {canManageGrades && (
+                  {canManageGrades() && (
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Actions
                     </th>
@@ -369,7 +371,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
                         {new Date(grade.graded_date).toLocaleDateString()}
                       </div>
                     </td>
-                    {canManageGrades && (
+                    {canManageGrades() && (
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <button

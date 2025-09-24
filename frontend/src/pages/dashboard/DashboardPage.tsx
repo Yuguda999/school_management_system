@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { DashboardStats } from '../../types';
@@ -24,6 +25,7 @@ import PageHeader from '../../components/Layout/PageHeader';
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { currentTerm } = useCurrentTerm();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -212,7 +214,7 @@ const DashboardPage: React.FC = () => {
   };
 
   const statsData = getStatsForRole();
-  const isAdmin = user?.role === 'super_admin' || user?.role === 'admin';
+  const isAdmin = user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin';
   const isTeacher = user?.role === 'teacher';
   const isStudent = user?.role === 'student';
   const isParent = user?.role === 'parent';
@@ -245,10 +247,30 @@ const DashboardPage: React.FC = () => {
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button className="btn btn-primary">Add Student</button>
-            <button className="btn btn-secondary">Add Teacher</button>
-            <button className="btn btn-outline">Create Class</button>
-            <button className="btn btn-outline">Send Announcement</button>
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate('/students')}
+            >
+              Add Student
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/teachers')}
+            >
+              Add Teacher
+            </button>
+            <button
+              className="btn btn-outline"
+              onClick={() => navigate('/classes')}
+            >
+              Create Class
+            </button>
+            <button
+              className="btn btn-outline"
+              onClick={() => navigate('/communication')}
+            >
+              Send Announcement
+            </button>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, DocumentArrowUpIcon } from '
 import { Student, PaginatedResponse } from '../../types';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StudentTable from '../../components/students/StudentTable';
@@ -14,6 +15,7 @@ import CSVImportModal from '../../components/students/CSVImportModal';
 
 const StudentsPage: React.FC = () => {
   const { user } = useAuth();
+  const { canManageStudents } = usePermissions();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [students, setStudents] = useState<PaginatedResponse<Student> | null>(null);
@@ -175,9 +177,9 @@ const StudentsPage: React.FC = () => {
             Manage student records and information
           </p>
         </div>
-        {(user?.role === 'super_admin' || user?.role === 'admin') && (
+        {canManageStudents() && (
           <div className="mt-4 sm:mt-0 flex space-x-3">
-            {user?.role === 'super_admin' && (
+            {user?.role === 'platform_super_admin' && (
               <button
                 type="button"
                 onClick={() => setShowCSVImportModal(true)}
@@ -233,7 +235,7 @@ const StudentsPage: React.FC = () => {
       )}
 
       {/* Bulk Actions - Only for admins */}
-      {selectedStudents.length > 0 && (user?.role === 'super_admin' || user?.role === 'admin') && (
+      {selectedStudents.length > 0 && canManageStudents() && (
         <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
           <div className="flex items-center justify-between">
             <span className="text-sm text-blue-700 dark:text-blue-300">

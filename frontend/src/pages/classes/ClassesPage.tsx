@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Class, Teacher, Student, CreateClassForm, UpdateClassForm, ClassLevel } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 import PageHeader from '../../components/Layout/PageHeader';
@@ -24,6 +25,7 @@ import ClassSubjectManagement from '../../components/classes/ClassSubjectManagem
 
 const ClassesPage: React.FC = () => {
   const { user } = useAuth();
+  const { canManageClasses } = usePermissions();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,7 +263,7 @@ const ClassesPage: React.FC = () => {
         title="Classes"
         description="Manage class schedules, assignments, and student enrollment"
         actions={
-          user?.role === 'super_admin' || user?.role === 'admin' ? (
+          canManageClasses() ? (
             <button
               onClick={() => setShowCreateModal(true)}
               className="btn btn-primary"
@@ -292,7 +294,7 @@ const ClassesPage: React.FC = () => {
             >
               <EyeIcon className="h-4 w-4" />
             </button>
-            {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            {canManageClasses() && (
               <>
                 <button
                   onClick={() => {

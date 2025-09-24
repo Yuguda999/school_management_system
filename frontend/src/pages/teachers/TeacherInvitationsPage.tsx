@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { TeacherInvitation, InvitationStatus } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { teacherInvitationService } from '../../services/teacherInvitationService';
 import { useToast } from '../../hooks/useToast';
 
@@ -31,6 +32,7 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
   onCloseInviteModal
 }) => {
   const { user, logout } = useAuth();
+  const { canManageTeachers } = usePermissions();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   
@@ -414,7 +416,7 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
                 </button>
               )}
 
-              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              {canManageTeachers() && (
                 <button
                   onClick={() => {
                     console.log('Delete button clicked for:', invitation.id);

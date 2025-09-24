@@ -9,6 +9,7 @@ import {
 import { Term } from '../../types';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { termUtils } from '../../utils/termUtils';
 import PageHeader from '../../components/Layout/PageHeader';
 import TermList from '../../components/terms/TermList';
@@ -18,6 +19,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 const TermManagementPage: React.FC = () => {
   const { user } = useAuth();
+  const { canManageTerms } = usePermissions();
   const {
     currentTerm,
     allTerms,
@@ -66,10 +68,8 @@ const TermManagementPage: React.FC = () => {
 
   const stats = getTermStatistics();
 
-  // Check permissions
-  const canManageTerms = user && ['super_admin', 'admin'].includes(user.role);
-
-  if (!canManageTerms) {
+  // Check permissions - now handled by usePermissions hook
+  if (!canManageTerms()) {
     return (
       <div className="text-center py-12">
         <AcademicCapIcon className="mx-auto h-12 w-12 text-gray-400" />

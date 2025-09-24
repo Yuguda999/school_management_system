@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FeeAssignment, FeeStructure, Class, Term, Student } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { FeeService } from '../../services/feeService';
@@ -19,6 +20,7 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 
 const FeeAssignmentManager: React.FC = () => {
   const { user } = useAuth();
+  const { canManageFees } = usePermissions();
   const { showSuccess, showError } = useToast();
   const { currentTerm } = useCurrentTerm();
   const [assignments, setAssignments] = useState<FeeAssignment[]>([]);
@@ -253,7 +255,7 @@ const FeeAssignmentManager: React.FC = () => {
             Manage fee assignments for students
           </p>
         </div>
-        {(user?.role === 'super_admin' || user?.role === 'admin') && (
+        {canManageFees() && (
           <button
             onClick={() => setShowAssignModal(true)}
             className="btn btn-primary"

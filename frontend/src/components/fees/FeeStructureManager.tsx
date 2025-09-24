@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FeeStructure, CreateFeeStructureForm } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import { FeeService } from '../../services/feeService';
 import DataTable, { Column } from '../ui/DataTable';
@@ -21,6 +22,7 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 
 const FeeStructureManager: React.FC = () => {
   const { user } = useAuth();
+  const { canManageFees } = usePermissions();
   const { showSuccess, showError } = useToast();
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,7 +235,7 @@ const FeeStructureManager: React.FC = () => {
           >
             <EyeIcon className="h-4 w-4" />
           </button>
-          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+          {canManageFees() && (
             <>
               <button
                 onClick={() => handleEditClick(fee)}
@@ -268,7 +270,7 @@ const FeeStructureManager: React.FC = () => {
             Manage fee structures for your school
           </p>
         </div>
-        {(user?.role === 'super_admin' || user?.role === 'admin') && (
+        {canManageFees() && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="btn btn-primary"

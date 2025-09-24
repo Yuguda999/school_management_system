@@ -1,6 +1,7 @@
 import React from 'react';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { Student } from '../../types';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface StudentTableProps {
   students: Student[];
@@ -30,7 +31,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
   userRole,
   showActions = true,
 }) => {
-  const canManageStudents = userRole === 'super_admin' || userRole === 'admin';
+  const { canManageStudents } = usePermissions();
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -68,7 +69,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              {canManageStudents && (
+              {canManageStudents() && (
                 <th className="px-6 py-3 text-left">
                   <input
                     type="checkbox"
@@ -103,7 +104,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {students.map((student) => (
               <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                {canManageStudents && (
+                {canManageStudents() && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
@@ -154,7 +155,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
                       >
                         <EyeIcon className="h-5 w-5" />
                       </button>
-                      {canManageStudents && (
+                      {canManageStudents() && (
                         <>
                           <button
                             onClick={() => onEdit(student)}

@@ -18,6 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Teacher, User, TeacherSubjectAssignment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import PageHeader from '../../components/Layout/PageHeader';
 import DataTable, { Column } from '../../components/ui/DataTable';
 import Modal from '../../components/ui/Modal';
@@ -34,6 +35,7 @@ import { useToast } from '../../hooks/useToast';
 
 const TeachersPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const { canManageTeachers } = usePermissions();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -252,7 +254,7 @@ const TeachersPage: React.FC = () => {
         title="Teacher Management"
         description="Manage teaching staff and invitations"
         actions={
-          user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin' ? (
+          canManageTeachers() ? (
             <div className="flex space-x-3">
               {activeTab === 'teachers' && (
                 <>
@@ -789,7 +791,7 @@ const TeachersPage: React.FC = () => {
                 Close
               </button>
 
-              {(user?.role === 'super_admin' || user?.role === 'admin') && (
+              {canManageTeachers() && (
                 <div className="flex space-x-3">
                   <button
                     onClick={() => {

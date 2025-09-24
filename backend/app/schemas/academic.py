@@ -17,6 +17,12 @@ class ClassBase(BaseModel):
 class ClassCreate(ClassBase):
     teacher_id: Optional[str] = None
 
+    @validator('teacher_id', pre=True)
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
+
 
 class ClassUpdate(BaseModel):
     name: Optional[str] = None
@@ -26,6 +32,12 @@ class ClassUpdate(BaseModel):
     teacher_id: Optional[str] = None
     description: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @validator('teacher_id', pre=True)
+    def empty_str_to_none(cls, v):
+        if v == '':
+            return None
+        return v
 
 
 class ClassResponse(ClassBase):
