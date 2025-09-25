@@ -51,22 +51,9 @@ async def login(
         user = result.scalar_one_or_none()
 
         if not user:
-            # In development mode, provide more helpful error messages
-            if settings.debug or settings.environment == "development":
-                # Get a sample of available users for development
-                sample_result = await db.execute(
-                    select(User.email, User.first_name, User.last_name).where(User.is_deleted == False).limit(3)
-                )
-                sample_users = sample_result.fetchall()
-                sample_emails = [f"{row.email} ({row.first_name} {row.last_name})" for row in sample_users]
-
-                detail = f"User not found with email: {login_data.email}. Available test users: {', '.join(sample_emails)}"
-            else:
-                detail = "Incorrect email or password"
-
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=detail
+                detail="Incorrect email or password"
             )
 
         if not verify_password(login_data.password, user.password_hash):
@@ -165,23 +152,31 @@ async def school_login(
                 detail="School not found or inactive"
             )
         
-        # Get user by email and school_id
-        result = await db.execute(
+        # First check if user exists with this email (regardless of school)
+        user_result = await db.execute(
             select(User).where(
                 and_(
                     User.email == login_data.email,
-                    User.school_id == school.id,
                     User.is_deleted == False
                 )
             )
         )
-        user = result.scalar_one_or_none()
-
-        if not user:
+        user_exists = user_result.scalar_one_or_none()
+        
+        if not user_exists:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
             )
+        
+        # Check if user belongs to this specific school
+        if user_exists.school_id != school.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this school. Please contact your school administrator."
+            )
+        
+        user = user_exists
 
         if not verify_password(login_data.password, user.password_hash):
             raise HTTPException(

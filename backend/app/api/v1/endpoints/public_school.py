@@ -55,9 +55,12 @@ async def get_school_public_info(
     
     # Extract theme colors from settings
     settings = school.settings or {}
-    primary_color = settings.get('primary_color', '#3B82F6')
-    secondary_color = settings.get('secondary_color', '#1E40AF')
-    accent_color = settings.get('accent_color', '#60A5FA')
+    theme_settings = settings.get('theme_settings', {})
+    
+    # Fallback to root level settings for backward compatibility
+    primary_color = theme_settings.get('primary_color') or settings.get('primary_color', '#3B82F6')
+    secondary_color = theme_settings.get('secondary_color') or settings.get('secondary_color', '#1E40AF')
+    accent_color = theme_settings.get('accent_color') or settings.get('accent_color', '#60A5FA')
     
     return SchoolPublicInfo(
         id=school.id,

@@ -372,6 +372,10 @@ async def accept_teacher_invitation(
 ) -> Any:
     """Accept teacher invitation and create account (public endpoint)"""
     
+    logger.info(f"Accepting teacher invitation with data: {accept_data}")
+    logger.info(f"Accept data type: {type(accept_data)}")
+    logger.info(f"Accept data dict: {accept_data.dict()}")
+    
     user, access_token, refresh_token = await TeacherInvitationService.accept_invitation(
         db, accept_data
     )

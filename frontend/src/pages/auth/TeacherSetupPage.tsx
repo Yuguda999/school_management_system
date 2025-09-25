@@ -9,7 +9,7 @@ import {
   UserIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
-import { InvitationAcceptRequest, TeacherInvitation, Gender } from '../../types';
+import { InvitationAcceptRequest, TeacherInvitation, Gender, User } from '../../types';
 import { teacherInvitationService } from '../../services/teacherInvitationService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
@@ -18,7 +18,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 const TeacherSetupPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, updateUser } = useAuth();
   const { showSuccess, showError } = useToast();
 
   const [invitation, setInvitation] = useState<TeacherInvitation | null>(null);
@@ -70,21 +70,32 @@ const TeacherSetupPage: React.FC = () => {
   };
 
   const onSubmit = async (data: InvitationAcceptRequest) => {
+    if (submitting) {
+      console.log('Form already submitting, ignoring duplicate submission');
+      return;
+    }
+    
     setSubmitting(true);
     try {
-      const response = await teacherInvitationService.acceptInvitation(data);
+      console.log('=== FORM SUBMISSION START ===');
+      console.log('Form data received by onSubmit:', data);
+      console.log('Form data type:', typeof data);
+      console.log('Form data keys:', Object.keys(data));
+      console.log('Invitation data:', invitation);
+      console.log('Current timestamp:', new Date().toISOString());
       
-      // Auto-login the user
-      await login({
-        access_token: response.access_token,
-        refresh_token: response.refresh_token,
-        token_type: 'bearer',
-        user_id: response.user_id,
-        email: response.user_email,
-        role: response.user_role as any,
-        school_id: response.school_id,
-        full_name: response.full_name
-      });
+      const response = await teacherInvitationService.acceptInvitation(data);
+      console.log('=== FORM SUBMISSION SUCCESS ===');
+      
+      // Set authentication state directly (no need for additional API call)
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      
+      console.log('Authentication tokens stored, updating user state...');
+      
+      // Use updateUser to refresh the authentication state
+      // This will fetch the current user data using the stored tokens
+      await updateUser();
 
       showSuccess('Welcome to the team! Your account has been set up successfully.');
 
@@ -95,7 +106,13 @@ const TeacherSetupPage: React.FC = () => {
         navigate('/teacher/complete-profile');
       }
     } catch (error: any) {
+      console.error('=== FORM SUBMISSION ERROR ===');
       console.error('Error accepting invitation:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response status:', error.response?.status);
+      console.error('Current timestamp:', new Date().toISOString());
       
       // Handle different error formats
       let errorMessage = 'Failed to set up account';
@@ -192,7 +209,22 @@ const TeacherSetupPage: React.FC = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form 
+            onSubmit={(e) => {
+              console.log('Raw form submit event triggered');
+              e.preventDefault();
+              handleSubmit(onSubmit)(e);
+            }} 
+            className="space-y-6" 
+            autoComplete="off"
+          >
+            {/* Hidden invitation token field */}
+            <input 
+              type="hidden" 
+              {...register('invitation_token')} 
+              value={token || ''} 
+            />
+            
             {/* Password */}
             <div>
               <label className="label">
@@ -203,6 +235,7 @@ const TeacherSetupPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   className={`input pr-10 ${errors.password ? 'input-error' : ''}`}
                   placeholder="Create a strong password"
+                  autoComplete="new-password"
                   {...register('password', {
                     required: 'Password is required',
                     minLength: {
@@ -242,6 +275,7 @@ const TeacherSetupPage: React.FC = () => {
                   type={showConfirmPassword ? 'text' : 'password'}
                   className={`input pr-10 ${errors.confirm_password ? 'input-error' : ''}`}
                   placeholder="Confirm your password"
+                  autoComplete="new-password"
                   {...register('confirm_password', {
                     required: 'Please confirm your password',
                     validate: (value) => value === password || 'Passwords do not match'

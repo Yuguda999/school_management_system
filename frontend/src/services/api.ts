@@ -38,7 +38,10 @@ class ApiService {
       async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Don't attempt token refresh for authentication endpoints
+        const isAuthEndpoint = originalRequest.url?.includes('/auth/') || originalRequest.url?.includes('/login');
+        
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           if (this.isRefreshing) {
             // If we're already refreshing, queue this request
             return new Promise((resolve, reject) => {
@@ -74,11 +77,11 @@ class ApiService {
             originalRequest.headers.Authorization = `Bearer ${access_token}`;
             return this.api(originalRequest);
           } catch (refreshError) {
-            // Refresh failed, clear tokens and redirect to login
+            // Refresh failed, clear tokens but don't redirect
             this.processQueue(refreshError, null);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            window.location.href = '/login';
+            // Token refresh failed, tokens cleared
             return Promise.reject(refreshError);
           } finally {
             this.isRefreshing = false;
@@ -108,6 +111,11 @@ class ApiService {
   }
 
   async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    console.log('API Service POST:', url);
+    console.log('POST data:', data);
+    console.log('POST data type:', typeof data);
+    console.log('POST data keys:', data ? Object.keys(data) : 'no data');
+    
     const response: AxiosResponse<T> = await this.api.post(url, data, config);
     return response.data;
   }

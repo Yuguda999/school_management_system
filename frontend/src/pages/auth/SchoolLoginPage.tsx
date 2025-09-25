@@ -17,7 +17,7 @@ const SchoolLoginPage: React.FC = () => {
   const [loadingSchool, setLoadingSchool] = useState(true);
   const [schoolNotFound, setSchoolNotFound] = useState(false);
 
-  const { login, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool } = useAuth();
+  const { schoolLogin, user, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool, clearAuthState } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -39,6 +39,7 @@ const SchoolLoginPage: React.FC = () => {
       try {
         setLoadingSchool(true);
         const school = await schoolService.getSchoolPublicInfo(schoolCode);
+        console.log('School data received:', school);
         setSchoolInfo(school);
       } catch (error: any) {
         console.error('Error loading school info:', error);
@@ -55,13 +56,47 @@ const SchoolLoginPage: React.FC = () => {
     loadSchoolInfo();
   }, [schoolCode]);
 
+  // Apply theme colors to document root for global CSS variable usage
+  useEffect(() => {
+    if (schoolInfo) {
+      const root = document.documentElement;
+      if (schoolInfo.primary_color) {
+        root.style.setProperty('--primary-color', schoolInfo.primary_color);
+      }
+      if (schoolInfo.secondary_color) {
+        root.style.setProperty('--secondary-color', schoolInfo.secondary_color);
+      }
+      if (schoolInfo.accent_color) {
+        root.style.setProperty('--accent-color', schoolInfo.accent_color);
+      }
+    }
+    
+    // Cleanup function to reset theme when component unmounts
+    return () => {
+      const root = document.documentElement;
+      root.style.removeProperty('--primary-color');
+      root.style.removeProperty('--secondary-color');
+      root.style.removeProperty('--accent-color');
+    };
+  }, [schoolInfo]);
+
+  // Clear authentication state if user doesn't belong to current school
+  useEffect(() => {
+    if (isAuthenticated && user?.school_id && schoolInfo?.id && user.school_id !== schoolInfo.id) {
+      console.log('User belongs to different school, clearing auth state');
+      clearAuthState();
+    }
+  }, [isAuthenticated, user?.school_id, schoolInfo?.id, clearAuthState]);
+
+
   // Handle navigation after authentication
   useEffect(() => {
-    if (isAuthenticated && !requiresSchoolSelection) {
+    // Only redirect if user is authenticated AND has a school_id that matches the current school
+    if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id === user.school_id) {
       const from = location.state?.from?.pathname || '/dashboard';
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, requiresSchoolSelection, navigate, location.state?.from?.pathname]);
+  }, [isAuthenticated, requiresSchoolSelection, user?.school_id, schoolInfo?.id, navigate, location.state?.from?.pathname]);
 
   if (loadingSchool) {
     return (
@@ -97,7 +132,35 @@ const SchoolLoginPage: React.FC = () => {
     );
   }
 
-  if (isAuthenticated && !requiresSchoolSelection) {
+  // If user is authenticated but for a different school, show a message
+  if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id && schoolInfo.id !== user.school_id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div>
+            <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-yellow-500" />
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
+              Already Logged In
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              You are currently logged in to a different school. Please log out first to access this school's login page.
+            </p>
+          </div>
+          <div className="mt-6">
+            <button
+              onClick={() => navigate('/home')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is authenticated for the correct school, redirect to dashboard
+  if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id === user.school_id) {
     const from = location.state?.from?.pathname || '/dashboard';
     return <Navigate to={from} replace />;
   }
@@ -117,30 +180,43 @@ const SchoolLoginPage: React.FC = () => {
     setError('');
 
     try {
-      // Use school-specific login
-      const response = await schoolService.schoolLogin(schoolCode!, data);
-      
-      await login({
-        access_token: response.access_token,
-        refresh_token: response.refresh_token,
-        token_type: 'bearer',
-        user_id: response.user_id,
-        email: response.user_email,
-        role: response.user_role,
-        school_id: response.school_id,
-        full_name: response.full_name
-      });
+      // Use the school login method from AuthContext
+      await schoolLogin(schoolCode!, data);
 
       // Navigation will be handled by useEffect
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.response?.data?.detail || 'Login failed. Please try again.');
+      
+      // Handle specific error cases
+      if (error.response?.status === 404) {
+        setError('School not found or inactive. Please check the school code.');
+      } else if (error.response?.status === 401) {
+        const errorDetail = error.response?.data?.detail;
+        if (errorDetail === 'Incorrect email or password') {
+          setError('Incorrect email or password. Please verify your credentials.');
+        } else if (errorDetail === 'User account is inactive') {
+          setError('Your account is inactive. Please contact your school administrator.');
+        } else {
+          setError('Authentication failed. Please check your credentials.');
+        }
+      } else if (error.response?.status === 403) {
+        setError('You do not have access to this school. Please contact your school administrator.');
+      } else if (error.response?.status === 500) {
+        setError('Server error occurred. Please try again later.');
+      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (error.message === 'No refresh token') {
+        // This happens when API interceptor tries to refresh token for auth endpoints
+        setError('Authentication failed. Please check your credentials.');
+      } else {
+        setError(error.response?.data?.detail || 'Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Generate CSS variables for school theming
+  // Generate CSS variables for school theming and apply theme colors
   const schoolTheme = schoolInfo ? {
     '--school-primary': schoolInfo.primary_color || '#3B82F6',
     '--school-secondary': schoolInfo.secondary_color || '#1E40AF',
@@ -155,12 +231,22 @@ const SchoolLoginPage: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           {/* School Logo or Initials */}
-          <div className="mx-auto h-16 w-16 bg-primary-600 rounded-lg flex items-center justify-center mb-4">
+          <div 
+            className="mx-auto h-16 w-16 rounded-lg flex items-center justify-center mb-4"
+            style={{
+              backgroundColor: schoolInfo?.primary_color || '#3B82F6'
+            }}
+          >
             {schoolInfo?.logo_url ? (
               <img 
-                src={schoolInfo.logo_url} 
+                src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${schoolInfo.logo_url}`} 
                 alt={`${schoolInfo.name} logo`}
                 className="h-12 w-12 rounded-lg object-cover"
+                onError={(e) => {
+                  console.log('Logo image failed to load:', schoolInfo.logo_url);
+                  e.currentTarget.style.display = 'none';
+                }}
+                onLoad={() => console.log('Logo image loaded successfully:', schoolInfo.logo_url)}
               />
             ) : (
               <span className="text-white font-bold text-xl">
@@ -184,13 +270,7 @@ const SchoolLoginPage: React.FC = () => {
           </p>
           
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don't have an account?{' '}
-            <a
-              href="/register"
-              className="font-medium text-primary-600 hover:text-primary-500"
-            >
-              Contact your school administrator
-            </a>
+            Don't have an account? Contact your school administrator.
           </p>
         </div>
         
@@ -258,7 +338,18 @@ const SchoolLoginPage: React.FC = () => {
             <div className="text-sm">
               <a
                 href="/forgot-password"
-                className="font-medium text-primary-600 hover:text-primary-500"
+                className="font-medium hover:underline transition-colors duration-200"
+                style={{
+                  color: schoolInfo?.primary_color || '#3B82F6',
+                }}
+                onMouseEnter={(e) => {
+                  if (schoolInfo?.secondary_color) {
+                    e.currentTarget.style.color = schoolInfo.secondary_color;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = schoolInfo?.primary_color || '#3B82F6';
+                }}
               >
                 Forgot your password?
               </a>
@@ -269,7 +360,21 @@ const SchoolLoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              style={{
+                backgroundColor: schoolInfo?.primary_color || '#3B82F6',
+                '--tw-ring-color': schoolInfo?.primary_color || '#3B82F6',
+              } as React.CSSProperties}
+              onMouseEnter={(e) => {
+                if (!isLoading && schoolInfo?.secondary_color) {
+                  e.currentTarget.style.backgroundColor = schoolInfo.secondary_color;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.backgroundColor = schoolInfo?.primary_color || '#3B82F6';
+                }
+              }}
             >
               {isLoading ? (
                 <LoadingSpinner size="sm" />
@@ -290,7 +395,18 @@ const SchoolLoginPage: React.FC = () => {
                   href={schoolInfo.website} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hover:text-primary-500"
+                  className="hover:underline transition-colors duration-200"
+                  style={{
+                    color: schoolInfo.primary_color || '#3B82F6',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (schoolInfo.secondary_color) {
+                      e.currentTarget.style.color = schoolInfo.secondary_color;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = schoolInfo.primary_color || '#3B82F6';
+                  }}
                 >
                   {schoolInfo.website}
                 </a>

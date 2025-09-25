@@ -129,6 +129,10 @@ class TeacherInvitationService {
    * Accept teacher invitation (public endpoint)
    */
   async acceptInvitation(acceptData: InvitationAcceptRequest): Promise<InvitationAcceptResponse> {
+    console.log('TeacherInvitationService.acceptInvitation called with:', acceptData);
+    console.log('Data type:', typeof acceptData);
+    console.log('Data keys:', Object.keys(acceptData));
+    
     const response = await apiService.post<InvitationAcceptResponse>(
       `${this.baseUrl}/public/accept`,
       acceptData

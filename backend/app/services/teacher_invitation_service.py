@@ -203,6 +203,15 @@ class TeacherInvitationService:
                 detail=message
             )
         
+        logger.info(f"Invitation validated successfully: {invitation.id}, email: {invitation.email}, first_name: {invitation.first_name}, last_name: {invitation.last_name}")
+        
+        # Validate invitation email
+        if not invitation.email or invitation.email.strip() == "":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid invitation: email not provided"
+            )
+        
         # Check if user already exists (shouldn't happen, but safety check)
         existing_user = await db.execute(
             select(User).where(
@@ -220,6 +229,7 @@ class TeacherInvitationService:
             )
         
         # Create user account
+        logger.info(f"Creating user account for invitation: {invitation.id}, email: {invitation.email}")
         user_data = {
             'first_name': invitation.first_name,
             'last_name': invitation.last_name,
@@ -246,18 +256,27 @@ class TeacherInvitationService:
         # Remove None values
         user_data = {k: v for k, v in user_data.items() if v is not None}
         
-        user = User(**user_data)
-        db.add(user)
+        logger.info(f"Creating user with data: {user_data}")
+        try:
+            user = User(**user_data)
+            db.add(user)
 
-        # Update profile completion status
-        user.update_profile_completion_status()
+            # Update profile completion status
+            user.update_profile_completion_status()
 
-        # Update invitation status
-        invitation.status = InvitationStatus.ACCEPTED
-        invitation.accepted_at = datetime.utcnow()
+            # Update invitation status
+            invitation.status = InvitationStatus.ACCEPTED
+            invitation.accepted_at = datetime.utcnow()
 
-        await db.commit()
-        await db.refresh(user)
+            await db.commit()
+            await db.refresh(user)
+        except Exception as e:
+            logger.error(f"Error creating user: {str(e)}")
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create user account: {str(e)}"
+            )
         
         # Create tokens
         from datetime import timedelta

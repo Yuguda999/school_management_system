@@ -9,7 +9,9 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  schoolLogin: (schoolCode: string, credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
+  clearAuthState: () => void;
   updateUser: () => Promise<void>;
   isAuthenticated: boolean;
   requiresSchoolSelection: boolean;
@@ -160,6 +162,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const schoolLogin = async (schoolCode: string, credentials: LoginCredentials) => {
+    try {
+      const response = await schoolService.schoolLogin(schoolCode, credentials);
+
+      // Always store the access token for API requests
+      localStorage.setItem('access_token', response.access_token);
+
+      // Handle school selection requirement
+      if (response.requires_school_selection && response.available_schools) {
+        setRequiresSchoolSelection(true);
+        setAvailableSchools(response.available_schools);
+        // Don't set user yet, wait for school selection
+        return;
+      }
+
+      // Convert response to User object
+      const user: User = {
+        id: response.user_id,
+        email: response.user_email,
+        first_name: response.full_name?.split(' ')[0] || '',
+        last_name: response.full_name?.split(' ').slice(1).join(' ') || '',
+        full_name: response.full_name,
+        role: response.user_role,
+        is_active: true,
+        is_verified: true,
+        profile_completed: response.profile_completed,
+        school_id: response.school_id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      setUser(user);
+      setRequiresSchoolSelection(false);
+      setAvailableSchools([]);
+    } catch (error) {
+      // Clear any stale authentication state when school login fails
+      authService.logout();
+      setUser(null);
+      setRequiresSchoolSelection(false);
+      setAvailableSchools([]);
+      throw error;
+    }
+  };
+
   const selectSchool = async (schoolId: string) => {
     try {
       console.log('🔄 Starting school switch to:', schoolId);
@@ -204,6 +250,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAvailableSchools([]);
   };
 
+  const clearAuthState = () => {
+    authService.logout();
+    setUser(null);
+    setRequiresSchoolSelection(false);
+    setAvailableSchools([]);
+  };
+
   const updateUser = async () => {
     try {
       const userData = await authService.getCurrentUser();
@@ -222,7 +275,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     login,
+    schoolLogin,
     logout,
+    clearAuthState,
     updateUser,
     isAuthenticated: !!user,
     requiresSchoolSelection,
