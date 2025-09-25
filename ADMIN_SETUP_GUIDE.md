@@ -46,8 +46,8 @@ Password (min 8 characters): [hidden]
 Confirm Password: [hidden]
 
 🎭 Select Role:
-1. Super Admin (Full access)
-2. Admin (School admin)
+1. School Owner (Full access)
+2. School Admin (School admin)
 Select role (1-2): 1
 
 📋 Summary:
@@ -55,14 +55,14 @@ School: Test School 20250915_203622
 Name: John Admin
 Email: john.admin@testschool.com
 Phone: +234-123-456-789
-Role: super_admin
+Role: school_owner
 
 ✅ Create this admin user? (y/N): y
 
 🎉 SUCCESS! Admin user created successfully!
 User ID: 83d342e0-06cf-4cd5-8220-ec70cd6b27cf
 Email: john.admin@testschool.com
-Role: super_admin
+Role: school_owner
 School: Test School 20250915_203622
 
 🔑 Login Credentials:

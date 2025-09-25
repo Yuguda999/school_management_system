@@ -96,7 +96,28 @@ const TeacherSetupPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error accepting invitation:', error);
-      showError(error.response?.data?.detail || 'Failed to set up account');
+      
+      // Handle different error formats
+      let errorMessage = 'Failed to set up account';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        
+        // Handle validation errors (array of error objects)
+        if (Array.isArray(data)) {
+          errorMessage = data.map(err => err.msg || err.message || 'Validation error').join(', ');
+        }
+        // Handle single error object
+        else if (typeof data === 'object' && data.detail) {
+          errorMessage = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+        }
+        // Handle string error
+        else if (typeof data === 'string') {
+          errorMessage = data;
+        }
+      }
+      
+      showError(errorMessage);
     } finally {
       setSubmitting(false);
     }

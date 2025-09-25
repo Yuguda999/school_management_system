@@ -41,6 +41,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load and apply school theme settings
   const loadSchoolTheme = async () => {
     try {
+      // Only try to load school theme if user has a school_id
+      if (!user?.school_id) {
+        console.log('No school_id found, skipping theme load');
+        return;
+      }
+
       // Get fresh school data to ensure we have the latest theme settings
       const schoolData = await schoolService.getCurrentSchool();
 
@@ -59,14 +65,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
         setSchoolTheme(schoolThemeForContext);
 
-        console.log('School theme applied:', themeSettings);
+        console.log('✅ School theme applied:', themeSettings);
       } else {
-        console.log('No school theme settings found, clearing school theme');
+        console.log('ℹ️ No school theme settings found, using default theme');
         clearSchoolTheme();
       }
-    } catch (error) {
-      console.error('Failed to load school theme:', error);
-      clearSchoolTheme();
+    } catch (error: any) {
+      console.error('❌ Failed to load school theme:', error);
+      // Don't clear theme on error, just log it
+      // This prevents theme flickering during network issues
+      if (error.response?.status === 404) {
+        console.log('ℹ️ School not found (404), using default theme');
+        clearSchoolTheme();
+      }
     }
   };
 
@@ -92,19 +103,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Load school theme when user changes
   useEffect(() => {
     console.log('🔄 useEffect triggered - user school changed:', {
-      schoolId: user?.school?.id,
+      schoolId: user?.school_id,
       schoolName: user?.school?.name,
+      hasSchool: !!user?.school,
       hasSettings: !!user?.school?.settings
     });
 
-    if (user?.school) {
+    if (user?.school_id && user?.school?.id) {
       console.log('🎨 Loading school theme from useEffect...');
       loadSchoolTheme();
+    } else if (user?.school_id && !user?.school) {
+      console.log('⚠️ User has school_id but no school object, skipping theme load');
+      // Don't clear theme if user has school_id but school object is not loaded yet
     } else {
       console.log('❌ No school data found, clearing theme...');
       clearSchoolTheme();
     }
-  }, [user?.school?.id, user?.school?.settings]);
+  }, [user?.school_id, user?.school?.id, user?.school?.settings]);
 
   const login = async (credentials: LoginCredentials) => {
     try {

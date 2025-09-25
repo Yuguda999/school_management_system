@@ -125,8 +125,8 @@ class StaffCreate(UserCreate):
 
     @validator('role')
     def validate_staff_role(cls, v):
-        if v not in [UserRole.TEACHER, UserRole.ADMIN]:
-            raise ValueError('Staff role must be either teacher or admin')
+        if v not in [UserRole.TEACHER, UserRole.SCHOOL_ADMIN]:
+            raise ValueError('Staff role must be either teacher or school admin')
         return v
 
 

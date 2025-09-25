@@ -48,6 +48,8 @@ class AuthService {
       profile_completed: response.profile_completed || false,
       school_id: response.school_id,
       school: school,
+      school_code: school?.code,
+      school_name: school?.name,
       phone: response.phone,
       date_of_birth: response.date_of_birth,
       gender: response.gender,

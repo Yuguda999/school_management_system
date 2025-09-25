@@ -23,7 +23,7 @@ class TestIntegration:
             password_hash=get_password_hash("admin123"),
             first_name="School",
             last_name="Admin",
-            role=UserRole.ADMIN,
+            role=UserRole.SCHOOL_ADMIN,
             school_id=test_school.id,
             is_active=True,
             is_verified=True

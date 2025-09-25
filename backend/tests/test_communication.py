@@ -33,7 +33,7 @@ async def test_admin(db_session: AsyncSession, test_school: School):
     admin = User(
         email="admin@test.com",
         full_name="Test Admin",
-        role=UserRole.ADMIN,
+        role=UserRole.SCHOOL_ADMIN,
         school_id=test_school.id,
         is_active=True
     )

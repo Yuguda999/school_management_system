@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
+    require_school_admin_user,
     get_current_school,
     get_current_school_context,
     SchoolContext,
@@ -299,7 +300,7 @@ async def get_students_by_subject(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only view students for subjects you teach"
             )
-    elif current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+    elif current_user.role not in [UserRole.SCHOOL_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PLATFORM_SUPER_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers and admins can access students by subject"
@@ -332,7 +333,7 @@ async def get_students_by_subject(
 async def update_student(
     student_id: str,
     student_data: StudentUpdate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -368,7 +369,7 @@ async def update_student(
 async def update_student_status(
     student_id: str,
     status_data: StudentStatusUpdate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -404,7 +405,7 @@ async def update_student_status(
 async def update_student_class(
     student_id: str,
     class_data: StudentClassUpdate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -435,7 +436,7 @@ async def update_student_class(
 @router.delete("/{student_id}")
 async def delete_student(
     student_id: str,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -464,7 +465,7 @@ async def delete_student(
 
 @router.get("/import/template")
 async def download_csv_template(
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school)
 ) -> Response:
     """Download CSV template for student import (Super Admin only)"""
@@ -482,7 +483,7 @@ async def download_csv_template(
 @router.post("/import", response_model=StudentImportResult)
 async def import_students_from_csv(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

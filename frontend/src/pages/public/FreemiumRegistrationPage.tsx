@@ -39,6 +39,11 @@ interface FreemiumRegistration {
   admin_email: string;
   admin_password: string;
   admin_phone?: string;
+  
+  // Theme Settings
+  primary_color?: string;
+  secondary_color?: string;
+  accent_color?: string;
 }
 
 const FreemiumRegistrationPage: React.FC = () => {
@@ -66,11 +71,18 @@ const FreemiumRegistrationPage: React.FC = () => {
     admin_last_name: '',
     admin_email: '',
     admin_password: '',
-    admin_phone: ''
+    admin_phone: '',
+    
+    // Theme Settings
+    primary_color: '#3B82F6',
+    secondary_color: '#1E40AF',
+    accent_color: '#60A5FA'
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [step, setStep] = useState(1);
+  const [codeValidation, setCodeValidation] = useState<{isValidating: boolean, isValid: boolean, message: string}>({isValidating: false, isValid: true, message: ''});
+  const [emailValidation, setEmailValidation] = useState<{isValidating: boolean, isValid: boolean, message: string}>({isValidating: false, isValid: true, message: ''});
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
@@ -80,6 +92,22 @@ const FreemiumRegistrationPage: React.FC = () => {
       ...prev,
       [name]: value
     }));
+
+    // Trigger validation for school code
+    if (name === 'code') {
+      const debouncedValidation = setTimeout(() => {
+        validateSchoolCode(value);
+      }, 500);
+      return () => clearTimeout(debouncedValidation);
+    }
+
+    // Trigger validation for school email
+    if (name === 'email') {
+      const debouncedValidation = setTimeout(() => {
+        validateSchoolEmail(value);
+      }, 500);
+      return () => clearTimeout(debouncedValidation);
+    }
   };
 
   const generateSchoolCode = () => {
@@ -92,13 +120,67 @@ const FreemiumRegistrationPage: React.FC = () => {
         .toUpperCase()
         .slice(0, 6);
       setFormData(prev => ({ ...prev, code }));
+      // Validate the generated code
+      if (code.length >= 3) {
+        validateSchoolCode(code);
+      }
+    }
+  };
+
+  const validateSchoolCode = async (code: string) => {
+    if (!code || code.length < 3) {
+      setCodeValidation({isValidating: false, isValid: false, message: 'School code must be at least 3 characters'});
+      return;
+    }
+
+    setCodeValidation({isValidating: true, isValid: true, message: 'Checking availability...'});
+    
+    try {
+      const response = await schoolService.validateSchoolCodeAvailability(code);
+      setCodeValidation({
+        isValidating: false,
+        isValid: response.available,
+        message: response.message
+      });
+    } catch (error) {
+      setCodeValidation({
+        isValidating: false,
+        isValid: false,
+        message: 'Error checking code availability'
+      });
+    }
+  };
+
+  const validateSchoolEmail = async (email: string) => {
+    if (!email || !email.includes('@')) {
+      setEmailValidation({isValidating: false, isValid: true, message: ''});
+      return;
+    }
+
+    setEmailValidation({isValidating: true, isValid: true, message: 'Checking availability...'});
+    
+    try {
+      const response = await schoolService.validateSchoolEmailAvailability(email);
+      setEmailValidation({
+        isValidating: false,
+        isValid: response.available,
+        message: response.message
+      });
+    } catch (error) {
+      setEmailValidation({
+        isValidating: false,
+        isValid: false,
+        message: 'Error checking email availability'
+      });
     }
   };
 
   const validateStep = (stepNumber: number): boolean => {
     switch (stepNumber) {
       case 1:
-        return !!(formData.name && formData.code && formData.email && formData.phone);
+        return !!(formData.name && formData.code && formData.email && formData.phone) && 
+               codeValidation.isValid && !codeValidation.isValidating &&
+               emailValidation.isValid && !emailValidation.isValidating;
       case 2:
         return !!(formData.address_line1 && formData.city && formData.state && formData.postal_code);
       case 3:
@@ -146,6 +228,9 @@ const FreemiumRegistrationPage: React.FC = () => {
         admin_name: `${formData.admin_first_name} ${formData.admin_last_name}`.trim(),
         admin_email: formData.admin_email,
         admin_password: formData.admin_password,
+        primary_color: formData.primary_color,
+        secondary_color: formData.secondary_color,
+        accent_color: formData.accent_color,
       };
 
       const response = await apiService.post('/api/v1/schools/register', registrationData);
@@ -153,9 +238,9 @@ const FreemiumRegistrationPage: React.FC = () => {
       setSubmitted(true);
       showSuccess('School registered successfully! Your 30-day free trial has started.');
       
-      // Redirect to login after a short delay
+      // Redirect to school-specific login after a short delay
       setTimeout(() => {
-        navigate('/login', { 
+        navigate(`/${formData.code}/login`, { 
           state: { 
             message: 'Registration successful! Please login with your credentials.',
             email: formData.admin_email 
@@ -309,16 +394,42 @@ const FreemiumRegistrationPage: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       School Code *
                     </label>
-                    <input
-                      type="text"
-                      name="code"
-                      value={formData.code}
-                      onChange={handleInputChange}
-                      className="input mt-1"
-                      placeholder="e.g., ABCHS"
-                      required
-                    />
-                    <p className="mt-1 text-xs text-gray-500">Unique identifier for your school</p>
+                    <div className="mt-1 relative">
+                      <input
+                        type="text"
+                        name="code"
+                        value={formData.code}
+                        onChange={handleInputChange}
+                        className={`input ${!codeValidation.isValid && formData.code ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        placeholder="e.g., ABCHS"
+                        required
+                      />
+                      {codeValidation.isValidating && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                      {!codeValidation.isValidating && codeValidation.isValid && formData.code && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {!codeValidation.isValidating && !codeValidation.isValid && formData.code && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    {codeValidation.message && (
+                      <p className={`mt-1 text-xs ${codeValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {codeValidation.message}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">Unique identifier for your school (3-20 characters, letters, numbers, hyphens, underscores)</p>
                   </div>
 
                   <div>
@@ -348,12 +459,36 @@ const FreemiumRegistrationPage: React.FC = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className="input pl-10"
+                        className={`input pl-10 ${!emailValidation.isValid && formData.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
                         placeholder="school@example.com"
                         required
                       />
                       <EnvelopeIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      {emailValidation.isValidating && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        </div>
+                      )}
+                      {!emailValidation.isValidating && emailValidation.isValid && formData.email && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {!emailValidation.isValidating && !emailValidation.isValid && formData.email && (
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
                     </div>
+                    {emailValidation.message && (
+                      <p className={`mt-1 text-xs ${emailValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                        {emailValidation.message}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -619,6 +754,101 @@ const FreemiumRegistrationPage: React.FC = () => {
                     />
                     <p className="mt-1 text-xs text-gray-500">
                       This will be your login password for the admin dashboard
+                    </p>
+                  </div>
+                </div>
+
+                {/* Theme Color Selection */}
+                <div className="mt-6">
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                    School Branding Colors (Optional)
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Customize your school's login page with your brand colors
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Primary Color
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          name="primary_color"
+                          value={formData.primary_color}
+                          onChange={handleInputChange}
+                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={formData.primary_color}
+                          onChange={handleInputChange}
+                          name="primary_color"
+                          className="input text-xs font-mono"
+                          placeholder="#3B82F6"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Secondary Color
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          name="secondary_color"
+                          value={formData.secondary_color}
+                          onChange={handleInputChange}
+                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={formData.secondary_color}
+                          onChange={handleInputChange}
+                          name="secondary_color"
+                          className="input text-xs font-mono"
+                          placeholder="#1E40AF"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Accent Color
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="color"
+                          name="accent_color"
+                          value={formData.accent_color}
+                          onChange={handleInputChange}
+                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                        />
+                        <input
+                          type="text"
+                          value={formData.accent_color}
+                          onChange={handleInputChange}
+                          name="accent_color"
+                          className="input text-xs font-mono"
+                          placeholder="#60A5FA"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Color Preview */}
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preview:</p>
+                    <div 
+                      className="h-8 rounded flex items-center justify-center text-white font-medium text-sm"
+                      style={{ backgroundColor: formData.primary_color }}
+                    >
+                      {formData.name || 'Your School Name'}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      This is how your school name will appear on the login page
                     </p>
                   </div>
                 </div>

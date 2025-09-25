@@ -11,6 +11,8 @@ export interface User {
   profile_completed: boolean;
   school_id: string;
   school?: SchoolInfo;
+  school_code?: string; // Direct access to school code
+  school_name?: string; // Direct access to school name
   phone?: string;
   date_of_birth?: string;
   gender?: Gender;

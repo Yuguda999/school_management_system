@@ -131,9 +131,26 @@ const SchoolSettings: React.FC = () => {
                     <span className="ml-2 text-gray-600 dark:text-gray-400">{user?.school_name || 'N/A'}</span>
                   </div>
                   <div>
+                    <span className="font-medium text-gray-900 dark:text-white">School Code:</span>
+                    <span className="ml-2 text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">
+                      {user?.school_code || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
                     <span className="font-medium text-gray-900 dark:text-white">Your Role:</span>
                     <span className="ml-2 text-gray-600 dark:text-gray-400 capitalize">{user?.role?.replace('_', ' ') || 'N/A'}</span>
                   </div>
+                  <div>
+                    <span className="font-medium text-gray-900 dark:text-white">Login URL:</span>
+                    <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-xs">
+                      /{user?.school_code || 'SCHOOL_CODE'}/login
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>💡 Tip:</strong> Share your school code <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">{user?.school_code || 'SCHOOL_CODE'}</code> with teachers so they can login at <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">/{user?.school_code || 'SCHOOL_CODE'}/login</code>
+                  </p>
                 </div>
               </div>
             </div>

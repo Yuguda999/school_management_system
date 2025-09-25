@@ -72,7 +72,7 @@ class TeacherAccessTest:
         admin_result = await self.db.execute(
             select(User).where(
                 User.school_id == self.school.id,
-                User.role == UserRole.SUPER_ADMIN,
+                User.role == UserRole.SCHOOL_ADMIN,
                 User.is_deleted == False
             ).limit(1)
         )

@@ -245,7 +245,7 @@ async def get_announcements(
 ) -> Any:
     """Get all announcements"""
     # Non-admin users can only see published announcements
-    if current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+    if current_user.role not in [UserRole.SCHOOL_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PLATFORM_SUPER_ADMIN]:
         is_published = True
     
     skip = (page - 1) * size

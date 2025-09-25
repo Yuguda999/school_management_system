@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import all endpoint routers
-from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents
+from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation
 
 api_router = APIRouter()
 
@@ -25,6 +25,8 @@ api_router.include_router(documents.router, prefix="/documents", tags=["document
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(platform_admin.router, prefix="/platform", tags=["platform-admin"])
+api_router.include_router(public_school.router, prefix="/school", tags=["public-school"])
+api_router.include_router(school_validation.router, prefix="/validate", tags=["school-validation"])
 
 
 @api_router.get("/")

@@ -1,256 +1,214 @@
 import { apiService } from './api';
 
-export interface SchoolUpdateData {
-  name?: string;
-  email?: string;
-  phone?: string;
-  website?: string;
-  address_line1?: string;
-  address_line2?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  country?: string;
-  description?: string;
-  motto?: string;
-  established_year?: string;
-  current_session?: string;
-  current_term?: string;
+export interface SchoolPublicInfo {
+  id: string;
+  name: string;
+  code: string;
+  logo_url: string | null;
+  motto: string | null;
+  website: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  accent_color: string | null;
+}
+
+export interface SchoolValidationResponse {
+  valid: boolean;
+  school_code: string;
+}
+
+export interface SchoolCodeValidationResponse {
+  available: boolean;
+  message: string;
+  school_code: string;
+}
+
+export interface SchoolEmailValidationResponse {
+  available: boolean;
+  message: string;
+  email: string;
 }
 
 export interface SchoolThemeSettings {
   primary_color?: string;
   secondary_color?: string;
+  accent_color?: string;
   dark_mode_enabled?: boolean;
-  custom_css?: string;
 }
 
-export interface SchoolSettings {
-  academic_calendar?: Record<string, any>;
-  grading_system?: Record<string, any>;
-  fee_settings?: Record<string, any>;
-  communication_settings?: Record<string, any>;
-  general_settings?: Record<string, any>;
-  theme_settings?: SchoolThemeSettings;
-}
-
-export interface LogoUploadResponse {
-  message: string;
-  logo_url: string;
-}
-
-export interface ThemeUpdateResponse {
-  message: string;
-  theme_settings: SchoolThemeSettings;
-}
-
-export interface SettingsUpdateResponse {
-  message: string;
-  settings: SchoolSettings;
+export interface SchoolData {
+  id: string;
+  name: string;
+  code: string;
+  email: string;
+  phone?: string;
+  website?: string;
+  address_line1: string;
+  address_line2?: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  description?: string;
+  logo_url?: string;
+  motto?: string;
+  established_year?: string;
+  current_session: string;
+  current_term: string;
+  settings?: {
+    theme_settings?: SchoolThemeSettings;
+    [key: string]: any;
+  };
+  is_active: boolean;
+  is_verified: boolean;
+  subscription_plan: string;
+  subscription_status: string;
+  trial_expires_at?: string;
+  max_students?: number;
+  max_teachers?: number;
+  max_classes?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 class SchoolService {
   /**
-   * Update current school information
+   * Get public school information by school code
    */
-  async updateSchool(data: SchoolUpdateData): Promise<any> {
-    return await apiService.put('/api/v1/schools/me', data);
+  async getSchoolPublicInfo(schoolCode: string): Promise<SchoolPublicInfo> {
+    const response = await apiService.get<SchoolPublicInfo>(
+      `/api/v1/school/${schoolCode}/info`
+    );
+    return response;
   }
 
   /**
-   * Upload school logo
+   * Validate if a school code exists and is active
    */
-  async uploadLogo(file: File): Promise<LogoUploadResponse> {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    return await apiService.post('/api/v1/schools/me/logo', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+  async validateSchoolCode(schoolCode: string): Promise<SchoolValidationResponse> {
+    const response = await apiService.get<SchoolValidationResponse>(
+      `/api/v1/school/${schoolCode}/validate`
+    );
+    return response;
   }
 
   /**
-   * Delete school logo
+   * School-specific login
    */
-  async deleteLogo(): Promise<{ message: string }> {
-    return await apiService.delete('/api/v1/schools/me/logo');
+  async schoolLogin(schoolCode: string, credentials: { email: string; password: string }): Promise<any> {
+    const response = await apiService.post(
+      `/api/v1/auth/school/${schoolCode}/login`,
+      credentials
+    );
+    return response;
+  }
+
+  /**
+   * Get current school information (for authenticated users)
+   */
+  async getCurrentSchool(): Promise<SchoolData> {
+    const response = await apiService.get<SchoolData>('/api/v1/schools/me');
+    return response;
+  }
+
+  /**
+   * Update school information
+   */
+  async updateSchool(data: Partial<SchoolData>): Promise<SchoolData> {
+    const response = await apiService.put<SchoolData>('/api/v1/schools/me', data);
+    return response;
   }
 
   /**
    * Update school theme settings
    */
-  async updateTheme(themeSettings: SchoolThemeSettings): Promise<ThemeUpdateResponse> {
-    return await apiService.put('/api/v1/schools/me/theme', themeSettings);
+  async updateTheme(themeSettings: SchoolThemeSettings): Promise<void> {
+    await apiService.put('/api/v1/schools/me/settings', {
+      theme_settings: themeSettings
+    });
   }
 
   /**
-   * Update school settings
+   * Apply theme settings to document
    */
-  async updateSettings(settings: SchoolSettings): Promise<SettingsUpdateResponse> {
-    return await apiService.put('/api/v1/schools/me/settings', settings);
-  }
-
-  /**
-   * Get school settings
-   */
-  async getSettings(): Promise<SchoolSettings> {
-    return await apiService.get('/api/v1/schools/me/settings');
-  }
-
-  /**
-   * Get current school information
-   */
-  async getCurrentSchool(): Promise<any> {
-    return await apiService.get('/api/v1/schools/me');
-  }
-
-  /**
-   * Get school statistics
-   */
-  async getSchoolStats(): Promise<any> {
-    return await apiService.get('/api/v1/schools/me/stats');
-  }
-
-  /**
-   * Validate logo file before upload
-   */
-  validateLogoFile(file: File): { valid: boolean; error?: string } {
-    // Check file type
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return {
-        valid: false,
-        error: 'Invalid file type. Please upload PNG, JPEG, GIF, or WebP images only.'
-      };
-    }
-
-    // Check file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      return {
-        valid: false,
-        error: 'File too large. Maximum size is 5MB.'
-      };
-    }
-
-    return { valid: true };
-  }
-
-  /**
-   * Validate theme color
-   */
-  validateColor(color: string): boolean {
-    // Check if it's a valid hex color
-    const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
-    return hexRegex.test(color);
-  }
-
-  /**
-   * Get default theme colors
-   */
-  getDefaultTheme(): SchoolThemeSettings {
-    return {
-      primary_color: '#0ea5e9',
-      secondary_color: '#8b5cf6',
-      dark_mode_enabled: false
-    };
-  }
-
-  /**
-   * Generate color palette from primary color
-   */
-  generateColorPalette(primaryColor: string): Record<string, string> {
-    // This is a simplified version - in a real app you might use a color manipulation library
-    const colors: Record<string, string> = {};
-
-    // Extract RGB values
-    const hex = primaryColor.replace('#', '');
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
-
-    // Generate lighter and darker variants using the same logic as ThemeContext
-    return {
-      50: `${Math.min(255, r + 100)}, ${Math.min(255, g + 100)}, ${Math.min(255, b + 100)}`,
-      100: `${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}`,
-      200: `${Math.min(255, r + 60)}, ${Math.min(255, g + 60)}, ${Math.min(255, b + 60)}`,
-      300: `${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)}`,
-      400: `${Math.min(255, r + 20)}, ${Math.min(255, g + 20)}, ${Math.min(255, b + 20)}`,
-      500: `${r}, ${g}, ${b}`,
-      600: `${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)}`,
-      700: `${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)}`,
-      800: `${Math.max(0, r - 60)}, ${Math.max(0, g - 60)}, ${Math.max(0, b - 60)}`,
-      900: `${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 80)}`,
-      950: `${Math.max(0, r - 100)}, ${Math.max(0, g - 100)}, ${Math.max(0, b - 100)}`,
-    };
-  }
-
-  /**
-   * Apply theme to document
-   */
-  applyThemeToDocument(theme: SchoolThemeSettings): void {
-    if (!theme) return;
-
-    const root = document.documentElement;
-
-    // Apply primary color
-    if (theme.primary_color) {
-      root.style.setProperty('--color-primary', theme.primary_color);
-
-      // Generate and apply color palette
-      const palette = this.generateColorPalette(theme.primary_color);
-      Object.entries(palette).forEach(([shade, color]) => {
-        root.style.setProperty(`--color-primary-${shade}`, color);
-      });
-    }
-
-    // Apply secondary color
-    if (theme.secondary_color) {
-      root.style.setProperty('--color-secondary', theme.secondary_color);
-
-      // Generate and apply color palette
-      const palette = this.generateColorPalette(theme.secondary_color);
-      Object.entries(palette).forEach(([shade, color]) => {
-        root.style.setProperty(`--color-secondary-${shade}`, color);
-      });
-    }
-
-    // Apply dark mode only if explicitly set in theme
-    // Otherwise, respect the current theme context dark mode setting
-    if (theme.dark_mode_enabled !== undefined) {
-      root.classList.toggle('dark', theme.dark_mode_enabled);
-    }
-
-    // Apply custom CSS
-    if (theme.custom_css) {
-      let styleElement = document.getElementById('school-custom-css');
-      if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = 'school-custom-css';
-        document.head.appendChild(styleElement);
-      }
-      styleElement.textContent = theme.custom_css;
-    }
-  }
-
-  /**
-   * Remove custom theme from document
-   */
-  removeThemeFromDocument(): void {
+  applyThemeToDocument(themeSettings: SchoolThemeSettings): void {
     const root = document.documentElement;
     
-    // Remove custom CSS
-    const styleElement = document.getElementById('school-custom-css');
-    if (styleElement) {
-      styleElement.remove();
+    if (themeSettings.primary_color) {
+      root.style.setProperty('--primary-color', themeSettings.primary_color);
+    }
+    if (themeSettings.secondary_color) {
+      root.style.setProperty('--secondary-color', themeSettings.secondary_color);
+    }
+    if (themeSettings.accent_color) {
+      root.style.setProperty('--accent-color', themeSettings.accent_color);
+    }
+  }
+
+  /**
+   * Validate logo file
+   */
+  validateLogoFile(file: File): boolean {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!validTypes.includes(file.type)) {
+      throw new Error('Invalid file type. Please upload a JPEG, PNG, or GIF image.');
     }
 
-    // Reset to default colors (you might want to store defaults)
-    const defaultTheme = this.getDefaultTheme();
-    this.applyThemeToDocument(defaultTheme);
+    if (file.size > maxSize) {
+      throw new Error('File size too large. Please upload an image smaller than 5MB.');
+    }
+
+    return true;
+  }
+
+  /**
+   * Upload school logo
+   */
+  async uploadLogo(file: File): Promise<{ logo_url: string }> {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const response = await apiService.post<{ logo_url: string }>(
+      '/api/v1/schools/me/logo',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response;
+  }
+
+  /**
+   * Delete school logo
+   */
+  async deleteLogo(): Promise<void> {
+    await apiService.delete('/api/v1/schools/me/logo');
+  }
+
+  /**
+   * Validate school code availability
+   */
+  async validateSchoolCodeAvailability(schoolCode: string): Promise<SchoolCodeValidationResponse> {
+    const response = await apiService.get<SchoolCodeValidationResponse>(
+      `/api/v1/validate/school-code/${encodeURIComponent(schoolCode)}`
+    );
+    return response;
+  }
+
+  /**
+   * Validate school email availability
+   */
+  async validateSchoolEmailAvailability(email: string): Promise<SchoolEmailValidationResponse> {
+    const response = await apiService.get<SchoolEmailValidationResponse>(
+      `/api/v1/validate/school-email/${encodeURIComponent(email)}`
+    );
+    return response;
   }
 }
 
 export const schoolService = new SchoolService();
+export default schoolService;

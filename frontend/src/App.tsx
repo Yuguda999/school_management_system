@@ -7,6 +7,7 @@ import SchoolRoute from './components/auth/SchoolRoute';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileCompletionCheck from './components/auth/ProfileCompletionCheck';
 import LoginPage from './pages/auth/LoginPage';
+import SchoolLoginPage from './pages/auth/SchoolLoginPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import TeacherSetupPage from './pages/auth/TeacherSetupPage';
@@ -51,6 +52,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/home" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/:schoolCode/login" element={<SchoolLoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/teacher/accept-invitation" element={<TeacherSetupPage />} />

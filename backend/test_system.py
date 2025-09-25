@@ -197,7 +197,7 @@ def test_enum_definitions():
         
         # Test that enums have expected values
         enum_tests = [
-            (UserRole, ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STUDENT', 'PARENT']),
+            (UserRole, ['PLATFORM_SUPER_ADMIN', 'SCHOOL_OWNER', 'SCHOOL_ADMIN', 'TEACHER', 'STUDENT', 'PARENT']),
             (ClassLevel, ['NURSERY_1', 'PRIMARY_1', 'JSS_1', 'SS_1']),
             (TermType, ['FIRST_TERM', 'SECOND_TERM', 'THIRD_TERM']),
             (PaymentStatus, ['PENDING', 'PAID', 'OVERDUE', 'CANCELLED']),

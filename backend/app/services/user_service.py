@@ -63,8 +63,7 @@ class UserService:
                 )
         
         # Create user
-        user_dict = user_data.dict()
-        user_dict.pop('password')
+        user_dict = user_data.dict(exclude={'password', 'subject_ids', 'head_of_subject_id'})
         user_dict['password_hash'] = get_password_hash(user_data.password)
         user_dict['school_id'] = school_id
         

@@ -145,6 +145,13 @@ class SchoolService:
         school = School(**school_data.dict())
         school.start_trial(days=30)  # Start 30-day trial
         school.billing_email = registration_data.admin_email
+        
+        # Set theme settings
+        school.settings = {
+            'primary_color': registration_data.primary_color or '#3B82F6',
+            'secondary_color': registration_data.secondary_color or '#1E40AF',
+            'accent_color': registration_data.accent_color or '#60A5FA'
+        }
 
         db.add(school)
         await db.flush()  # Get the school ID

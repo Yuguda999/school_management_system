@@ -5,7 +5,9 @@ from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
-    get_current_school
+    require_school_admin_user,
+    get_current_school,
+    SchoolContext
 )
 from app.models.user import User, UserRole
 from app.models.school import School
@@ -29,7 +31,7 @@ router = APIRouter()
 @router.post("/", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -41,7 +43,7 @@ async def create_user(
 @router.post("/staff", response_model=UserResponse)
 async def create_staff(
     staff_data: StaffCreate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -53,7 +55,7 @@ async def create_staff(
 @router.post("/parents", response_model=UserResponse)
 async def create_parent(
     parent_data: ParentCreate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -65,7 +67,7 @@ async def create_parent(
 @router.post("/teachers", response_model=UserResponse)
 async def create_teacher_with_subjects(
     teacher_data: TeacherCreateWithSubjects,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -81,7 +83,7 @@ async def get_users(
     search: Optional[str] = Query(None, description="Search by name, email, or employee ID"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Page size"),
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -106,7 +108,7 @@ async def get_users(
 async def get_teachers(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -120,7 +122,7 @@ async def get_teachers(
 async def get_parents(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -139,7 +141,7 @@ async def get_user(
 ) -> Any:
     """Get user by ID"""
     # Users can view their own profile, admins can view any profile
-    if user_id != current_user.id and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+    if user_id != current_user.id and current_user.role not in [UserRole.SCHOOL_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PLATFORM_SUPER_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
@@ -165,7 +167,7 @@ async def update_user(
 ) -> Any:
     """Update user information"""
     # Users can update their own profile, admins can update any profile
-    if user_id != current_user.id and current_user.role not in [UserRole.ADMIN, UserRole.SUPER_ADMIN]:
+    if user_id != current_user.id and current_user.role not in [UserRole.SCHOOL_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PLATFORM_SUPER_ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
@@ -185,7 +187,7 @@ async def update_user(
 async def update_user_status(
     user_id: str,
     status_data: UserStatusUpdate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -204,7 +206,7 @@ async def update_user_status(
 async def update_user_role(
     user_id: str,
     role_data: UserRoleUpdate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -222,11 +224,13 @@ async def update_user_role(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: str,
-    current_user: User = Depends(require_school_admin()),
+    school_context: SchoolContext = Depends(require_school_admin()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete user (School Admin only)"""
+    current_user = school_context.user
+    
     # Prevent self-deletion
     if user_id == current_user.id:
         raise HTTPException(

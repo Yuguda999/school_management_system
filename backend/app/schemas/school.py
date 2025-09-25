@@ -111,6 +111,11 @@ class FreemiumRegistration(BaseModel):
     admin_name: str
     admin_email: EmailStr
     admin_password: str
+    
+    # Theme Settings (optional)
+    primary_color: Optional[str] = "#3B82F6"
+    secondary_color: Optional[str] = "#1E40AF"
+    accent_color: Optional[str] = "#60A5FA"
 
     @validator('admin_password')
     def validate_password(cls, v):

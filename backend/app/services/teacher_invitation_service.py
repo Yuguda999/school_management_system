@@ -1,5 +1,5 @@
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from fastapi import HTTPException, status
@@ -229,7 +229,7 @@ class TeacherInvitationService:
             'is_active': True,
             'school_id': invitation.school_id,
             'phone': accept_data.phone,
-            'date_of_birth': accept_data.date_of_birth,
+            'date_of_birth': datetime.strptime(accept_data.date_of_birth, '%Y-%m-%d').date() if accept_data.date_of_birth else None,
             'gender': accept_data.gender,
             'qualification': accept_data.qualification,
             'experience_years': accept_data.experience_years,
@@ -239,7 +239,6 @@ class TeacherInvitationService:
             'city': accept_data.city,
             'state': accept_data.state,
             'postal_code': accept_data.postal_code,
-            'country': accept_data.country,
             'department': invitation.department,
             'position': invitation.position
         }

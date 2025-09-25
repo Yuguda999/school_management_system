@@ -292,15 +292,47 @@ async def get_optional_current_user(
 
 
 class TenantFilter:
-    """Utility class for tenant-based filtering"""
+    """Utility class for tenant-based filtering and validation"""
 
     def __init__(self, school_context: SchoolContext = Depends(get_school_context)):
         self.school_context = school_context
         self.school_id = school_context.school_id
+        self.user = school_context.user
 
-    def filter_by_school(self, query):
+    def filter_by_school(self, query, model_class=None):
         """Add school filter to query"""
-        return query.where(query.column_descriptions[0]['type'].school_id == self.school_id)
+        if model_class and hasattr(model_class, 'school_id'):
+            return query.where(model_class.school_id == self.school_id)
+        elif hasattr(query.column_descriptions[0]['type'], 'school_id'):
+            return query.where(query.column_descriptions[0]['type'].school_id == self.school_id)
+        else:
+            # For raw queries, we need to ensure school_id is manually added
+            raise ValueError("Cannot automatically filter query by school_id. Please add school_id filter manually.")
+
+    def validate_school_access(self, entity_school_id: str) -> bool:
+        """Validate that the entity belongs to the current school"""
+        if entity_school_id != self.school_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: Entity does not belong to your school"
+            )
+        return True
+
+    def validate_school_ownership(self, entity_school_id: str) -> bool:
+        """Validate that the user owns or has access to the school"""
+        if entity_school_id != self.school_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: You don't have access to this school"
+            )
+        return True
+
+    def get_school_filter(self, model_class):
+        """Get school filter condition for a model"""
+        if hasattr(model_class, 'school_id'):
+            return model_class.school_id == self.school_id
+        else:
+            raise ValueError(f"Model {model_class.__name__} does not have school_id field")
 
 
 async def check_teacher_can_access_student(
@@ -415,3 +447,108 @@ async def check_teacher_can_access_subject(
     })
 
     return result.scalar_one_or_none() is not None
+
+
+# School isolation validation functions
+async def validate_entity_belongs_to_school(
+    db: AsyncSession,
+    entity_id: str,
+    entity_model,
+    school_id: str,
+    error_message: str = "Entity not found or does not belong to your school"
+) -> bool:
+    """Validate that an entity belongs to the specified school"""
+    result = await db.execute(
+        select(entity_model).where(
+            and_(
+                entity_model.id == entity_id,
+                entity_model.school_id == school_id,
+                entity_model.is_deleted == False
+            )
+        )
+    )
+    entity = result.scalar_one_or_none()
+    
+    if entity is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_message
+        )
+    
+    return True
+
+
+async def validate_multiple_entities_belong_to_school(
+    db: AsyncSession,
+    entity_ids: List[str],
+    entity_model,
+    school_id: str,
+    error_message: str = "One or more entities do not belong to your school"
+) -> List[str]:
+    """Validate that multiple entities belong to the specified school and return valid IDs"""
+    if not entity_ids:
+        return []
+    
+    result = await db.execute(
+        select(entity_model.id).where(
+            and_(
+                entity_model.id.in_(entity_ids),
+                entity_model.school_id == school_id,
+                entity_model.is_deleted == False
+            )
+        )
+    )
+    valid_ids = [row[0] for row in result.fetchall()]
+    
+    if len(valid_ids) != len(entity_ids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message
+        )
+    
+    return valid_ids
+
+
+def create_tenant_aware_query(model_class, school_id: str, base_query=None):
+    """Create a query that automatically includes school filtering"""
+    if base_query is None:
+        base_query = select(model_class)
+    
+    if hasattr(model_class, 'school_id'):
+        return base_query.where(
+            and_(
+                model_class.school_id == school_id,
+                model_class.is_deleted == False
+            )
+        )
+    else:
+        raise ValueError(f"Model {model_class.__name__} does not support tenant isolation")
+
+
+# Decorator for ensuring school isolation in service methods
+def ensure_school_isolation(func):
+    """Decorator to ensure service methods properly filter by school_id"""
+    async def wrapper(*args, **kwargs):
+        # Extract school_id from arguments
+        school_id = None
+        for arg in args:
+            if isinstance(arg, str) and len(arg) == 36:  # UUID-like string
+                # Check if this might be a school_id by looking at the function signature
+                import inspect
+                sig = inspect.signature(func)
+                param_names = list(sig.parameters.keys())
+                if 'school_id' in param_names:
+                    school_id_idx = param_names.index('school_id')
+                    if len(args) > school_id_idx:
+                        school_id = args[school_id_idx]
+                        break
+        
+        if 'school_id' in kwargs:
+            school_id = kwargs['school_id']
+        
+        if not school_id:
+            raise ValueError(f"Service method {func.__name__} must include school_id parameter for tenant isolation")
+        
+        return await func(*args, **kwargs)
+    
+    return wrapper
