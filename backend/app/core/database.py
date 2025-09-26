@@ -3,18 +3,24 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
+import logging
+
+# Configure SQLAlchemy logging
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
 # Async engine for FastAPI
 async_engine = create_async_engine(
     settings.database_url,
-    echo=settings.debug,
+    echo=False,  # Disable SQL echo to reduce logs
     future=True
 )
 
 # Sync engine for Alembic migrations
 sync_engine = create_engine(
     settings.database_url_sync,
-    echo=settings.debug
+    echo=False  # Disable SQL echo to reduce logs
 )
 
 # Async session factory

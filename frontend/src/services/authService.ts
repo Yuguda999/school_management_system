@@ -96,11 +96,11 @@ class AuthService {
   }
 
   async requestPasswordReset(email: string): Promise<void> {
-    return apiService.post('/api/v1/auth/forgot-password', { email });
+    return apiService.post('/api/v1/auth/password-reset', { email });
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    return apiService.post('/api/v1/auth/reset-password', {
+    return apiService.post('/api/v1/auth/password-reset/confirm', {
       token,
       new_password: newPassword,
     });

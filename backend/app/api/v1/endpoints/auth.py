@@ -30,6 +30,7 @@ from app.schemas.auth import (
     ChangePasswordRequest
 )
 from app.services.school_ownership_service import SchoolOwnershipService
+from app.services.email_service import EmailService
 
 router = APIRouter()
 
@@ -317,8 +318,67 @@ async def request_password_reset(
     # Generate reset token
     reset_token = generate_password_reset_token(user.email)
     
-    # TODO: Send email with reset token
-    # For now, just return success message
+    # Send email with reset token
+    try:
+        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Password Reset Request</h2>
+            <p>Hello {user.first_name},</p>
+            <p>You have requested to reset your password for the School Management System.</p>
+            <p>Click the link below to reset your password:</p>
+            <p><a href="{reset_url}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you did not request this password reset, please ignore this email.</p>
+            <br>
+            <p>Best regards,<br>School Management System Team</p>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        Password Reset Request
+        
+        Hello {user.first_name},
+        
+        You have requested to reset your password for the School Management System.
+        
+        Click the link below to reset your password:
+        {reset_url}
+        
+        This link will expire in 24 hours.
+        
+        If you did not request this password reset, please ignore this email.
+        
+        Best regards,
+        School Management System Team
+        """
+        
+        email_sent = await EmailService.send_email(
+            to_emails=[user.email],
+            subject="Password Reset Request - School Management System",
+            html_content=html_content,
+            text_content=text_content
+        )
+        
+        if not email_sent:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password reset email. Please try again later."
+            )
+        
+        print(f"✅ Password reset email sent to {user.email}")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error sending password reset email: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send password reset email. Please try again later."
+        )
     
     return {"message": "If the email exists, a password reset link has been sent"}
 

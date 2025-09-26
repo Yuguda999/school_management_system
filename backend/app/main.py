@@ -10,11 +10,15 @@ from app.core.database_init import check_and_initialize_database
 from app.api.v1.api import api_router
 
 # Configure logging
+log_level = getattr(logging, settings.log_level.upper(), logging.WARNING)
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Reduce uvicorn logging
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
