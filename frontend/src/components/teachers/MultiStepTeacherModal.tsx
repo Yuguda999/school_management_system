@@ -200,6 +200,7 @@ const MultiStepTeacherModal: React.FC<MultiStepTeacherModalProps> = ({
         // Then handle subject assignments separately if they were modified
         if (formData.subject_ids !== undefined || formData.head_of_subject_id !== undefined) {
           const subjectAssignmentData = {
+            teacher_id: teacher.user.id,
             subject_ids: formData.subject_ids || [],
             head_of_subject_id: formData.head_of_subject_id || undefined
           };

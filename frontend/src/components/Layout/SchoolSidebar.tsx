@@ -12,6 +12,7 @@ import {
   ChatBubbleLeftRightIcon,
   DocumentChartBarIcon,
   Cog6ToothIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -94,6 +95,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
       icon: ChartBarIcon,
       roles: ['school_owner', 'school_admin', 'teacher', 'student', 'parent'],
       description: 'Academic performance'
+    },
+    {
+      name: 'Templates',
+      href: '/templates',
+      icon: DocumentTextIcon,
+      roles: ['school_owner'],
+      description: 'Report card templates'
     },
     {
       name: 'Communication',

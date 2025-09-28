@@ -87,7 +87,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
         const existingGrade = gradesData.find(g => g.student_id === student.id);
         return {
           student_id: student.id,
-          score: existingGrade?.score || 0,
+          score: existingGrade ? Number(existingGrade.score) : 0,
           remarks: existingGrade?.remarks || ''
         };
       });
@@ -105,8 +105,16 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
     try {
       setSubmitting(true);
       
-      // Filter out grades with score 0 (assuming 0 means not graded)
-      const validGrades = data.grades.filter(grade => grade.score > 0);
+      // Filter out grades with score 0 (assuming 0 means not graded) and convert scores to numbers
+      const validGrades = data.grades
+        .filter(grade => {
+          const score = Number(grade.score);
+          return score > 0 && !isNaN(score) && isFinite(score);
+        })
+        .map(grade => ({
+          ...grade,
+          score: Number(grade.score) // Convert string to number
+        }));
       
       if (validGrades.length === 0) {
         showError('Please enter at least one valid score');
@@ -118,12 +126,33 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
         grades: validGrades
       };
 
+      console.log('Sending bulk data:', bulkData);
+      console.log('Valid grades:', validGrades);
+      console.log('Score types:', validGrades.map(g => ({ student_id: g.student_id, score: g.score, type: typeof g.score })));
+
       const createdGrades = await GradeService.createBulkGrades(bulkData);
       showSuccess(`Successfully saved ${createdGrades.length} grades`);
       onGradesSubmitted(createdGrades);
     } catch (error: any) {
       console.error('Error saving grades:', error);
-      showError(error.response?.data?.detail || 'Failed to save grades');
+      let errorMessage = 'Failed to save grades';
+      if (error.response?.data) {
+        const data = error.response.data;
+        if (Array.isArray(data)) {
+          errorMessage = data.map(err => err.msg || err.message || 'Validation error').join(', ');
+        } else if (typeof data === 'object' && data.detail) {
+          if (Array.isArray(data.detail)) {
+            errorMessage = data.detail.map(err => err.msg || err.message || 'Validation error').join(', ');
+          } else if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else {
+            errorMessage = JSON.stringify(data.detail);
+          }
+        } else if (typeof data === 'string') {
+          errorMessage = data;
+        }
+      }
+      showError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -245,7 +274,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {fields.map((field, index) => {
-                  const score = watchedGrades[index]?.score || 0;
+                  const score = Number(watchedGrades[index]?.score || 0);
                   const percentage = score > 0 ? ((score / exam.total_marks) * 100).toFixed(1) : '0.0';
                   const gradeLetter = score > 0 ? getGradeLetter(score) : '-';
                   const isExisting = isExistingGrade(field.student_id);
@@ -330,7 +359,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {watchedGrades.filter(g => g.score > 0).length}
+                {watchedGrades.filter(g => Number(g.score) > 0).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Students Graded
@@ -338,7 +367,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {watchedGrades.filter(g => g.score >= exam.pass_marks).length}
+                {watchedGrades.filter(g => Number(g.score) >= exam.pass_marks).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Passed
@@ -346,7 +375,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">
-                {watchedGrades.filter(g => g.score > 0 && g.score < exam.pass_marks).length}
+                {watchedGrades.filter(g => Number(g.score) > 0 && Number(g.score) < exam.pass_marks).length}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 Failed
@@ -354,8 +383,8 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {watchedGrades.filter(g => g.score > 0).length > 0 
-                  ? ((watchedGrades.filter(g => g.score >= exam.pass_marks).length / watchedGrades.filter(g => g.score > 0).length) * 100).toFixed(1)
+                {watchedGrades.filter(g => Number(g.score) > 0).length > 0 
+                  ? ((watchedGrades.filter(g => Number(g.score) >= exam.pass_marks).length / watchedGrades.filter(g => Number(g.score) > 0).length) * 100).toFixed(1)
                   : '0.0'
                 }%
               </div>

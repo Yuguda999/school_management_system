@@ -169,6 +169,11 @@ async def get_current_school(
     school_context: SchoolContext = Depends(get_current_school_context)
 ) -> School:
     """Get current school from context"""
+    if school_context.school is None:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="School context not properly loaded"
+        )
     return school_context.school
 
 

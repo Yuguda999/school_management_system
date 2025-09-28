@@ -197,6 +197,7 @@ export interface ReportCardCreateData {
   teacher_comment?: string;
   principal_comment?: string;
   next_term_begins?: string;
+  template_id?: string; // Optional template ID for custom report cards
 }
 
 export interface ReportCardUpdateData {
@@ -212,6 +213,7 @@ export interface GradeStatistics {
   total_grades: number;
   published_grades: number;
   average_class_performance?: number;
+  subjects_assessed: number;
   subjects_performance: Array<{
     subject_id: string;
     subject_name: string;
@@ -326,8 +328,155 @@ class GradeService {
   }
 
   // Report Cards
+  static async getReportCards(params?: {
+    student_id?: string;
+    class_id?: string;
+    term_id?: string;
+    is_published?: boolean;
+    page?: number;
+    size?: number;
+  }): Promise<ReportCard[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.student_id) queryParams.append('student_id', params.student_id);
+    if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.term_id) queryParams.append('term_id', params.term_id);
+    if (params?.is_published !== undefined) queryParams.append('is_published', params.is_published.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.size) queryParams.append('size', params.size.toString());
+    
+    const url = `/api/v1/grades/report-cards${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return await apiService.get<ReportCard[]>(url);
+  }
+
   static async createReportCard(data: ReportCardCreateData): Promise<ReportCard> {
     return await apiService.post<ReportCard>('/api/v1/grades/report-cards', data);
+  }
+
+  // Template-based report card generation
+  static async generateReportCardWithTemplate(
+    studentId: string, 
+    classId: string, 
+    termId: string, 
+    templateId?: string
+  ): Promise<ReportCard> {
+    const data: ReportCardCreateData = {
+      student_id: studentId,
+      class_id: classId,
+      term_id: termId,
+    };
+    
+    if (templateId) {
+      data.template_id = templateId;
+    }
+    
+    return await this.createReportCard(data);
+  }
+
+  static async getReportCardTemplate(classId: string, termId: string): Promise<string | null> {
+    try {
+      // Get the assigned template for this class
+      const response = await apiService.get(`/api/v1/templates/assignments?class_id=${classId}&is_active=true`);
+      const assignments = response.data;
+      
+      if (assignments && assignments.length > 0) {
+        // Return the first active assignment's template ID
+        return assignments[0].templateId;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error getting template for class:', error);
+      return null;
+    }
+  }
+
+  static async generateReportCardHTML(reportCard: ReportCard, templateId?: string): Promise<string> {
+    try {
+      if (templateId) {
+        // Generate using custom template
+        const response = await apiService.post(`/api/v1/templates/${templateId}/preview`, {
+          studentId: reportCard.student_id,
+          classId: reportCard.class_id,
+          termId: reportCard.term_id,
+        });
+        return response.data.preview_html;
+      } else {
+        // Generate using default template
+        return this.generateDefaultReportCardHTML(reportCard);
+      }
+    } catch (error) {
+      console.error('Error generating report card HTML:', error);
+      return this.generateDefaultReportCardHTML(reportCard);
+    }
+  }
+
+  private static generateDefaultReportCardHTML(reportCard: ReportCard): string {
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; border: 2px solid #333;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="color: #2c3e50; margin-bottom: 10px;">REPORT CARD</h1>
+          <h2 style="color: #34495e; margin-bottom: 5px;">${reportCard.term_name || 'Academic Term'}</h2>
+          <p style="color: #7f8c8d; margin: 0;">${reportCard.class_name || 'Class'}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Student Information</h3>
+          <p><strong>Name:</strong> ${reportCard.student_name || 'N/A'}</p>
+          <p><strong>Class:</strong> ${reportCard.class_name || 'N/A'}</p>
+          <p><strong>Term:</strong> ${reportCard.term_name || 'N/A'}</p>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+          <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Academic Performance</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+              <tr style="background-color: #f8f9fa;">
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Subject</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center;">Score</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: center;">Grade</th>
+                <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportCard.grades.map(grade => `
+                <tr>
+                  <td style="border: 1px solid #ddd; padding: 12px;">${grade.subject_name || 'N/A'}</td>
+                  <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">${grade.score}/${grade.total_marks}</td>
+                  <td style="border: 1px solid #ddd; padding: 12px; text-align: center; font-weight: bold;">${this.formatGrade(grade.grade)}</td>
+                  <td style="border: 1px solid #ddd; padding: 12px;">${grade.remarks || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px;">
+            <p><strong>Overall Score:</strong> ${reportCard.overall_score || 0}</p>
+            <p><strong>Overall Percentage:</strong> ${reportCard.overall_percentage || 0}%</p>
+            <p><strong>Overall Grade:</strong> ${this.formatGrade(reportCard.overall_grade)}</p>
+            <p><strong>Position:</strong> ${reportCard.position || 'N/A'} out of ${reportCard.total_students || 'N/A'} students</p>
+          </div>
+        </div>
+        
+        ${reportCard.teacher_comment ? `
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Teacher's Comment</h3>
+            <p style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #3498db;">${reportCard.teacher_comment}</p>
+          </div>
+        ` : ''}
+        
+        ${reportCard.principal_comment ? `
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px;">Principal's Comment</h3>
+            <p style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #e74c3c;">${reportCard.principal_comment}</p>
+          </div>
+        ` : ''}
+        
+        <div style="margin-top: 30px; text-align: center; color: #7f8c8d; font-size: 12px;">
+          <p>Generated on: ${new Date(reportCard.generated_date).toLocaleDateString()}</p>
+          <p>Generated by: ${reportCard.generator_name || 'System'}</p>
+        </div>
+      </div>
+    `;
   }
 
   static async updateReportCard(reportCardId: string, data: ReportCardUpdateData): Promise<ReportCard> {

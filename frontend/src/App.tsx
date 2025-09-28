@@ -30,6 +30,7 @@ import GradesPage from './pages/grades/GradesPage';
 import CommunicationPage from './pages/communication/CommunicationPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import ReportCardTemplatesPage from './pages/templates/ReportCardTemplatesPage';
 import TermManagementPage from './pages/terms/TermManagementPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import PlatformAdminPage from './pages/platform/PlatformAdminPage';
@@ -199,6 +200,16 @@ function App() {
           element={
             <SchoolRoute>
               <GradesPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Report Card Templates */}
+        <Route
+          path="templates"
+          element={
+            <SchoolRoute allowedRoles={['school_owner']}>
+              <ReportCardTemplatesPage />
             </SchoolRoute>
           }
         />

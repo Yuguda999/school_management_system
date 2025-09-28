@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
-    require_teacher_or_admin,
+    require_teacher_or_admin_user,
     require_school_admin,
     get_current_school
 )
@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/dashboard", response_model=DashboardStats)
 async def get_dashboard_report(
     term_id: Optional[str] = Query(None, description="Filter by term"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -37,7 +37,7 @@ async def get_student_reports(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(20, ge=1, le=100, description="Page size"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -57,7 +57,7 @@ async def get_student_reports(
 async def get_class_report(
     class_id: str,
     term_id: Optional[str] = Query(None, description="Filter by term"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -103,7 +103,7 @@ async def get_attendance_report(
     end_date: Optional[str] = Query(None, description="End date"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
     term_id: Optional[str] = Query(None, description="Filter by term"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -122,7 +122,7 @@ async def get_academic_report(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
     subject_id: Optional[str] = Query(None, description="Filter by subject"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -144,7 +144,7 @@ async def get_academic_report(
 async def export_report(
     report_type: str,
     export_options: dict,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

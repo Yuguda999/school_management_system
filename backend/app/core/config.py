@@ -1,6 +1,7 @@
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+import os
 
 
 class Settings(BaseSettings):
@@ -10,6 +11,19 @@ class Settings(BaseSettings):
     debug: bool = False
     environment: str = "production"
     log_level: str = "WARNING"
+    
+    model_config = SettingsConfigDict(
+        env_prefix="SMS_",  # Use SMS_ prefix to avoid conflicts with system env vars
+        case_sensitive=False,
+        # Ignore the system DEBUG environment variable
+        env_file_encoding='utf-8'
+    )
+    
+    def __init__(self, **kwargs):
+        # Remove the system DEBUG environment variable to prevent conflicts
+        if 'DEBUG' in os.environ and os.environ['DEBUG'] == 'WARN':
+            del os.environ['DEBUG']
+        super().__init__(**kwargs)
     
     # Database
     database_url: str = "sqlite+aiosqlite:///./school_management.db"

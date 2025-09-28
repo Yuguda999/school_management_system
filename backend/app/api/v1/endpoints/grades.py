@@ -1,18 +1,23 @@
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, desc
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
-    require_teacher_or_admin,
+    require_teacher_or_admin_user,
     get_current_school,
+    get_current_school_context,
     check_teacher_can_access_student,
-    check_teacher_can_access_subject
+    check_teacher_can_access_subject,
+    SchoolContext
 )
 from app.models.user import User, UserRole
 from app.models.school import School
-from app.models.grade import ExamType
+from app.models.grade import ExamType, Grade, ReportCard
+from app.models.student import Student
 from app.schemas.grade import (
     ExamCreate,
     ExamUpdate,
@@ -37,13 +42,13 @@ router = APIRouter()
 @router.post("/exams", response_model=ExamResponse)
 async def create_exam(
     exam_data: ExamCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
-    current_school: School = Depends(get_current_school),
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new exam (Teacher/Admin only)"""
     exam = await GradeService.create_exam(
-        db, exam_data, current_school.id, current_user.id
+        db, exam_data, school_context.school_id, current_user.id
     )
     
     # Prepare response with additional data
@@ -138,7 +143,7 @@ async def get_exam(
 async def update_exam(
     exam_id: str,
     exam_data: ExamUpdate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -181,11 +186,33 @@ async def delete_exam(
     return {"message": "Exam deleted successfully"}
 
 
+@router.post("/exams/{exam_id}/publish")
+async def publish_exam(
+    exam_id: str,
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Publish an exam (Teacher/Admin only)"""
+    exam = await GradeService.get_exam_by_id(db, exam_id, current_school.id)
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found"
+        )
+    
+    # Update exam to published
+    exam_data = ExamUpdate(is_published=True)
+    await GradeService.update_exam(db, exam_id, exam_data, current_school.id)
+    
+    return {"message": "Exam published successfully", "exam_id": exam_id}
+
+
 # Grade Management Endpoints
 @router.post("/grades", response_model=GradeResponse)
 async def create_grade(
     grade_data: GradeCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -233,7 +260,7 @@ async def create_grade(
 @router.post("/grades/bulk", response_model=List[GradeResponse])
 async def create_bulk_grades(
     bulk_data: BulkGradeCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -283,9 +310,32 @@ async def create_bulk_grades(
         db, bulk_data, current_school.id, current_user.id
     )
     
+    # Query the grades again with relationships loaded to avoid MissingGreenlet errors
+    if grades:
+        grade_ids = [grade.id for grade in grades]
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import select
+        from app.models.grade import Grade
+        
+        result = await db.execute(
+            select(Grade)
+            .options(
+                selectinload(Grade.student),
+                selectinload(Grade.subject),
+                selectinload(Grade.exam),
+                selectinload(Grade.grader)
+            )
+            .where(Grade.id.in_(grade_ids))
+        )
+        grades = result.scalars().all()
+    
     response_grades = []
     for grade in grades:
         grade_response = GradeResponse.from_orm(grade)
+        # Convert Decimal fields to float for proper JSON serialization
+        grade_response.score = float(grade.score)
+        grade_response.total_marks = float(grade.total_marks)
+        grade_response.percentage = float(grade.percentage) if grade.percentage else 0.0
         if grade.grader:
             grade_response.grader_name = grade.grader.full_name
         if grade.student:
@@ -388,6 +438,10 @@ async def get_grades(
     response_grades = []
     for grade in grades:
         grade_response = GradeResponse.from_orm(grade)
+        # Convert Decimal fields to float for proper JSON serialization
+        grade_response.score = float(grade.score)
+        grade_response.total_marks = float(grade.total_marks)
+        grade_response.percentage = float(grade.percentage) if grade.percentage else 0.0
         if grade.grader:
             grade_response.grader_name = grade.grader.full_name
         if grade.student:
@@ -442,7 +496,7 @@ async def get_grade(
 async def update_grade(
     grade_id: str,
     grade_data: GradeUpdate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -485,6 +539,67 @@ async def delete_grade(
     return {"message": "Grade deleted successfully"}
 
 
+@router.post("/grades/{grade_id}/publish")
+async def publish_grade(
+    grade_id: str,
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Publish a grade (Teacher/Admin only)"""
+    grade = await GradeService.get_grade_by_id(db, grade_id, current_school.id)
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+    
+    # Update grade to published
+    grade_data = GradeUpdate(is_published=True)
+    await GradeService.update_grade(db, grade_id, grade_data, current_school.id)
+    
+    return {"message": "Grade published successfully", "grade_id": grade_id}
+
+
+@router.post("/exams/{exam_id}/grades/publish")
+async def publish_exam_grades(
+    exam_id: str,
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Publish all grades for an exam (Teacher/Admin only)"""
+    # Verify exam exists and belongs to school
+    exam = await GradeService.get_exam_by_id(db, exam_id, current_school.id)
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found"
+        )
+    
+    # Update all grades for this exam to published
+    from sqlalchemy import update
+    from app.models.grade import Grade
+    
+    result = await db.execute(
+        update(Grade)
+        .where(
+            Grade.exam_id == exam_id,
+            Grade.school_id == current_school.id,
+            Grade.is_deleted == False
+        )
+        .values(is_published=True)
+    )
+    
+    await db.commit()
+    
+    return {
+        "message": f"Published {result.rowcount} grades for exam {exam_id}",
+        "exam_id": exam_id,
+        "grades_published": result.rowcount
+    }
+
+
 # Report and Analytics Endpoints
 @router.get("/students/{student_id}/summary", response_model=StudentGradesSummary)
 async def get_student_grades_summary(
@@ -519,7 +634,7 @@ async def get_student_grades_summary(
 async def get_class_grades_summary(
     class_id: str,
     exam_id: str,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -539,7 +654,7 @@ async def get_class_grades_summary(
 @router.post("/report-cards", response_model=ReportCardResponse)
 async def create_report_card(
     report_data: ReportCardCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -549,17 +664,229 @@ async def create_report_card(
     )
 
     # Prepare response with additional data
-    response = ReportCardResponse.from_orm(report_card)
-    # Add related data if needed
+    # Create response manually to avoid grades field validation error
+    response_data = {
+        'id': report_card.id,
+        'student_id': report_card.student_id,
+        'class_id': report_card.class_id,
+        'term_id': report_card.term_id,
+        'teacher_comment': report_card.teacher_comment,
+        'principal_comment': report_card.principal_comment,
+        'next_term_begins': report_card.next_term_begins,
+        'total_score': float(report_card.total_score),
+        'average_score': float(report_card.average_score),
+        'total_subjects': report_card.total_subjects,
+        'position': report_card.position,
+        'total_students': report_card.total_students,
+        'generated_by': report_card.generated_by,
+        'generated_date': report_card.generated_date,
+        'is_published': report_card.is_published,
+        'created_at': report_card.created_at,
+        'updated_at': report_card.updated_at,
+        'grades': []  # Will be populated below
+    }
+    response = ReportCardResponse(**response_data)
+    
+    # Add related data by querying separately to avoid lazy loading issues
+    # Get student name
+    student_result = await db.execute(
+        select(Student.first_name, Student.middle_name, Student.last_name).where(Student.id == report_card.student_id)
+    )
+    student_data = student_result.first()
+    if student_data:
+        if student_data.middle_name:
+            response.student_name = f"{student_data.first_name} {student_data.middle_name} {student_data.last_name}"
+        else:
+            response.student_name = f"{student_data.first_name} {student_data.last_name}"
+    
+    # Get class name
+    from app.models.academic import Class
+    class_result = await db.execute(
+        select(Class.name).where(Class.id == report_card.class_id)
+    )
+    class_name = class_result.scalar()
+    if class_name:
+        response.class_name = class_name
+    
+    # Get term name
+    from app.models.academic import Term
+    term_result = await db.execute(
+        select(Term.name).where(Term.id == report_card.term_id)
+    )
+    term_name = term_result.scalar()
+    if term_name:
+        response.term_name = term_name
+    
+    # Get generator name
+    from app.models.user import User
+    generator_result = await db.execute(
+        select(User.first_name, User.middle_name, User.last_name).where(User.id == report_card.generated_by)
+    )
+    generator_data = generator_result.first()
+    if generator_data:
+        if generator_data.middle_name:
+            response.generator_name = f"{generator_data.first_name} {generator_data.middle_name} {generator_data.last_name}"
+        else:
+            response.generator_name = f"{generator_data.first_name} {generator_data.last_name}"
+    
+    # Get grades for this student and term
+    grades_result = await db.execute(
+        select(Grade).options(
+            selectinload(Grade.subject),
+            selectinload(Grade.exam),
+            selectinload(Grade.grader),
+            selectinload(Grade.student)
+        ).where(
+            Grade.student_id == report_data.student_id,
+            Grade.term_id == report_data.term_id,
+            Grade.school_id == current_school.id,
+            Grade.is_deleted == False
+        )
+    )
+    grades = list(grades_result.scalars().all())
+    
+    # Convert grades to GradeResponse objects
+    grade_responses = []
+    for grade in grades:
+        grade_response = GradeResponse.from_orm(grade)
+        grade_response.score = float(grade.score)
+        grade_response.total_marks = float(grade.total_marks)
+        grade_response.percentage = float(grade.percentage) if grade.percentage else 0.0
+        if grade.grader:
+            grade_response.grader_name = grade.grader.full_name
+        if grade.student:
+            grade_response.student_name = grade.student.full_name
+        if grade.subject:
+            grade_response.subject_name = grade.subject.name
+        if grade.exam:
+            grade_response.exam_name = grade.exam.name
+        grade_responses.append(grade_response)
+    
+    response.grades = grade_responses
 
     return response
+
+
+@router.get("/report-cards", response_model=List[ReportCardResponse])
+async def get_report_cards(
+    student_id: Optional[str] = Query(None, description="Filter by student"),
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    term_id: Optional[str] = Query(None, description="Filter by term"),
+    is_published: Optional[bool] = Query(None, description="Filter by published status"),
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get list of report cards"""
+    try:
+        # Build filter conditions
+        conditions = [
+            ReportCard.school_id == current_school.id,
+            ReportCard.is_deleted == False
+        ]
+        
+        if student_id:
+            conditions.append(ReportCard.student_id == student_id)
+        if class_id:
+            conditions.append(ReportCard.class_id == class_id)
+        if term_id:
+            conditions.append(ReportCard.term_id == term_id)
+        if is_published is not None:
+            conditions.append(ReportCard.is_published == is_published)
+        
+        # Calculate pagination
+        skip = (page - 1) * size
+        
+        # Get report cards
+        report_cards_result = await db.execute(
+            select(ReportCard)
+            .where(and_(*conditions))
+            .order_by(desc(ReportCard.generated_date))
+            .offset(skip)
+            .limit(size)
+        )
+        report_cards = list(report_cards_result.scalars().all())
+        
+        # Convert to response objects
+        response_report_cards = []
+        for report_card in report_cards:
+            response_data = {
+                'id': report_card.id,
+                'student_id': report_card.student_id,
+                'class_id': report_card.class_id,
+                'term_id': report_card.term_id,
+                'teacher_comment': report_card.teacher_comment,
+                'principal_comment': report_card.principal_comment,
+                'next_term_begins': report_card.next_term_begins,
+                'total_score': float(report_card.total_score),
+                'average_score': float(report_card.average_score),
+                'total_subjects': report_card.total_subjects,
+                'position': report_card.position,
+                'total_students': report_card.total_students,
+                'generated_by': report_card.generated_by,
+                'generated_date': report_card.generated_date,
+                'is_published': report_card.is_published,
+                'created_at': getattr(report_card, 'created_at', report_card.generated_date),
+                'updated_at': getattr(report_card, 'updated_at', report_card.generated_date),
+                'grades': []
+            }
+            response = ReportCardResponse(**response_data)
+            
+            # Add related data
+            student_result = await db.execute(
+                select(Student.first_name, Student.middle_name, Student.last_name).where(Student.id == report_card.student_id)
+            )
+            student_data = student_result.first()
+            if student_data:
+                if student_data.middle_name:
+                    response.student_name = f"{student_data.first_name} {student_data.middle_name} {student_data.last_name}"
+                else:
+                    response.student_name = f"{student_data.first_name} {student_data.last_name}"
+            
+            from app.models.academic import Class
+            class_result = await db.execute(
+                select(Class.name).where(Class.id == report_card.class_id)
+            )
+            class_name = class_result.scalar()
+            if class_name:
+                response.class_name = class_name
+            
+            from app.models.academic import Term
+            term_result = await db.execute(
+                select(Term.name).where(Term.id == report_card.term_id)
+            )
+            term_name = term_result.scalar()
+            if term_name:
+                response.term_name = term_name
+            
+            generator_result = await db.execute(
+                select(User.first_name, User.middle_name, User.last_name).where(User.id == report_card.generated_by)
+            )
+            generator_data = generator_result.first()
+            if generator_data:
+                if generator_data.middle_name:
+                    response.generator_name = f"{generator_data.first_name} {generator_data.middle_name} {generator_data.last_name}"
+                else:
+                    response.generator_name = f"{generator_data.first_name} {generator_data.last_name}"
+            
+            response_report_cards.append(response)
+        
+        return response_report_cards
+    except Exception as e:
+        print(f"Error in get_report_cards: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching report cards: {str(e)}"
+        )
 
 
 @router.get("/statistics", response_model=GradeStatistics)
 async def get_grade_statistics(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

@@ -9,6 +9,7 @@ class ApiService {
     resolve: (value?: any) => void;
     reject: (reason?: any) => void;
   }> = [];
+  private authErrorCallback: (() => void) | null = null;
 
   constructor() {
     this.api = axios.create({
@@ -77,10 +78,16 @@ class ApiService {
             originalRequest.headers.Authorization = `Bearer ${access_token}`;
             return this.api(originalRequest);
           } catch (refreshError) {
-            // Refresh failed, clear tokens but don't redirect
+            // Refresh failed, clear tokens and trigger auth error callback
             this.processQueue(refreshError, null);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
+            
+            // Trigger auth error callback if set (e.g., to logout user)
+            if (this.authErrorCallback) {
+              this.authErrorCallback();
+            }
+            
             // Token refresh failed, tokens cleared
             return Promise.reject(refreshError);
           } finally {
@@ -133,6 +140,16 @@ class ApiService {
   async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     const response: AxiosResponse<T> = await this.api.delete(url, config);
     return response.data;
+  }
+
+  // Method to set authentication error callback
+  setAuthErrorCallback(callback: (() => void) | null) {
+    this.authErrorCallback = callback;
+  }
+
+  // Method to clear authentication error callback
+  clearAuthErrorCallback() {
+    this.authErrorCallback = null;
   }
 }
 

@@ -15,6 +15,7 @@ import {
   Cog6ToothIcon,
   LinkIcon,
   EyeIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -135,6 +136,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       icon: ChartBarIcon,
       roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent'],
       description: 'Academic performance'
+    },
+    {
+      name: 'Templates',
+      href: '/templates',
+      icon: DocumentTextIcon,
+      roles: ['school_owner'],
+      description: 'Report card templates'
     },
     {
       name: 'Communication',

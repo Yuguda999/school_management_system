@@ -66,7 +66,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
   const handleEditGrade = (grade: Grade) => {
     setSelectedGrade(grade);
     setEditData({
-      score: grade.score,
+      score: Number(grade.score),
       remarks: grade.remarks || '',
       is_published: grade.is_published
     });
@@ -157,7 +157,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
   };
 
   const getPassFailBadge = (grade: Grade) => {
-    if (grade.score >= exam.pass_marks) {
+    if (Number(grade.score) >= exam.pass_marks) {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
           Pass
@@ -178,10 +178,10 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
     if (grades.length === 0) return null;
 
     const totalStudents = grades.length;
-    const passedStudents = grades.filter(g => g.score >= exam.pass_marks).length;
-    const averageScore = grades.reduce((sum, g) => sum + g.score, 0) / totalStudents;
-    const highestScore = Math.max(...grades.map(g => g.score));
-    const lowestScore = Math.min(...grades.map(g => g.score));
+    const passedStudents = grades.filter(g => Number(g.score) >= exam.pass_marks).length;
+    const averageScore = grades.reduce((sum, g) => sum + Number(g.score), 0) / totalStudents;
+    const highestScore = Math.max(...grades.map(g => Number(g.score)));
+    const lowestScore = Math.min(...grades.map(g => Number(g.score)));
     const passRate = (passedStudents / totalStudents) * 100;
 
     return {
@@ -354,7 +354,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`text-sm ${getGradeColor(grade.grade)}`}>
-                        {grade.percentage.toFixed(1)}%
+                        {Number(grade.percentage).toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

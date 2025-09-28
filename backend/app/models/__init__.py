@@ -12,3 +12,4 @@ from .grade import *  # noqa
 from .communication import *  # noqa
 from .teacher_invitation import *  # noqa
 from .document import *  # noqa
+from .report_card_template import *  # noqa

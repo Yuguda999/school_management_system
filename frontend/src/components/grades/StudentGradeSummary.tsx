@@ -60,8 +60,8 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
       setTerms(termsData);
       
       // Set default selections if not provided
-      if (!selectedStudentId && studentsData.length > 0) {
-        setSelectedStudentId(studentsData[0].id);
+      if (!selectedStudentId && studentsResponse.items.length > 0) {
+        setSelectedStudentId(studentsResponse.items[0].id);
       }
       if (!selectedTermId && termsData.length > 0) {
         setSelectedTermId(termsData[0].id);
@@ -282,10 +282,18 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                     Overall Percentage
                   </p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {summary.overall_percentage.toFixed(1)}%
+                    {typeof summary.overall_percentage === 'number' 
+                      ? summary.overall_percentage.toFixed(1) 
+                      : 'N/A'}%
                   </p>
-                  <p className={`text-xs font-medium ${getPerformanceLevel(summary.overall_percentage).color}`}>
-                    {getPerformanceLevel(summary.overall_percentage).label}
+                  <p className={`text-xs font-medium ${
+                    typeof summary.overall_percentage === 'number' 
+                      ? getPerformanceLevel(summary.overall_percentage).color 
+                      : 'text-gray-500'
+                  }`}>
+                    {typeof summary.overall_percentage === 'number' 
+                      ? getPerformanceLevel(summary.overall_percentage).label 
+                      : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -389,7 +397,9 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-sm ${getGradeColor(grade.grade)}`}>
-                            {grade.percentage.toFixed(1)}%
+                            {typeof grade.percentage === 'number' 
+                              ? grade.percentage.toFixed(1) 
+                              : 'N/A'}%
                           </span>
                         </td>
                         <td className="px-6 py-4">

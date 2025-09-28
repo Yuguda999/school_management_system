@@ -128,7 +128,34 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
       }
     } catch (error: any) {
       console.error('Error saving exam:', error);
-      showError(error.response?.data?.detail || 'Failed to save exam');
+      
+      // Extract detailed error message from response
+      let errorMessage = 'Failed to save exam';
+      
+      if (error.response?.data) {
+        const data = error.response.data;
+        
+        // Handle validation errors (array of error objects)
+        if (Array.isArray(data)) {
+          errorMessage = data.map(err => err.msg || err.message || 'Validation error').join(', ');
+        }
+        // Handle single error object with detail
+        else if (typeof data === 'object' && data.detail) {
+          if (Array.isArray(data.detail)) {
+            errorMessage = data.detail.map(err => err.msg || err.message || 'Validation error').join(', ');
+          } else if (typeof data.detail === 'string') {
+            errorMessage = data.detail;
+          } else {
+            errorMessage = JSON.stringify(data.detail);
+          }
+        }
+        // Handle string error
+        else if (typeof data === 'string') {
+          errorMessage = data;
+        }
+      }
+      
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

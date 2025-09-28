@@ -603,6 +603,7 @@ export interface GradeStatistics {
   total_grades: number;
   published_grades: number;
   average_class_performance?: number;
+  subjects_assessed: number;
   subjects_performance: Array<{
     subject_id: string;
     subject_name: string;

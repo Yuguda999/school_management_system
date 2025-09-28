@@ -70,22 +70,27 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
   const getGradeDistributionColor = (grade: string): string => {
     switch (grade) {
       case 'A+':
+        return 'bg-gradient-to-r from-green-400 to-green-600';
       case 'A':
-        return 'bg-green-500';
+        return 'bg-gradient-to-r from-green-500 to-green-700';
       case 'B+':
+        return 'bg-gradient-to-r from-blue-400 to-blue-600';
       case 'B':
-        return 'bg-blue-500';
+        return 'bg-gradient-to-r from-blue-500 to-blue-700';
       case 'C+':
+        return 'bg-gradient-to-r from-yellow-400 to-yellow-600';
       case 'C':
-        return 'bg-yellow-500';
+        return 'bg-gradient-to-r from-yellow-500 to-yellow-700';
       case 'D+':
+        return 'bg-gradient-to-r from-orange-400 to-orange-600';
       case 'D':
-        return 'bg-orange-500';
+        return 'bg-gradient-to-r from-orange-500 to-orange-700';
       case 'E':
+        return 'bg-gradient-to-r from-red-400 to-red-600';
       case 'F':
-        return 'bg-red-500';
+        return 'bg-gradient-to-r from-red-500 to-red-700';
       default:
-        return 'bg-gray-500';
+        return 'bg-gradient-to-r from-gray-400 to-gray-600';
     }
   };
 
@@ -238,9 +243,11 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
                     Average Performance
                   </p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {statistics.average_class_performance?.toFixed(1) || 'N/A'}%
+                    {typeof statistics.average_class_performance === 'number' 
+                      ? statistics.average_class_performance.toFixed(1) 
+                      : 'N/A'}%
                   </p>
-                  {statistics.average_class_performance && (
+                  {typeof statistics.average_class_performance === 'number' && (
                     <div className="mt-1">
                       {getPerformanceTrend(statistics.average_class_performance)}
                     </div>
@@ -259,7 +266,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
                     Subjects Assessed
                   </p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {statistics.subjects_performance.length}
+                    {statistics.subjects_assessed || 0}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     Active subjects
@@ -271,40 +278,54 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
 
           {/* Grade Distribution */}
           <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
               Grade Distribution
             </h3>
             
             {Object.keys(statistics.grade_distribution).length === 0 ? (
-              <p className="text-gray-600 dark:text-gray-400 text-center py-8">
-                No grade distribution data available
-              </p>
+              <div className="text-center py-12">
+                <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                  <ChartBarIcon className="w-12 h-12 text-gray-400" />
+                </div>
+                <p className="text-gray-600 dark:text-gray-400">
+                  No grade distribution data available
+                </p>
+              </div>
             ) : (
-              <div className="space-y-4">
-                {Object.entries(statistics.grade_distribution).map(([grade, count]) => {
+              <div className="space-y-6">
+                {Object.entries(statistics.grade_distribution)
+                  .sort(([a], [b]) => {
+                    // Sort grades in order: A+, A, B+, B, C+, C, D+, D, E, F
+                    const gradeOrder = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E', 'F'];
+                    return gradeOrder.indexOf(a) - gradeOrder.indexOf(b);
+                  })
+                  .map(([grade, count]) => {
                   const totalGrades = calculateTotalGrades();
                   const percentage = totalGrades > 0 ? (count / totalGrades) * 100 : 0;
                   
                   return (
-                    <div key={grade} className="flex items-center">
-                      <div className="w-12 text-sm font-medium text-gray-900 dark:text-white">
-                        {grade}
-                      </div>
-                      <div className="flex-1 mx-4">
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4">
-                          <div
-                            className={`h-4 rounded-full ${getGradeDistributionColor(grade)}`}
-                            style={{ width: `${percentage}%` }}
-                          ></div>
+                    <div key={grade} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-4 h-4 rounded-full ${getGradeDistributionColor(grade)}`}></div>
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Grade {grade}
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-gray-900 dark:text-white">
+                            {count}
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                            ({percentage.toFixed(1)}%)
+                          </span>
                         </div>
                       </div>
-                      <div className="w-16 text-right">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {count}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                          ({percentage.toFixed(1)}%)
-                        </span>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <div
+                          className={`h-3 rounded-full transition-all duration-500 ${getGradeDistributionColor(grade)}`}
+                          style={{ width: `${percentage}%` }}
+                        ></div>
                       </div>
                     </div>
                   );

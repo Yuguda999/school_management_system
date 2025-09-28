@@ -17,6 +17,7 @@ import GradeList from '../../components/grades/GradeList';
 import GradeStatistics from '../../components/grades/GradeStatistics';
 import StudentGradeSummary from '../../components/grades/StudentGradeSummary';
 import ReportCard from '../../components/grades/ReportCard';
+import ReportCardList from '../../components/grades/ReportCardList';
 import Modal from '../../components/ui/Modal';
 
 type TabType = 'exams' | 'grades' | 'statistics' | 'students' | 'reports';
@@ -28,6 +29,7 @@ const GradesPage: React.FC = () => {
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showBulkGradeEntry, setShowBulkGradeEntry] = useState(false);
   const [showReportCardModal, setShowReportCardModal] = useState(false);
+  const [gradeListKey, setGradeListKey] = useState(0);
 
   // Permission check is now handled by the usePermissions hook
 
@@ -77,7 +79,8 @@ const GradesPage: React.FC = () => {
 
   const handleGradesSubmitted = () => {
     setShowBulkGradeEntry(false);
-    // Refresh the grade list if needed
+    // Refresh the grade list by updating the key
+    setGradeListKey(prev => prev + 1);
   };
 
   const renderTabContent = () => {
@@ -108,7 +111,7 @@ const GradesPage: React.FC = () => {
                   </button>
                 )}
               </div>
-              <GradeList exam={selectedExam} />
+              <GradeList key={gradeListKey} exam={selectedExam} />
             </div>
           );
         }
@@ -159,15 +162,7 @@ const GradesPage: React.FC = () => {
               )}
             </div>
 
-            <div className="card p-8 text-center">
-              <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Report Card Management
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Report card listing and management interface will be implemented here.
-              </p>
-            </div>
+            <ReportCardList refreshTrigger={showReportCardModal ? 1 : 0} />
           </div>
         );
 

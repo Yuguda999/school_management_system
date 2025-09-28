@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
-    require_teacher_or_admin,
+    require_teacher_or_admin_user,
     get_current_school
 )
 from app.models.user import User, UserRole
@@ -36,7 +36,7 @@ router = APIRouter()
 @router.post("/messages", response_model=MessageResponse)
 async def create_message(
     message_data: MessageCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -59,7 +59,7 @@ async def create_message(
 @router.post("/messages/bulk", response_model=List[MessageResponse])
 async def create_bulk_messages(
     bulk_data: BulkMessageCreate,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -177,7 +177,7 @@ async def get_message(
 @router.post("/messages/{message_id}/send")
 async def send_message(
     message_id: str,
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -287,7 +287,7 @@ async def publish_announcement(
 @router.get("/statistics", response_model=MessageStatistics)
 async def get_communication_statistics(
     days: int = Query(30, ge=1, le=365, description="Number of days for statistics"),
-    current_user: User = Depends(require_teacher_or_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

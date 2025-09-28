@@ -65,8 +65,8 @@ class ExamResponse(ExamBase):
 
 
 class GradeBase(BaseModel):
-    score: Decimal = Field(..., ge=0, le=1000)
-    total_marks: Decimal = Field(..., ge=0, le=1000)
+    score: float = Field(..., ge=0, le=1000)
+    total_marks: float = Field(..., ge=0, le=1000)
     student_id: str
     subject_id: str
     exam_id: str
@@ -92,7 +92,7 @@ class GradeUpdate(BaseModel):
 
 class GradeResponse(GradeBase):
     id: str
-    percentage: Decimal
+    percentage: float
     grade: Optional[GradeScale] = None
     graded_by: str
     graded_date: date
@@ -139,9 +139,9 @@ class StudentGradesSummary(BaseModel):
     term_name: str
     total_subjects: int
     graded_subjects: int
-    total_score: Decimal
-    total_possible: Decimal
-    overall_percentage: Decimal
+    total_score: float
+    total_possible: float
+    overall_percentage: float
     overall_grade: Optional[GradeScale] = None
     position: Optional[int] = None
     grades: List[GradeResponse]
@@ -181,7 +181,7 @@ class ReportCardBase(BaseModel):
 
 
 class ReportCardCreate(ReportCardBase):
-    pass
+    template_id: Optional[str] = Field(None, description="Optional template ID for custom report cards")
 
 
 class ReportCardUpdate(BaseModel):
@@ -193,9 +193,9 @@ class ReportCardUpdate(BaseModel):
 
 class ReportCardResponse(ReportCardBase):
     id: str
-    overall_score: Decimal
-    overall_percentage: Decimal
-    overall_grade: Optional[GradeScale] = None
+    total_score: float
+    average_score: float
+    total_subjects: int
     position: int
     total_students: int
     generated_by: str
@@ -218,7 +218,8 @@ class GradeStatistics(BaseModel):
     published_exams: int
     total_grades: int
     published_grades: int
-    average_class_performance: Optional[Decimal] = None
+    average_class_performance: Optional[float] = None
+    subjects_assessed: int
     subjects_performance: List[Dict[str, Any]]
     grade_distribution: Dict[str, int]
     

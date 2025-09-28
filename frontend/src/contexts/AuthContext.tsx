@@ -4,6 +4,7 @@ import { authService } from '../services/authService';
 import { schoolSelectionService } from '../services/schoolSelectionService';
 import { schoolService } from '../services/schoolService';
 import { useTheme } from './ThemeContext';
+import { apiService } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -100,6 +101,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initializeAuth();
+  }, []);
+
+  // Set up authentication error callback for API service
+  useEffect(() => {
+    const handleAuthError = () => {
+      console.log('🔐 Authentication error detected, logging out user');
+      logout();
+    };
+
+    // Set the callback in the API service
+    apiService.setAuthErrorCallback(handleAuthError);
+
+    // Cleanup function to clear the callback
+    return () => {
+      apiService.clearAuthErrorCallback();
+    };
   }, []);
 
   // Load school theme when user changes

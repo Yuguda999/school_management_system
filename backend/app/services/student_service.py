@@ -343,8 +343,8 @@ class StudentService:
 
         # Add ordering and pagination
         base_query += " ORDER BY s.first_name, s.last_name LIMIT :limit OFFSET :skip"
-        params["limit"] = str(limit)
-        params["skip"] = str(skip)
+        params["limit"] = limit
+        params["skip"] = skip
 
         result = await db.execute(text(base_query), params)
         rows = result.fetchall()

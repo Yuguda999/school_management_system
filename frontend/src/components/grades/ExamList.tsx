@@ -312,9 +312,9 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
               No exams found
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {canManageExams ? 'Create your first exam to get started.' : 'No exams available at the moment.'}
+              {canManageGrades() ? 'Create your first exam to get started.' : 'No exams available at the moment.'}
             </p>
-            {canManageExams && (
+            {canManageGrades() && (
               <button
                 onClick={handleCreateExam}
                 className="btn btn-primary"
@@ -419,7 +419,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
                         >
                           <ChartBarIcon className="w-4 h-4" />
                         </button>
-                        {canManageExams && (
+                        {canManageGrades() && (
                           <>
                             <button
                               onClick={() => handleEditExam(exam)}

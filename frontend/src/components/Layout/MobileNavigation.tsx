@@ -10,6 +10,7 @@ import {
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
   CalendarIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -58,6 +59,12 @@ const MobileNavigation: React.FC = () => {
       href: '/grades',
       icon: ChartBarIcon,
       roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent']
+    },
+    {
+      name: 'Templates',
+      href: '/templates',
+      icon: DocumentTextIcon,
+      roles: ['school_owner']
     },
     {
       name: 'Communication',
