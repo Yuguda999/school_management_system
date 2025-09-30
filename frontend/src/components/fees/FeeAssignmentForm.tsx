@@ -4,6 +4,7 @@ import { BulkFeeAssignmentForm, FeeStructure, Class, Term, Student } from '../..
 import { useToast } from '../../hooks/useToast';
 import { apiService } from '../../services/api';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface FeeAssignmentFormProps {
   onSubmit: (data: BulkFeeAssignmentForm) => Promise<void>;
@@ -17,6 +18,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
   loading = false
 }) => {
   const { showError } = useToast();
+  const { user } = useAuth();
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
@@ -36,8 +38,13 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
   const watchedClassIds = watch('class_ids');
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      setLoadingData(false);
+      return;
+    }
     fetchFormData();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (watchedFeeStructureId) {
@@ -52,10 +59,14 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
   }, [watchedFeeStructureId, feeStructures, setValue]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     if (watchedClassIds && watchedClassIds.length > 0) {
       fetchStudentsForClasses(watchedClassIds);
     }
-  }, [watchedClassIds]);
+  }, [watchedClassIds, user?.role]);
 
   const fetchFormData = async () => {
     try {

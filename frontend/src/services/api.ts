@@ -20,14 +20,30 @@ class ApiService {
     });
 
     // Request interceptor to add auth token
-    this.api.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-      },
+      this.api.interceptors.request.use(
+        (config) => {
+          // Don't add auth token for login endpoints only
+          const isLoginEndpoint = config.url?.includes('/auth/login') || 
+                                 config.url?.includes('/auth/student/login') ||
+                                 (config.url?.includes('/auth/school/') && config.url?.includes('/student/login'));
+          
+          console.log('🔍 Request interceptor:', {
+            url: config.url,
+            isLoginEndpoint,
+            hasAuthHeader: !!config.headers.Authorization
+          });
+          
+          if (!isLoginEndpoint) {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+              config.headers.Authorization = `Bearer ${token}`;
+              console.log('🔑 Added auth token for non-login endpoint');
+            }
+          } else {
+            console.log('🚫 Skipping auth token for login endpoint');
+          }
+          return config;
+        },
       (error) => {
         return Promise.reject(error);
       }
@@ -38,6 +54,13 @@ class ApiService {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
+
+        console.log('🔍 Response interceptor error:', {
+          url: originalRequest.url,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        });
 
         // Don't attempt token refresh for authentication endpoints
         const isAuthEndpoint = originalRequest.url?.includes('/auth/') || originalRequest.url?.includes('/login');

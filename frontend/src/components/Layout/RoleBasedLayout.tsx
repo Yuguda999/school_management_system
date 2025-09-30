@@ -30,6 +30,16 @@ const RoleBasedLayout: React.FC = () => {
     );
   }
 
+  // Additional safety check: if user exists but role is undefined/null, show loading
+  // This prevents the "Access Denied" flash during state transitions
+  if (!user.role) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
   // Platform admin gets completely separate interface
   if (user.role === 'platform_super_admin') {
     return <PlatformLayout />;

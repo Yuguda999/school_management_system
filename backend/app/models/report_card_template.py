@@ -54,7 +54,7 @@ class FontStyle(str, enum.Enum):
 
 
 class ReportCardTemplate(TenantBaseModel):
-    """Report card template model for designing custom report cards"""
+    """Report card template model for designing custom report cards - now stored in school settings"""
     
     __tablename__ = "report_card_templates"
     
@@ -90,13 +90,13 @@ class ReportCardTemplate(TenantBaseModel):
     usage_count = Column(Integer, default=0, nullable=False)
     last_used = Column(String(50), nullable=True)
     
-    # Foreign Keys
-    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
-    created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    # Foreign Keys - Now associated with school owner instead of school directly
+    school_owner_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)  # Keep for reference
     
     # Relationships
+    school_owner = relationship("User", foreign_keys=[school_owner_id])
     school = relationship("School")
-    creator = relationship("User")
     fields = relationship("ReportCardTemplateField", back_populates="template", cascade="all, delete-orphan")
     assignments = relationship("ReportCardTemplateAssignment", back_populates="template", cascade="all, delete-orphan")
     
@@ -149,9 +149,11 @@ class ReportCardTemplateField(TenantBaseModel):
     
     # Foreign Keys
     template_id = Column(String(36), ForeignKey("report_card_templates.id"), nullable=False)
+    school_owner_id = Column(String(36), ForeignKey("users.id"), nullable=False)  # For direct access
     
     # Relationships
     template = relationship("ReportCardTemplate", back_populates="fields")
+    school_owner = relationship("User", foreign_keys=[school_owner_id])
     
     def __repr__(self):
         return f"<ReportCardTemplateField(id={self.id}, field_id={self.field_id}, type={self.field_type})>"
@@ -175,14 +177,17 @@ class ReportCardTemplateAssignment(TenantBaseModel):
     template_id = Column(String(36), ForeignKey("report_card_templates.id"), nullable=False)
     class_id = Column(String(36), ForeignKey("classes.id"), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
+    school_owner_id = Column(String(36), ForeignKey("users.id"), nullable=False)  # Template owner
     assigned_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     
     # Relationships
     template = relationship("ReportCardTemplate", back_populates="assignments")
     class_ = relationship("Class")
     school = relationship("School")
-    assigner = relationship("User")
+    school_owner = relationship("User", foreign_keys=[school_owner_id])
+    assigner = relationship("User", foreign_keys=[assigned_by])
     
     def __repr__(self):
         return f"<ReportCardTemplateAssignment(id={self.id}, template_id={self.template_id}, class_id={self.class_id})>"
+
 

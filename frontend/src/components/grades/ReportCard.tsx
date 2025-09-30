@@ -15,6 +15,7 @@ import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ReportCardProps {
   reportCard?: ReportCardType;
@@ -44,6 +45,7 @@ const ReportCard: React.FC<ReportCardProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
   const { currentTerm, allTerms } = useCurrentTerm();
+  const { user } = useAuth();
 
   const {
     register,
@@ -62,10 +64,14 @@ const ReportCard: React.FC<ReportCardProps> = ({
   });
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     if (mode === 'create' || mode === 'edit') {
       fetchData();
     }
-  }, [mode]);
+  }, [mode, user?.role]);
 
   const fetchData = async () => {
     try {

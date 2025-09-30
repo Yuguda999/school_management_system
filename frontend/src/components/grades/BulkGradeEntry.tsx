@@ -11,6 +11,7 @@ import { Exam, Grade, Student } from '../../types';
 import GradeService, { BulkGradeCreateData } from '../../services/gradeService';
 import { studentService } from '../../services/studentService';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface BulkGradeEntryProps {
   exam: Exam;
@@ -38,6 +39,7 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showSuccess, showError } = useToast();
+  const { user } = useAuth();
 
   const {
     control,
@@ -60,8 +62,13 @@ const BulkGradeEntry: React.FC<BulkGradeEntryProps> = ({
   const watchedGrades = watch('grades');
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [exam.id]);
+  }, [exam.id, user?.role]);
 
   const fetchData = async () => {
     try {

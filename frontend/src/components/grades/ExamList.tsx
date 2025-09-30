@@ -58,12 +58,21 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   }, [currentTerm?.id]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     fetchExams();
-  }, [filters]);
+  }, [filters, user?.role]);
 
   const fetchData = async () => {
     try {

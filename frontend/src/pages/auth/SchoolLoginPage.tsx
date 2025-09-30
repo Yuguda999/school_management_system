@@ -17,7 +17,7 @@ const SchoolLoginPage: React.FC = () => {
   const [loadingSchool, setLoadingSchool] = useState(true);
   const [schoolNotFound, setSchoolNotFound] = useState(false);
 
-  const { schoolLogin, user, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool, clearAuthState } = useAuth();
+  const { schoolLogin, studentLogin, user, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool, clearAuthState } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -26,6 +26,15 @@ const SchoolLoginPage: React.FC = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginCredentials>();
+
+  // Student login form state
+  const [isStudentLogin, setIsStudentLogin] = useState(false);
+  const {
+    register: registerStudent,
+    handleSubmit: handleSubmitStudent,
+    formState: { errors: studentErrors },
+    reset: resetStudentForm
+  } = useForm<{ admission_number: string; first_name: string }>();
 
   // Load school information
   useEffect(() => {
@@ -80,23 +89,21 @@ const SchoolLoginPage: React.FC = () => {
     };
   }, [schoolInfo]);
 
-  // Clear authentication state if user doesn't belong to current school
-  useEffect(() => {
-    if (isAuthenticated && user?.school_id && schoolInfo?.id && user.school_id !== schoolInfo.id) {
-      console.log('User belongs to different school, clearing auth state');
-      clearAuthState();
-    }
-  }, [isAuthenticated, user?.school_id, schoolInfo?.id, clearAuthState]);
+  // Note: School validation is now handled entirely by the backend
+  // If a user doesn't belong to a school, the backend will return a 403 error
+  // and prevent authentication from completing, avoiding partial auth states
 
 
   // Handle navigation after authentication
   useEffect(() => {
     // Only redirect if user is authenticated AND has a school_id that matches the current school
     if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id === user.school_id) {
-      const from = location.state?.from?.pathname || '/dashboard';
+      // Students go to student dashboard, others go to regular dashboard
+      // Use school code in the URL
+      const from = location.state?.from?.pathname || (user.role === 'student' ? `/${schoolCode}/student/dashboard` : `/${schoolCode}/dashboard`);
       navigate(from, { replace: true });
     }
-  }, [isAuthenticated, requiresSchoolSelection, user?.school_id, schoolInfo?.id, navigate, location.state?.from?.pathname]);
+  }, [isAuthenticated, requiresSchoolSelection, user?.school_id, user?.role, schoolInfo?.id, schoolCode, navigate, location.state?.from?.pathname]);
 
   if (loadingSchool) {
     return (
@@ -132,36 +139,9 @@ const SchoolLoginPage: React.FC = () => {
     );
   }
 
-  // If user is authenticated but for a different school, show a message
-  if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id && schoolInfo.id !== user.school_id) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8 text-center">
-          <div>
-            <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-yellow-500" />
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
-              Already Logged In
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              You are currently logged in to a different school. Please log out first to access this school's login page.
-            </p>
-          </div>
-          <div className="mt-6">
-            <button
-              onClick={() => navigate('/home')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If user is authenticated for the correct school, redirect to dashboard
+  // If user is authenticated, redirect to appropriate dashboard
   if (isAuthenticated && !requiresSchoolSelection && user?.school_id && schoolInfo?.id === user.school_id) {
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from?.pathname || (user.role === 'student' ? `/${schoolCode}/student/dashboard` : `/${schoolCode}/dashboard`);
     return <Navigate to={from} replace />;
   }
 
@@ -200,7 +180,10 @@ const SchoolLoginPage: React.FC = () => {
           setError('Authentication failed. Please check your credentials.');
         }
       } else if (error.response?.status === 403) {
-        setError('You do not have access to this school. Please contact your school administrator.');
+        // Clear any partial authentication state
+        clearAuthState();
+        const errorDetail = error.response?.data?.detail || 'You do not have access to this school. Please contact your school administrator.';
+        setError(errorDetail);
       } else if (error.response?.status === 500) {
         setError('Server error occurred. Please try again later.');
       } else if (error.code === 'NETWORK_ERROR' || !error.response) {
@@ -210,6 +193,52 @@ const SchoolLoginPage: React.FC = () => {
         setError('Authentication failed. Please check your credentials.');
       } else {
         setError(error.response?.data?.detail || 'Login failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSubmitStudent = async (data: { admission_number: string; first_name: string }) => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      console.log('🎓 Starting student login for school:', schoolInfo?.id);
+      await studentLogin(data, schoolCode);
+      console.log('✅ Student login successful');
+      // Navigation will be handled by useEffect when user state updates
+    } catch (err: any) {
+      console.error('❌ Student login failed:', err);
+      
+      // Clear any partial authentication state on errors
+      if (err.response?.status === 403) {
+        clearAuthState();
+      }
+      
+      const errorMessage = err.response?.data?.detail;
+      console.log('🎓 Student login error details:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        message: err.message,
+        errorMessage
+      });
+      
+      if (errorMessage) {
+        setError(errorMessage);
+      } else if (err.response?.status === 401) {
+        setError('Invalid admission number or first name.');
+      } else if (err.response?.status === 403) {
+        setError('You do not have access to this school. Please contact your school administrator.');
+      } else if (err.response?.status === 404) {
+        setError('School not found or inactive. Please check the school code.');
+      } else if (err.response?.status === 500) {
+        setError('Server error occurred. Please try again later.');
+      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
+        setError('Unable to connect to the server. Please check your internet connection.');
+      } else {
+        setError(`An unexpected error occurred: ${err.message || 'Please try again.'}`);
       }
     } finally {
       setIsLoading(false);
@@ -273,11 +302,47 @@ const SchoolLoginPage: React.FC = () => {
             Don't have an account? Contact your school administrator.
           </p>
         </div>
+
+        {/* Login Type Toggle */}
+        <div className="flex items-center justify-center">
+          <div className="inline-flex rounded-md shadow-sm" role="group">
+            <button
+              type="button"
+              onClick={() => setIsStudentLogin(false)}
+              className={`px-4 py-2 text-sm font-medium border rounded-l-md ${
+                !isStudentLogin 
+                  ? 'text-white border-transparent' 
+                  : 'bg-white text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
+              }`}
+              style={{
+                backgroundColor: !isStudentLogin ? (schoolInfo?.primary_color || '#3B82F6') : undefined,
+              }}
+            >
+              Staff Login
+            </button>
+            <button
+              type="button"
+              onClick={() => { setIsStudentLogin(true); setError(''); resetStudentForm(); }}
+              className={`px-4 py-2 text-sm font-medium border rounded-r-md ${
+                isStudentLogin 
+                  ? 'text-white border-transparent' 
+                  : 'bg-white text-gray-900 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
+              }`}
+              style={{
+                backgroundColor: isStudentLogin ? (schoolInfo?.primary_color || '#3B82F6') : undefined,
+              }}
+            >
+              Student Login
+            </button>
+          </div>
+        </div>
         
+        {!isStudentLogin && (
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-              {error}
+            <div className="px-4 py-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-600">
+              <p className="font-medium">Login Error</p>
+              <p className="mt-1">{error}</p>
             </div>
           )}
           
@@ -384,6 +449,84 @@ const SchoolLoginPage: React.FC = () => {
             </button>
           </div>
         </form>
+        )}
+
+        {isStudentLogin && (
+        <form className="mt-8 space-y-6" onSubmit={handleSubmitStudent(onSubmitStudent)}>
+          {error && (
+            <div className="px-4 py-3 rounded-md text-sm bg-red-50 border border-red-200 text-red-600">
+              <p className="font-medium">Login Error</p>
+              <p className="mt-1">{error}</p>
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="admission_number" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Admission Number
+              </label>
+              <input
+                {...registerStudent('admission_number', { required: 'Admission number is required' })}
+                type="text"
+                autoComplete="off"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your admission number"
+              />
+              {studentErrors.admission_number && (
+                <p className="mt-1 text-sm text-red-600">{studentErrors.admission_number.message}</p>
+              )}
+            </div>
+            
+            <div>
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                First Name
+              </label>
+              <input
+                {...registerStudent('first_name', { required: 'First name is required' })}
+                type="text"
+                autoComplete="off"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your first name"
+              />
+              {studentErrors.first_name && (
+                <p className="mt-1 text-sm text-red-600">{studentErrors.first_name.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              style={{
+                backgroundColor: schoolInfo?.primary_color || '#3B82F6',
+                '--tw-ring-color': schoolInfo?.primary_color || '#3B82F6',
+              } as React.CSSProperties}
+              onMouseEnter={(e) => {
+                if (!isLoading && schoolInfo?.secondary_color) {
+                  e.currentTarget.style.backgroundColor = schoolInfo.secondary_color;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isLoading) {
+                  e.currentTarget.style.backgroundColor = schoolInfo?.primary_color || '#3B82F6';
+                }
+              }}
+            >
+              {isLoading ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                'Login as Student'
+              )}
+            </button>
+          </div>
+          
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
+            Students can log in with their admission number and first name.
+          </p>
+        </form>
+        )}
         
         {/* School Footer */}
         {schoolInfo && (

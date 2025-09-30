@@ -1,5 +1,6 @@
 import { apiService } from './api';
 import { Student, PaginatedResponse, CreateStudentForm } from '../types';
+import { getSchoolCodeFromUrl, buildSchoolApiUrl } from '../utils/schoolCode';
 
 class StudentService {
   // Get all students with pagination and filtering
@@ -11,6 +12,11 @@ class StudentService {
     search?: string;
     school_id?: string;
   }): Promise<PaginatedResponse<Student>> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
@@ -19,12 +25,19 @@ class StudentService {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.school_id) queryParams.append('school_id', params.school_id);
 
-    return apiService.get<PaginatedResponse<Student>>(`/api/v1/students/?${queryParams.toString()}`);
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/?${queryParams.toString()}`);
+    return apiService.get<PaginatedResponse<Student>>(endpoint);
   }
 
   // Get student by ID
   async getStudentById(id: string): Promise<Student> {
-    return apiService.get<Student>(`/api/v1/students/${id}`);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}`);
+    return apiService.get<Student>(endpoint);
   }
 
   // Get students by subject (for teachers)
@@ -32,58 +45,118 @@ class StudentService {
     page?: number;
     size?: number;
   }): Promise<Student[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
-    return apiService.get<Student[]>(`/api/v1/students/by-subject/${subjectId}?${queryParams.toString()}`);
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/by-subject/${subjectId}?${queryParams.toString()}`);
+    return apiService.get<Student[]>(endpoint);
   }
 
   // Create new student
   async createStudent(studentData: CreateStudentForm): Promise<Student> {
-    return apiService.post<Student>('/api/v1/students/', studentData);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, 'students/');
+    return apiService.post<Student>(endpoint, studentData);
   }
 
   // Update student
   async updateStudent(id: string, studentData: Partial<CreateStudentForm>): Promise<Student> {
-    return apiService.put<Student>(`/api/v1/students/${id}`, studentData);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}`);
+    return apiService.put<Student>(endpoint, studentData);
   }
 
   // Delete student
   async deleteStudent(id: string): Promise<void> {
-    return apiService.delete(`/api/v1/students/${id}`);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}`);
+    return apiService.delete(endpoint);
   }
 
   // Update student status
   async updateStudentStatus(id: string, status: 'active' | 'graduated' | 'transferred' | 'suspended' | 'expelled'): Promise<Student> {
-    return apiService.patch<Student>(`/api/v1/students/${id}/status`, { status });
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}/status`);
+    return apiService.patch<Student>(endpoint, { status });
   }
 
   // Assign student to class
   async assignToClass(studentId: string, classId: string): Promise<Student> {
-    return apiService.post<Student>(`/api/v1/students/${studentId}/assign-class`, { class_id: classId });
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${studentId}/assign-class`);
+    return apiService.post<Student>(endpoint, { class_id: classId });
   }
 
   // Remove student from class
   async removeFromClass(studentId: string): Promise<Student> {
-    return apiService.post<Student>(`/api/v1/students/${studentId}/remove-class`);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${studentId}/remove-class`);
+    return apiService.post<Student>(endpoint);
   }
 
   // Get student's academic record
   async getStudentAcademicRecord(id: string): Promise<any> {
-    return apiService.get(`/api/v1/students/${id}/academic-record`);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}/academic-record`);
+    return apiService.get(endpoint);
   }
 
   // Bulk operations
   async bulkUpdateStudents(studentIds: string[], updates: Partial<CreateStudentForm>): Promise<Student[]> {
-    return apiService.post<Student[]>('/api/v1/students/bulk-update', {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, 'students/bulk-update');
+    return apiService.post<Student[]>(endpoint, {
       student_ids: studentIds,
       updates,
     });
   }
 
   async bulkAssignToClass(studentIds: string[], classId: string): Promise<Student[]> {
-    return apiService.post<Student[]>('/api/v1/students/bulk-assign-class', {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, 'students/bulk-assign-class');
+    return apiService.post<Student[]>(endpoint, {
       student_ids: studentIds,
       class_id: classId,
     });
@@ -102,10 +175,16 @@ class StudentService {
     }>;
     created_students: Student[];
   }> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
     const formData = new FormData();
     formData.append('file', file);
 
-    return apiService.post('/api/v1/students/import', formData, {
+    const endpoint = buildSchoolApiUrl(schoolCode, 'students/import');
+    return apiService.post(endpoint, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -114,7 +193,13 @@ class StudentService {
 
   // Download CSV template
   async downloadTemplate(): Promise<Blob> {
-    const response = await apiService.api.get('/api/v1/students/import/template', {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
+    const endpoint = buildSchoolApiUrl(schoolCode, 'students/import/template');
+    const response = await apiService.api.get(endpoint, {
       responseType: 'blob',
     });
     return response.data;
@@ -126,12 +211,18 @@ class StudentService {
     status?: string;
     format?: 'csv' | 'xlsx';
   }): Promise<Blob> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+
     const queryParams = new URLSearchParams();
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.format) queryParams.append('format', params.format);
 
-    return apiService.get(`/students/export?${queryParams.toString()}`, {
+    const endpoint = buildSchoolApiUrl(schoolCode, `students/export?${queryParams.toString()}`);
+    return apiService.get(endpoint, {
       responseType: 'blob',
     });
   }

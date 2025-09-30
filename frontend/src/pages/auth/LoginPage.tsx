@@ -62,6 +62,8 @@ const LoginPage: React.FC = () => {
         // Provide more specific fallback messages based on the error type
         if (err.response?.status === 401) {
           setError('Invalid email or password. Please check your credentials and try again.');
+        } else if (err.response?.status === 403) {
+          setError('Access denied. Please use your school\'s login page.');
         } else if (err.response?.status === 500) {
           setError('Server error occurred. Please try again later.');
         } else if (err.code === 'NETWORK_ERROR' || !err.response) {
@@ -88,7 +90,7 @@ const LoginPage: React.FC = () => {
           <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
             School Management System
           </p>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
             Don't have an account?{' '}
             <Link
               to="/register"

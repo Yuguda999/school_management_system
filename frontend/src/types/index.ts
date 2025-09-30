@@ -9,7 +9,7 @@ export interface User {
   is_active: boolean;
   is_verified: boolean;
   profile_completed: boolean;
-  school_id: string;
+  school_id: string | null;
   school?: SchoolInfo;
   school_code?: string; // Direct access to school code
   school_name?: string; // Direct access to school name
@@ -121,7 +121,7 @@ export interface AuthResponse {
   user_id: string;
   email: string;
   role: UserRole;
-  school_id: string;
+  school_id: string | null;
   full_name: string;
   profile_completed: boolean;
   requires_school_selection?: boolean;

@@ -45,8 +45,13 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      setLoading(false);
+      return;
+    }
     fetchGrades();
-  }, [exam.id]);
+  }, [exam.id, user?.role]);
 
   const fetchGrades = async () => {
     try {

@@ -13,6 +13,7 @@ import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface StudentGradeSummaryProps {
   studentId?: string;
@@ -24,6 +25,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
   termId: initialTermId
 }) => {
   const { currentTerm } = useCurrentTerm();
+  const { user } = useAuth();
   const { showError } = useToast();
   const [summary, setSummary] = useState<StudentGradesSummary | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -40,14 +42,22 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
   }, [currentTerm?.id, initialTermId, selectedTermId]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     fetchData();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     if (selectedStudentId && selectedTermId) {
       fetchSummary();
     }
-  }, [selectedStudentId, selectedTermId]);
+  }, [selectedStudentId, selectedTermId, user?.role]);
 
   const fetchData = async () => {
     try {

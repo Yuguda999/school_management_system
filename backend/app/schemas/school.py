@@ -161,6 +161,7 @@ class SchoolSettings(BaseModel):
     communication_settings: Optional[Dict[str, Any]] = None
     general_settings: Optional[Dict[str, Any]] = None
     theme_settings: Optional[Dict[str, Any]] = None
+    report_card_templates: Optional[Dict[str, Any]] = None
 
 
 class SchoolThemeSettings(BaseModel):

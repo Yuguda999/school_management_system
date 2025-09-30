@@ -1,7 +1,7 @@
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, desc
+from sqlalchemy import select, and_, desc, func
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import (
@@ -17,6 +17,7 @@ from app.core.deps import (
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.models.grade import ExamType, Grade, ReportCard
+from app.models.academic import Enrollment
 from app.models.student import Student
 from app.schemas.grade import (
     ExamCreate,
@@ -99,8 +100,24 @@ async def get_exams(
             exam_response.term_name = exam.term.name
         
         # Add grade statistics
-        exam_response.total_students = len(exam.grades) if exam.grades else 0
-        exam_response.graded_students = len([g for g in exam.grades if g.is_published]) if exam.grades else 0
+        # total_students: count of active enrollments for the exam's class/subject/term
+        # graded_students: count of all grades entered for the exam (regardless of publish state)
+        if exam.class_id and exam.subject_id and exam.term_id:
+            enroll_count_result = await db.execute(
+                select(func.count(Enrollment.id)).where(
+                    Enrollment.school_id == current_school.id,
+                    Enrollment.class_id == exam.class_id,
+                    Enrollment.subject_id == exam.subject_id,
+                    Enrollment.term_id == exam.term_id,
+                    Enrollment.is_deleted == False,
+                    Enrollment.is_active == True
+                )
+            )
+            exam_response.total_students = enroll_count_result.scalar() or 0
+        else:
+            exam_response.total_students = 0
+
+        exam_response.graded_students = len(exam.grades) if exam.grades else 0
         
         response_exams.append(exam_response)
     
@@ -133,8 +150,22 @@ async def get_exam(
         response.term_name = exam.term.name
     
     # Add grade statistics
-    response.total_students = len(exam.grades) if exam.grades else 0
-    response.graded_students = len([g for g in exam.grades if g.is_published]) if exam.grades else 0
+    if exam.class_id and exam.subject_id and exam.term_id:
+        enroll_count_result = await db.execute(
+            select(func.count(Enrollment.id)).where(
+                Enrollment.school_id == current_school.id,
+                Enrollment.class_id == exam.class_id,
+                Enrollment.subject_id == exam.subject_id,
+                Enrollment.term_id == exam.term_id,
+                Enrollment.is_deleted == False,
+                Enrollment.is_active == True
+            )
+        )
+        response.total_students = enroll_count_result.scalar() or 0
+    else:
+        response.total_students = 0
+
+    response.graded_students = len(exam.grades) if exam.grades else 0
     
     return response
 

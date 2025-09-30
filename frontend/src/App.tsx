@@ -1,10 +1,9 @@
 
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import RoleBasedLayout from './components/Layout/RoleBasedLayout';
 import PlatformAdminRoute from './components/auth/PlatformAdminRoute';
 import SchoolRoute from './components/auth/SchoolRoute';
-import ProtectedRoute from './components/auth/ProtectedRoute';
 import ProfileCompletionCheck from './components/auth/ProfileCompletionCheck';
 import LoginPage from './pages/auth/LoginPage';
 import SchoolLoginPage from './pages/auth/SchoolLoginPage';
@@ -17,6 +16,7 @@ import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileComplet
 import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
+import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import StudentsPage from './pages/students/StudentsPage';
 import StudentDetailPage from './pages/students/StudentDetailPage';
@@ -76,9 +76,9 @@ function App() {
         <Route path="settings" element={<PlatformSettingsPage />} />
       </Route>
 
-      {/* School Routes - Completely Isolated */}
+      {/* School Routes - Completely Isolated with School Code */}
       <Route
-        path="/"
+        path="/:schoolCode"
         element={
           <SchoolRoute>
             <ProfileCompletionCheck>
@@ -96,6 +96,16 @@ function App() {
           element={
             <SchoolRoute allowedRoles={['teacher']}>
               <TeacherDashboardPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Student Dashboard */}
+        <Route
+          path="student/dashboard"
+          element={
+            <SchoolRoute allowedRoles={['student']}>
+              <StudentDashboardPage />
             </SchoolRoute>
           }
         />
@@ -204,15 +214,6 @@ function App() {
           }
         />
 
-        {/* Report Card Templates */}
-        <Route
-          path="templates"
-          element={
-            <SchoolRoute allowedRoles={['school_owner']}>
-              <ReportCardTemplatesPage />
-            </SchoolRoute>
-          }
-        />
 
         {/* Communication */}
         <Route
@@ -250,6 +251,14 @@ function App() {
           element={
             <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
               <SettingsPage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="settings/templates"
+          element={
+            <SchoolRoute allowedRoles={['school_owner']}>
+              <ReportCardTemplatesPage />
             </SchoolRoute>
           }
         />

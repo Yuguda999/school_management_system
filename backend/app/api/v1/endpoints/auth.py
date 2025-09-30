@@ -15,7 +15,7 @@ from app.core.security import (
     generate_password_reset_token,
     verify_password_reset_token
 )
-from app.core.deps import get_current_active_user, get_school_context, SchoolContext
+from app.core.deps import get_current_active_user, get_school_context, SchoolContext, get_current_user_id
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.schemas.auth import (
@@ -31,6 +31,8 @@ from app.schemas.auth import (
 )
 from app.services.school_ownership_service import SchoolOwnershipService
 from app.services.email_service import EmailService
+from app.models.student import Student, StudentStatus
+from app.schemas.auth import StudentLoginRequest
 
 router = APIRouter()
 
@@ -40,7 +42,7 @@ async def login(
     login_data: LoginRequest,
     db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Login endpoint"""
+    """Login endpoint - Only for Platform Admins and School Owners"""
     try:
         # Get user by email
         result = await db.execute(
@@ -75,6 +77,14 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is inactive"
+        )
+    
+    # Only Platform Admins and School Owners can use the main login endpoint
+    # Teachers, students, and other roles must use their school's login page
+    if user.role not in [UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please use your school's login page."
         )
 
     # Handle school owners - all school owners must select a school
@@ -170,12 +180,30 @@ async def school_login(
                 detail="Incorrect email or password"
             )
         
-        # Check if user belongs to this specific school
-        if user_exists.school_id != school.id:
+        # Validate school access based on role
+        # School owners need to own the school, other roles need to belong to it
+        if user_exists.role == UserRole.SCHOOL_OWNER:
+            # Check if user owns this school
+            owned_schools = await SchoolOwnershipService.get_owned_schools(db, user_exists.id)
+            school_ids = [s.id for s in owned_schools]
+            if school.id not in school_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not own this school. Please use the correct school login page or contact support."
+                )
+        elif user_exists.role == UserRole.PLATFORM_SUPER_ADMIN:
+            # Platform admins should not use school login pages
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have access to this school. Please contact your school administrator."
+                detail="Platform administrators should use the main platform login page."
             )
+        else:
+            # Teachers, students, and other roles must belong to this specific school
+            if user_exists.school_id != school.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You do not belong to this school. Please use your school's login page or contact your school administrator."
+                )
         
         user = user_exists
 
@@ -246,6 +274,97 @@ async def school_login(
         profile_completed=user.profile_completed,
         requires_school_selection=requires_school_selection,
         available_schools=available_schools
+    )
+
+
+@router.post("/school/{school_code}/student/login", response_model=LoginResponse)
+async def school_student_login(
+    school_code: str,
+    login_data: StudentLoginRequest,
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """School-specific student login using admission number and first name."""
+    try:
+        # First, verify the school exists and is active
+        school_result = await db.execute(
+            select(School).where(
+                and_(
+                    School.code == school_code.upper(),
+                    School.is_deleted == False,
+                    School.is_active == True
+                )
+            )
+        )
+        school = school_result.scalar_one_or_none()
+        
+        if not school:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="School not found or inactive"
+            )
+
+        # Find student by admission number and school
+        result = await db.execute(
+            select(Student).where(
+                and_(
+                    Student.admission_number == login_data.admission_number,
+                    Student.school_id == school.id,
+                    Student.is_deleted == False,
+                    Student.status == StudentStatus.ACTIVE
+                )
+            )
+        )
+        student = result.scalar_one_or_none()
+        if not student:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admission number or first name")
+
+        if (student.first_name or '').strip().lower() != login_data.first_name.strip().lower():
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admission number or first name")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error during school student login: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
+
+    access_token_expires = timedelta(minutes=30)
+    access_token = create_access_token(
+        data={
+            "sub": student.id,
+            "email": student.email or "",
+            "role": UserRole.STUDENT,
+            "school_id": student.school_id
+        },
+        expires_delta=access_token_expires
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": student.id, "email": student.email or ""}
+    )
+
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user_id=student.id,
+        email=student.email or "",
+        role=UserRole.STUDENT,
+        school_id=student.school_id,
+        full_name=student.full_name,
+        profile_completed=True,  # Students are considered profile completed
+        requires_school_selection=False,
+        available_schools=None
+    )
+
+
+@router.post("/student/login", response_model=LoginResponse)
+async def student_login(
+    login_data: StudentLoginRequest,
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Student login - Disabled. Students must use school-specific login page."""
+    # Students should always use their school's login page for proper school isolation
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Please use your school's login page to access your account. Visit your school's website for the login link."
     )
 
 
@@ -441,34 +560,164 @@ async def change_password(
 
 @router.get("/me")
 async def get_current_user_info(
-    school_context: SchoolContext = Depends(get_school_context)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
 ) -> Any:
-    """Get current user information with current school context"""
-    current_user = school_context.user
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "full_name": current_user.full_name,
-        "role": current_user.role,
-        "school_id": school_context.school_id,  # Use school_id from JWT context
-        "is_active": current_user.is_active,
-        "is_verified": current_user.is_verified,
-        "profile_completed": current_user.profile_completed,
-        "phone": current_user.phone,
-        "date_of_birth": current_user.date_of_birth.isoformat() if current_user.date_of_birth else None,
-        "gender": current_user.gender,
-        "address_line1": current_user.address_line1,
-        "address_line2": current_user.address_line2,
-        "city": current_user.city,
-        "state": current_user.state,
-        "postal_code": current_user.postal_code,
-        "qualification": current_user.qualification,
-        "experience_years": current_user.experience_years,
-        "bio": current_user.bio,
-        "profile_picture_url": current_user.profile_picture_url,
-        "department": current_user.department,
-        "position": current_user.position
-    }
+    """Get current user information - handles both User and Student models"""
+    
+    # First try to get as a regular User
+    result = await db.execute(
+        select(User).where(User.id == current_user_id, User.is_deleted == False)
+    )
+    user = result.scalar_one_or_none()
+    
+    if user:
+        # Get school information if user has a school_id
+        school_data = None
+        if user.school_id:
+            school_result = await db.execute(
+                select(School).where(School.id == user.school_id, School.is_deleted == False)
+            )
+            school = school_result.scalar_one_or_none()
+            if school:
+                school_data = {
+                    "id": school.id,
+                    "name": school.name,
+                    "code": school.code,
+                    "email": school.email,
+                    "phone": school.phone,
+                    "website": school.website,
+                    "address_line1": school.address_line1,
+                    "address_line2": school.address_line2,
+                    "city": school.city,
+                    "state": school.state,
+                    "postal_code": school.postal_code,
+                    "country": school.country,
+                    "description": school.description,
+                    "logo_url": school.logo_url,
+                    "motto": school.motto,
+                    "established_year": school.established_year,
+                    "current_session": school.current_session,
+                    "current_term": school.current_term,
+                    "settings": school.settings,
+                    "is_active": school.is_active,
+                    "is_verified": school.is_verified,
+                    "subscription_plan": school.subscription_plan,
+                    "subscription_status": school.subscription_status,
+                    "trial_expires_at": school.trial_expires_at.isoformat() if school.trial_expires_at else None,
+                    "max_students": school.max_students,
+                    "max_teachers": school.max_teachers,
+                    "max_classes": school.max_classes,
+                    "created_at": school.created_at.isoformat(),
+                    "updated_at": school.updated_at.isoformat()
+                }
+        
+        # This is a regular user (teacher, admin, etc.)
+        return {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+            "school_id": user.school_id,
+            "school": school_data,
+            "is_active": user.is_active,
+            "is_verified": user.is_verified,
+            "profile_completed": user.profile_completed,
+            "phone": user.phone,
+            "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
+            "gender": user.gender,
+            "address_line1": user.address_line1,
+            "address_line2": user.address_line2,
+            "city": user.city,
+            "state": user.state,
+            "postal_code": user.postal_code,
+            "qualification": user.qualification,
+            "experience_years": user.experience_years,
+            "bio": user.bio,
+            "profile_picture_url": user.profile_picture_url,
+            "department": user.department,
+            "position": user.position
+        }
+    
+    # If not found as User, try as Student
+    result = await db.execute(
+        select(Student).where(Student.id == current_user_id, Student.is_deleted == False)
+    )
+    student = result.scalar_one_or_none()
+    
+    if student:
+        # Get school information if student has a school_id
+        school_data = None
+        if student.school_id:
+            school_result = await db.execute(
+                select(School).where(School.id == student.school_id, School.is_deleted == False)
+            )
+            school = school_result.scalar_one_or_none()
+            if school:
+                school_data = {
+                    "id": school.id,
+                    "name": school.name,
+                    "code": school.code,
+                    "email": school.email,
+                    "phone": school.phone,
+                    "website": school.website,
+                    "address_line1": school.address_line1,
+                    "address_line2": school.address_line2,
+                    "city": school.city,
+                    "state": school.state,
+                    "postal_code": school.postal_code,
+                    "country": school.country,
+                    "description": school.description,
+                    "logo_url": school.logo_url,
+                    "motto": school.motto,
+                    "established_year": school.established_year,
+                    "current_session": school.current_session,
+                    "current_term": school.current_term,
+                    "settings": school.settings,
+                    "is_active": school.is_active,
+                    "is_verified": school.is_verified,
+                    "subscription_plan": school.subscription_plan,
+                    "subscription_status": school.subscription_status,
+                    "trial_expires_at": school.trial_expires_at.isoformat() if school.trial_expires_at else None,
+                    "max_students": school.max_students,
+                    "max_teachers": school.max_teachers,
+                    "max_classes": school.max_classes,
+                    "created_at": school.created_at.isoformat(),
+                    "updated_at": school.updated_at.isoformat()
+                }
+        
+        # This is a student
+        return {
+            "id": student.id,
+            "email": student.email or "",
+            "full_name": student.full_name,
+            "role": UserRole.STUDENT,
+            "school_id": student.school_id,
+            "school": school_data,
+            "is_active": student.status == StudentStatus.ACTIVE,
+            "is_verified": True,  # Students are considered verified upon login
+            "profile_completed": True,  # Students are considered profile completed
+            "phone": student.phone,
+            "date_of_birth": student.date_of_birth.isoformat() if student.date_of_birth else None,
+            "gender": student.gender,
+            "address_line1": student.address_line1,
+            "address_line2": student.address_line2,
+            "city": student.city,
+            "state": student.state,
+            "postal_code": student.postal_code,
+            "qualification": None,  # Not applicable for students
+            "experience_years": None,  # Not applicable for students
+            "bio": None,  # Not typically used for students
+            "profile_picture_url": student.profile_picture_url,
+            "department": None,  # Students don't have departments
+            "position": None  # Students don't have positions
+        }
+    
+    # If neither User nor Student found, return 404
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="User not found"
+    )
 
 
 @router.post("/select-school", response_model=LoginResponse)

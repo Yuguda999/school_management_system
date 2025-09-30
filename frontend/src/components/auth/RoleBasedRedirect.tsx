@@ -1,17 +1,18 @@
 import React, { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 const RoleBasedRedirect: React.FC = () => {
   const { user, loading } = useAuth();
+  const { schoolCode } = useParams<{ schoolCode: string }>();
 
   useEffect(() => {
     // Log the redirect for debugging
     if (user) {
-      console.log(`Redirecting user with role: ${user.role}`);
+      console.log(`Redirecting user with role: ${user.role}, schoolCode: ${schoolCode}`);
     }
-  }, [user]);
+  }, [user, schoolCode]);
 
   if (loading) {
     return (
@@ -35,9 +36,16 @@ const RoleBasedRedirect: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // All school users go to school dashboard
-  if (['school_owner', 'school_admin', 'teacher', 'student', 'parent'].includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+  // If we have a school code in the URL, use it for navigation
+  if (schoolCode) {
+    // Redirect based on role with school code
+    if (user.role === 'student') {
+      return <Navigate to={`/${schoolCode}/student/dashboard`} replace />;
+    }
+
+    if (['school_owner', 'school_admin', 'teacher', 'parent'].includes(user.role)) {
+      return <Navigate to={`/${schoolCode}/dashboard`} replace />;
+    }
   }
 
   // Fallback for unknown roles

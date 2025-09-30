@@ -13,6 +13,7 @@ import GradeService from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface GradeStatisticsProps {
   selectedClassId?: string;
@@ -25,6 +26,7 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
 }) => {
   const { showError } = useToast();
   const { currentTerm, allTerms } = useCurrentTerm();
+  const { user } = useAuth();
   const [statistics, setStatistics] = useState<GradeStatsType | null>(null);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,12 +36,21 @@ const GradeStatistics: React.FC<GradeStatisticsProps> = ({
   });
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     fetchStatistics();
-  }, [filters]);
+  }, [filters, user?.role]);
 
   const fetchData = async () => {
     try {

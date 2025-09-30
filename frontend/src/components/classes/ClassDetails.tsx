@@ -74,6 +74,10 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
   };
 
   useEffect(() => {
+    // Skip API calls for students
+    if (user?.role === 'student') {
+      return;
+    }
     if (activeTab === 'students') {
       fetchStudents();
     } else if (activeTab === 'subjects') {
@@ -81,7 +85,7 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
     } else if (activeTab === 'schedule') {
       fetchTimetable();
     }
-  }, [activeTab, classData.id]);
+  }, [activeTab, classData.id, user?.role]);
 
 
 

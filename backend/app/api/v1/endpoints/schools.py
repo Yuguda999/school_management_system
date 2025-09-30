@@ -200,6 +200,131 @@ async def update_school_settings(
     return {"message": "Settings updated successfully", "settings": updated_school.settings}
 
 
+@router.get("/me/report-card-templates")
+async def get_school_report_card_templates(
+    current_user: User = Depends(require_school_owner()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get report card templates for school owner (School Owner only)"""
+    from app.services.report_card_template_service import ReportCardTemplateService
+    
+    # Get templates for this school owner
+    templates = await ReportCardTemplateService.get_templates(
+        db, current_user.id, is_active=True
+    )
+    
+    return {
+        "templates": [
+            {
+                "id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "is_default": template.is_default,
+                "is_published": template.is_published,
+                "created_at": template.created_at,
+                "updated_at": template.updated_at
+            }
+            for template in templates
+        ]
+    }
+
+
+@router.post("/me/report-card-templates")
+async def create_school_report_card_template(
+    template_data: dict,
+    current_user: User = Depends(require_school_owner()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Create a new report card template for school owner (School Owner only)"""
+    from app.services.report_card_template_service import ReportCardTemplateService
+    from app.schemas.report_card_template import ReportCardTemplateCreate
+    
+    # Convert dict to schema
+    template_create = ReportCardTemplateCreate(**template_data)
+    
+    # Create template
+    template = await ReportCardTemplateService.create_template(
+        db, template_create, current_school.id, current_user.id
+    )
+    
+    return {
+        "message": "Template created successfully",
+        "template": {
+            "id": template.id,
+            "name": template.name,
+            "description": template.description,
+            "is_default": template.is_default,
+            "is_published": template.is_published,
+            "created_at": template.created_at
+        }
+    }
+
+
+@router.put("/me/report-card-templates/{template_id}")
+async def update_school_report_card_template(
+    template_id: str,
+    template_data: dict,
+    current_user: User = Depends(require_school_owner()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Update a report card template for school owner (School Owner only)"""
+    from app.services.report_card_template_service import ReportCardTemplateService
+    from app.schemas.report_card_template import ReportCardTemplateUpdate
+    
+    # Convert dict to schema
+    template_update = ReportCardTemplateUpdate(**template_data)
+    
+    # Update template
+    template = await ReportCardTemplateService.update_template(
+        db, template_id, template_update, current_user.id
+    )
+    
+    if not template:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template not found"
+        )
+    
+    return {
+        "message": "Template updated successfully",
+        "template": {
+            "id": template.id,
+            "name": template.name,
+            "description": template.description,
+            "is_default": template.is_default,
+            "is_published": template.is_published,
+            "updated_at": template.updated_at
+        }
+    }
+
+
+@router.delete("/me/report-card-templates/{template_id}")
+async def delete_school_report_card_template(
+    template_id: str,
+    current_user: User = Depends(require_school_owner()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Delete a report card template for school owner (School Owner only)"""
+    from app.services.report_card_template_service import ReportCardTemplateService
+    
+    # Delete template
+    success = await ReportCardTemplateService.delete_template(
+        db, template_id, current_user.id
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template not found"
+        )
+    
+    return {"message": "Template deleted successfully"}
+
+
 @router.post("/me/logo")
 async def upload_school_logo(
     file: UploadFile = File(...),

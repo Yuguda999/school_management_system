@@ -9,6 +9,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class StudentLoginRequest(BaseModel):
+    """Student login with admission number and first name (as password)."""
+    admission_number: str
+    first_name: str
+
+
 class SchoolOption(BaseModel):
     """School option for selection"""
     id: str

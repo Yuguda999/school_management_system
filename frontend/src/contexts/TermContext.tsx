@@ -69,6 +69,11 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
       return;
     }
 
+    // Skip for students
+    if (user.role === 'student') {
+      return;
+    }
+
     try {
       setError(null);
       const term = await academicService.getCurrentTerm();
@@ -95,6 +100,11 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
       return;
     }
 
+    // Skip for students
+    if (user.role === 'student') {
+      return;
+    }
+
     try {
       setError(null);
       const terms = await academicService.getTerms();
@@ -109,13 +119,18 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      
+
+      // Prevent students from setting current term
+      if (user?.role === 'student') {
+        throw new Error('Students cannot set current term');
+      }
+
       // Call API to set current term
       await academicService.setCurrentTerm(termId);
-      
+
       // Refresh current term and all terms
       await Promise.all([refreshCurrentTerm(), refreshTerms()]);
-      
+
       toast.showSuccess('Current term updated successfully');
     } catch (error: any) {
       console.error('Error setting current term:', error);
@@ -138,6 +153,12 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
 
       // Skip term loading for platform admins
       if (user.role === 'platform_super_admin') {
+        setLoading(false);
+        return;
+      }
+
+      // Skip loading entirely for students
+      if (user.role === 'student') {
         setLoading(false);
         return;
       }

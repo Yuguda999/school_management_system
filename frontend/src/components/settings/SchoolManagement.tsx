@@ -59,7 +59,13 @@ const SchoolManagement: React.FC = () => {
       // Wait a moment for state to update, then navigate
       setTimeout(() => {
         console.log('🔄 SchoolManagement: Navigating to dashboard...');
-        navigate('/dashboard');
+        // Get the school code from the current URL or from the selected school
+        const currentSchoolCode = window.location.pathname.split('/')[1];
+        if (currentSchoolCode) {
+          navigate(`/${currentSchoolCode}/dashboard`);
+        } else {
+          navigate('/dashboard');
+        }
       }, 200);
 
     } catch (error: any) {

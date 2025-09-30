@@ -16,6 +16,24 @@ class AuthService {
     return response;
   }
 
+  async studentLogin(data: { admission_number: string; first_name: string }, schoolCode?: string): Promise<AuthResponse> {
+    let endpoint = '/api/v1/auth/student/login';
+    
+    // Use school-specific endpoint if school code is provided
+    if (schoolCode) {
+      endpoint = `/api/v1/auth/school/${schoolCode}/student/login`;
+    }
+    
+    const response = await apiService.post<AuthResponse>(endpoint, data);
+    
+    // Store refresh token
+    if (response.refresh_token) {
+      localStorage.setItem('refresh_token', response.refresh_token);
+    }
+    
+    return response;
+  }
+
   async getCurrentUser(): Promise<User> {
     // Add cache-busting headers to ensure fresh data
     const cacheHeaders = {
@@ -26,13 +44,16 @@ class AuthService {
 
     const response = await apiService.get<any>('/api/v1/auth/me', { headers: cacheHeaders });
 
-    // Fetch school information if user has a school_id
-    let school = null;
-    if (response.school_id) {
+    // For students, the school information should already be included in the response
+    // from the backend /me endpoint, so we don't need to make a separate call
+    let school = response.school || null;
+    
+    // Only fetch additional school information for non-students if needed
+    if (response.school_id && response.role !== 'student' && !school) {
       try {
         school = await apiService.get<any>('/api/v1/schools/me', { headers: cacheHeaders });
       } catch (error) {
-        console.warn('Failed to fetch school information:', error);
+        console.warn('Failed to fetch additional school information:', error);
       }
     }
 

@@ -2,15 +2,12 @@ from typing import Any, Optional, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, desc, func, or_
 from sqlalchemy.orm import selectinload
-from datetime import datetime, date
-import json
 
 from app.models.report_card_template import (
     ReportCardTemplate, 
     ReportCardTemplateField, 
     ReportCardTemplateAssignment
 )
-from app.models.user import User
 from app.models.academic import Class
 from app.schemas.report_card_template import (
     ReportCardTemplateCreate,
@@ -20,7 +17,6 @@ from app.schemas.report_card_template import (
     ReportCardTemplateAssignmentCreate,
     ReportCardTemplateAssignmentUpdate,
     ReportCardTemplateCloneRequest,
-    ReportCardTemplatePreviewRequest,
     TemplateValidationResult,
     TemplateValidationError
 )
@@ -34,7 +30,7 @@ class ReportCardTemplateService:
         db: AsyncSession,
         template_data: ReportCardTemplateCreate,
         school_id: str,
-        created_by: str
+        school_owner_id: str
     ) -> ReportCardTemplate:
         """Create a new report card template"""
         
@@ -42,7 +38,7 @@ class ReportCardTemplateService:
         template_dict = template_data.dict(exclude={'fields'})
         template_dict.update({
             'school_id': school_id,
-            'created_by': created_by
+            'school_owner_id': school_owner_id
         })
         
         template = ReportCardTemplate(**template_dict)
@@ -56,7 +52,8 @@ class ReportCardTemplateService:
                 field_dict = field_data.dict()
                 field_dict.update({
                     'template_id': template.id,
-                    'school_id': school_id
+                    'school_id': school_id,
+                    'school_owner_id': school_owner_id
                 })
                 field = ReportCardTemplateField(**field_dict)
                 db.add(field)
@@ -70,7 +67,7 @@ class ReportCardTemplateService:
     async def get_template_by_id(
         db: AsyncSession,
         template_id: str,
-        school_id: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplate]:
         """Get template by ID with fields loaded"""
         
@@ -80,7 +77,7 @@ class ReportCardTemplateService:
             .where(
                 and_(
                     ReportCardTemplate.id == template_id,
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -90,7 +87,7 @@ class ReportCardTemplateService:
     @staticmethod
     async def get_templates(
         db: AsyncSession,
-        school_id: str,
+        school_owner_id: str,
         is_active: Optional[bool] = None,
         is_published: Optional[bool] = None,
         search: Optional[str] = None,
@@ -100,7 +97,7 @@ class ReportCardTemplateService:
         """Get templates with filtering"""
         
         conditions = [
-            ReportCardTemplate.school_id == school_id,
+            ReportCardTemplate.school_owner_id == school_owner_id,
             ReportCardTemplate.is_deleted == False
         ]
         
@@ -132,7 +129,7 @@ class ReportCardTemplateService:
         db: AsyncSession,
         template_id: str,
         template_data: ReportCardTemplateUpdate,
-        school_id: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplate]:
         """Update template"""
         
@@ -141,7 +138,7 @@ class ReportCardTemplateService:
             .where(
                 and_(
                     ReportCardTemplate.id == template_id,
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -165,7 +162,7 @@ class ReportCardTemplateService:
     async def delete_template(
         db: AsyncSession,
         template_id: str,
-        school_id: str
+        school_owner_id: str
     ) -> bool:
         """Soft delete template"""
         
@@ -174,7 +171,7 @@ class ReportCardTemplateService:
             .where(
                 and_(
                     ReportCardTemplate.id == template_id,
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -214,13 +211,13 @@ class ReportCardTemplateService:
         template_id: str,
         clone_data: ReportCardTemplateCloneRequest,
         school_id: str,
-        created_by: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplate]:
         """Clone an existing template"""
         
         # Get original template
         original_template = await ReportCardTemplateService.get_template_by_id(
-            db, template_id, school_id
+            db, template_id, school_owner_id
         )
         
         if not original_template:
@@ -247,7 +244,7 @@ class ReportCardTemplateService:
             'is_default': False,
             'is_published': False,
             'school_id': school_id,
-            'created_by': created_by
+            'school_owner_id': school_owner_id
         }
         
         new_template = ReportCardTemplate(**template_dict)
@@ -283,7 +280,8 @@ class ReportCardTemplateService:
                 'properties': field.properties,
                 'z_index': field.z_index,
                 'template_id': new_template.id,
-                'school_id': school_id
+                'school_id': school_id,
+                'school_owner_id': school_owner_id
             }
             
             new_field = ReportCardTemplateField(**field_dict)
@@ -298,16 +296,16 @@ class ReportCardTemplateService:
     async def set_default_template(
         db: AsyncSession,
         template_id: str,
-        school_id: str
+        school_owner_id: str
     ) -> bool:
-        """Set template as default (only one default per school)"""
+        """Set template as default (only one default per school owner)"""
         
         # Remove default from all other templates
         await db.execute(
             select(ReportCardTemplate)
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_default == True,
                     ReportCardTemplate.is_deleted == False
                 )
@@ -320,7 +318,7 @@ class ReportCardTemplateService:
             .where(
                 and_(
                     ReportCardTemplate.id == template_id,
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -337,7 +335,6 @@ class ReportCardTemplateService:
 
     @staticmethod
     async def validate_template(
-        db: AsyncSession,
         template_data: ReportCardTemplateCreate
     ) -> TemplateValidationResult:
         """Validate template configuration"""
@@ -430,7 +427,7 @@ class ReportCardTemplateService:
     @staticmethod
     async def get_template_statistics(
         db: AsyncSession,
-        school_id: str
+        school_owner_id: str
     ) -> Dict[str, Any]:
         """Get template usage statistics"""
         
@@ -439,7 +436,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplate.id))
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -449,7 +446,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplate.id))
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_active == True,
                     ReportCardTemplate.is_deleted == False
                 )
@@ -460,7 +457,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplate.id))
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_published == True,
                     ReportCardTemplate.is_deleted == False
                 )
@@ -471,7 +468,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplate.id))
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_default == True,
                     ReportCardTemplate.is_deleted == False
                 )
@@ -483,7 +480,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplateAssignment.id))
             .where(
                 and_(
-                    ReportCardTemplateAssignment.school_id == school_id,
+                    ReportCardTemplateAssignment.school_owner_id == school_owner_id,
                     ReportCardTemplateAssignment.is_deleted == False
                 )
             )
@@ -493,7 +490,7 @@ class ReportCardTemplateService:
             select(func.count(ReportCardTemplateAssignment.id))
             .where(
                 and_(
-                    ReportCardTemplateAssignment.school_id == school_id,
+                    ReportCardTemplateAssignment.school_owner_id == school_owner_id,
                     ReportCardTemplateAssignment.is_active == True,
                     ReportCardTemplateAssignment.is_deleted == False
                 )
@@ -505,7 +502,7 @@ class ReportCardTemplateService:
             select(ReportCardTemplate)
             .where(
                 and_(
-                    ReportCardTemplate.school_id == school_id,
+                    ReportCardTemplate.school_owner_id == school_owner_id,
                     ReportCardTemplate.is_deleted == False
                 )
             )
@@ -537,13 +534,13 @@ class ReportCardTemplateFieldService:
         db: AsyncSession,
         template_id: str,
         field_data: ReportCardTemplateFieldCreate,
-        school_id: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplateField]:
         """Create a new template field"""
         
         # Verify template exists
         template = await ReportCardTemplateService.get_template_by_id(
-            db, template_id, school_id
+            db, template_id, school_owner_id
         )
         if not template:
             return None
@@ -551,7 +548,8 @@ class ReportCardTemplateFieldService:
         field_dict = field_data.dict()
         field_dict.update({
             'template_id': template_id,
-            'school_id': school_id
+            'school_id': template.school_id,
+            'school_owner_id': school_owner_id
         })
         
         field = ReportCardTemplateField(**field_dict)
@@ -566,7 +564,7 @@ class ReportCardTemplateFieldService:
         db: AsyncSession,
         field_id: str,
         field_data: ReportCardTemplateFieldUpdate,
-        school_id: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplateField]:
         """Update template field"""
         
@@ -575,7 +573,7 @@ class ReportCardTemplateFieldService:
             .where(
                 and_(
                     ReportCardTemplateField.id == field_id,
-                    ReportCardTemplateField.school_id == school_id,
+                    ReportCardTemplateField.school_owner_id == school_owner_id,
                     ReportCardTemplateField.is_deleted == False
                 )
             )
@@ -598,7 +596,7 @@ class ReportCardTemplateFieldService:
     async def delete_field(
         db: AsyncSession,
         field_id: str,
-        school_id: str
+        school_owner_id: str
     ) -> bool:
         """Delete template field"""
         
@@ -607,7 +605,7 @@ class ReportCardTemplateFieldService:
             .where(
                 and_(
                     ReportCardTemplateField.id == field_id,
-                    ReportCardTemplateField.school_id == school_id,
+                    ReportCardTemplateField.school_owner_id == school_owner_id,
                     ReportCardTemplateField.is_deleted == False
                 )
             )
@@ -631,13 +629,14 @@ class ReportCardTemplateAssignmentService:
         db: AsyncSession,
         assignment_data: ReportCardTemplateAssignmentCreate,
         school_id: str,
+        school_owner_id: str,
         assigned_by: str
     ) -> Optional[ReportCardTemplateAssignment]:
         """Create template assignment to class"""
         
         # Verify template exists
         template = await ReportCardTemplateService.get_template_by_id(
-            db, assignment_data.template_id, school_id
+            db, assignment_data.template_id, school_owner_id
         )
         if not template:
             return None
@@ -677,6 +676,7 @@ class ReportCardTemplateAssignmentService:
         assignment_dict = assignment_data.dict()
         assignment_dict.update({
             'school_id': school_id,
+            'school_owner_id': school_owner_id,
             'assigned_by': assigned_by
         })
         
@@ -690,7 +690,7 @@ class ReportCardTemplateAssignmentService:
     @staticmethod
     async def get_assignments(
         db: AsyncSession,
-        school_id: str,
+        school_owner_id: str,
         template_id: Optional[str] = None,
         class_id: Optional[str] = None,
         is_active: Optional[bool] = None
@@ -698,7 +698,7 @@ class ReportCardTemplateAssignmentService:
         """Get template assignments with filtering"""
         
         conditions = [
-            ReportCardTemplateAssignment.school_id == school_id,
+            ReportCardTemplateAssignment.school_owner_id == school_owner_id,
             ReportCardTemplateAssignment.is_deleted == False
         ]
         
@@ -727,7 +727,7 @@ class ReportCardTemplateAssignmentService:
         db: AsyncSession,
         assignment_id: str,
         assignment_data: ReportCardTemplateAssignmentUpdate,
-        school_id: str
+        school_owner_id: str
     ) -> Optional[ReportCardTemplateAssignment]:
         """Update template assignment"""
         
@@ -736,7 +736,7 @@ class ReportCardTemplateAssignmentService:
             .where(
                 and_(
                     ReportCardTemplateAssignment.id == assignment_id,
-                    ReportCardTemplateAssignment.school_id == school_id,
+                    ReportCardTemplateAssignment.school_owner_id == school_owner_id,
                     ReportCardTemplateAssignment.is_deleted == False
                 )
             )
@@ -759,7 +759,7 @@ class ReportCardTemplateAssignmentService:
     async def delete_assignment(
         db: AsyncSession,
         assignment_id: str,
-        school_id: str
+        school_owner_id: str
     ) -> bool:
         """Delete template assignment"""
         
@@ -768,7 +768,7 @@ class ReportCardTemplateAssignmentService:
             .where(
                 and_(
                     ReportCardTemplateAssignment.id == assignment_id,
-                    ReportCardTemplateAssignment.school_id == school_id,
+                    ReportCardTemplateAssignment.school_owner_id == school_owner_id,
                     ReportCardTemplateAssignment.is_deleted == False
                 )
             )
@@ -782,3 +782,4 @@ class ReportCardTemplateAssignmentService:
         await db.commit()
         
         return True
+

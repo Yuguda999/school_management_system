@@ -90,8 +90,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       name: 'Dashboard',
       href: '/dashboard',
       icon: HomeIcon,
-      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'student', 'parent'],
+      roles: ['platform_super_admin', 'school_owner', 'school_admin', 'teacher', 'parent'],
       description: 'Overview and analytics'
+    },
+    {
+      name: 'My Dashboard',
+      href: '/student/dashboard',
+      icon: HomeIcon,
+      roles: ['student'],
+      description: 'Your overview and updates'
     },
     {
       name: 'Students',
@@ -138,13 +145,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       description: 'Academic performance'
     },
     {
-      name: 'Templates',
-      href: '/templates',
-      icon: DocumentTextIcon,
-      roles: ['school_owner'],
-      description: 'Report card templates'
-    },
-    {
       name: 'Communication',
       href: '/communication',
       icon: ChatBubbleLeftRightIcon,
@@ -163,7 +163,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
       href: '/settings',
       icon: Cog6ToothIcon,
       roles: ['platform_super_admin', 'school_owner', 'school_admin'],
-      description: 'System preferences'
+      description: 'System preferences',
+      subItems: [
+        {
+          name: 'General',
+          href: '/settings',
+          icon: Cog6ToothIcon,
+          roles: ['platform_super_admin', 'school_owner', 'school_admin'],
+          description: 'General settings'
+        },
+        {
+          name: 'Templates',
+          href: '/settings/templates',
+          icon: DocumentTextIcon,
+          roles: ['school_owner'],
+          description: 'Report card templates'
+        }
+      ]
     },
   ];
 

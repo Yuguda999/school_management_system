@@ -29,6 +29,23 @@ api_router.include_router(public_school.router, prefix="/school", tags=["public-
 api_router.include_router(school_validation.router, prefix="/validate", tags=["school-validation"])
 api_router.include_router(report_card_templates.router, prefix="/templates", tags=["report-card-templates"])
 
+# School-specific routes with school code
+api_router.include_router(students.router, prefix="/school/{school_code}/students", tags=["school-students"])
+api_router.include_router(classes.router, prefix="/school/{school_code}/classes", tags=["school-classes"])
+api_router.include_router(subjects.router, prefix="/school/{school_code}/subjects", tags=["school-subjects"])
+api_router.include_router(teacher_subjects.router, prefix="/school/{school_code}/assignments", tags=["school-teacher-subjects"])
+api_router.include_router(enrollments.router, prefix="/school/{school_code}/enrollments", tags=["school-enrollments"])
+api_router.include_router(terms.router, prefix="/school/{school_code}/terms", tags=["school-terms"])
+api_router.include_router(academic_sessions.router, prefix="/school/{school_code}/academic-sessions", tags=["school-academic-sessions"])
+api_router.include_router(fees.router, prefix="/school/{school_code}/fees", tags=["school-fees"])
+api_router.include_router(grades.router, prefix="/school/{school_code}/grades", tags=["school-grades"])
+api_router.include_router(communication.router, prefix="/school/{school_code}/communication", tags=["school-communication"])
+api_router.include_router(teacher_invitations.router, prefix="/school/{school_code}/teacher-invitations", tags=["school-teacher-invitations"])
+api_router.include_router(documents.router, prefix="/school/{school_code}/documents", tags=["school-documents"])
+api_router.include_router(dashboard.router, prefix="/school/{school_code}/dashboard", tags=["school-dashboard"])
+api_router.include_router(reports.router, prefix="/school/{school_code}/reports", tags=["school-reports"])
+api_router.include_router(report_card_templates.router, prefix="/school/{school_code}/templates", tags=["school-report-card-templates"])
+
 
 @api_router.get("/")
 async def api_info():

@@ -1,8 +1,7 @@
 from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy import and_, select
 
 from app.core.database import get_db
 from app.core.deps import (
@@ -11,7 +10,6 @@ from app.core.deps import (
     SchoolContext
 )
 from app.models.user import User, UserRole
-from app.models.school import School
 from app.models.school_ownership import SchoolOwnership
 from app.schemas.report_card_template import (
     ReportCardTemplateCreate,
@@ -52,7 +50,6 @@ def require_school_owner():
             )
         
         # Verify school ownership
-        from sqlalchemy import select
         ownership_result = await db.execute(
             select(SchoolOwnership).where(
                 and_(
@@ -85,7 +82,7 @@ async def create_template(
     """Create a new report card template (School Owner only)"""
     
     # Validate template configuration
-    validation_result = await ReportCardTemplateService.validate_template(db, template_data)
+    validation_result = await ReportCardTemplateService.validate_template(template_data)
     if not validation_result.is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -107,7 +104,7 @@ async def create_template(
     
     # Count assignments
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
-        db, school_context.school_id, template_id=template.id
+        db, current_user.id, template_id=template.id
     )
     response.assignments_count = len(assignments)
     
@@ -133,7 +130,7 @@ async def get_templates(
     
     skip = (page - 1) * size
     templates = await ReportCardTemplateService.get_templates(
-        db, school_context.school_id, is_active, is_published, search, skip, size
+        db, current_user.id, is_active, is_published, search, skip, size
     )
     
     response_templates = []
@@ -144,7 +141,7 @@ async def get_templates(
         
         # Count assignments
         assignments = await ReportCardTemplateAssignmentService.get_assignments(
-            db, school_context.school_id, template_id=template.id
+            db, current_user.id, template_id=template.id
         )
         template_response.assignments_count = len(assignments)
         
@@ -163,7 +160,7 @@ async def get_template(
     """Get template by ID with full details"""
     
     template = await ReportCardTemplateService.get_template_by_id(
-        db, template_id, school_context.school_id
+        db, template_id, current_user.id
     )
     if not template:
         raise HTTPException(
@@ -189,7 +186,7 @@ async def get_template(
     
     # Count assignments
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
-        db, school_context.school_id, template_id=template.id
+        db, current_user.id, template_id=template.id
     )
     response.assignments_count = len(assignments)
     
@@ -207,7 +204,7 @@ async def update_template(
     """Update template (School Owner only)"""
     
     template = await ReportCardTemplateService.update_template(
-        db, template_id, template_data, school_context.school_id
+        db, template_id, template_data, current_user.id
     )
     if not template:
         raise HTTPException(
@@ -226,7 +223,7 @@ async def update_template(
     
     # Count assignments
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
-        db, school_context.school_id, template_id=template.id
+        db, current_user.id, template_id=template.id
     )
     response.assignments_count = len(assignments)
     
@@ -243,7 +240,7 @@ async def delete_template(
     """Delete template (School Owner only)"""
     
     success = await ReportCardTemplateService.delete_template(
-        db, template_id, school_context.school_id
+        db, template_id, current_user.id
     )
     if not success:
         raise HTTPException(
@@ -295,7 +292,7 @@ async def set_default_template(
     """Set template as default (School Owner only)"""
     
     success = await ReportCardTemplateService.set_default_template(
-        db, template_id, school_context.school_id
+        db, template_id, current_user.id
     )
     if not success:
         raise HTTPException(
@@ -314,7 +311,7 @@ async def validate_template(
 ) -> Any:
     """Validate template configuration (School Owner only)"""
     
-    return await ReportCardTemplateService.validate_template(db, template_data)
+    return await ReportCardTemplateService.validate_template(template_data)
 
 
 @router.get("/templates/statistics", response_model=ReportCardTemplateStatistics)
@@ -326,7 +323,7 @@ async def get_template_statistics(
     """Get template usage statistics (School Owner only)"""
     
     stats = await ReportCardTemplateService.get_template_statistics(
-        db, school_context.school_id
+        db, current_user.id
     )
     
     return ReportCardTemplateStatistics(**stats)
@@ -344,7 +341,7 @@ async def create_template_field(
     """Create a new template field (School Owner only)"""
     
     field = await ReportCardTemplateFieldService.create_field(
-        db, template_id, field_data, school_context.school_id
+        db, template_id, field_data, current_user.id
     )
     if not field:
         raise HTTPException(
@@ -366,7 +363,7 @@ async def update_template_field(
     """Update template field (School Owner only)"""
     
     field = await ReportCardTemplateFieldService.update_field(
-        db, field_id, field_data, school_context.school_id
+        db, field_id, field_data, current_user.id
     )
     if not field:
         raise HTTPException(
@@ -387,7 +384,7 @@ async def delete_template_field(
     """Delete template field (School Owner only)"""
     
     success = await ReportCardTemplateFieldService.delete_field(
-        db, field_id, school_context.school_id
+        db, field_id, current_user.id
     )
     if not success:
         raise HTTPException(
@@ -409,7 +406,7 @@ async def create_template_assignment(
     """Assign template to class (School Owner only)"""
     
     assignment = await ReportCardTemplateAssignmentService.create_assignment(
-        db, assignment_data, school_context.school_id, current_user.id
+        db, assignment_data, school_context.school_id, current_user.id, current_user.id
     )
     if not assignment:
         raise HTTPException(
@@ -440,7 +437,7 @@ async def get_template_assignments(
     """Get template assignments (School Owner only)"""
     
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
-        db, school_context.school_id, template_id, class_id, is_active
+        db, current_user.id, template_id, class_id, is_active
     )
     
     response_assignments = []
@@ -469,7 +466,7 @@ async def update_template_assignment(
     """Update template assignment (School Owner only)"""
     
     assignment = await ReportCardTemplateAssignmentService.update_assignment(
-        db, assignment_id, assignment_data, school_context.school_id
+        db, assignment_id, assignment_data, current_user.id
     )
     if not assignment:
         raise HTTPException(
@@ -498,7 +495,7 @@ async def delete_template_assignment(
     """Delete template assignment (School Owner only)"""
     
     success = await ReportCardTemplateAssignmentService.delete_assignment(
-        db, assignment_id, school_context.school_id
+        db, assignment_id, current_user.id
     )
     if not success:
         raise HTTPException(
@@ -521,7 +518,7 @@ async def preview_template(
     """Generate template preview (School Owner only)"""
     
     template = await ReportCardTemplateService.get_template_by_id(
-        db, template_id, school_context.school_id
+        db, template_id, current_user.id
     )
     if not template:
         raise HTTPException(
@@ -540,3 +537,4 @@ async def preview_template(
         preview_css=preview_css,
         preview_data=preview_data_dict
     )
+
