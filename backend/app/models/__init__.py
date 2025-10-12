@@ -13,3 +13,4 @@ from .communication import *  # noqa
 from .teacher_invitation import *  # noqa
 from .document import *  # noqa
 from .report_card_template import *  # noqa
+from .teacher_material import *  # noqa

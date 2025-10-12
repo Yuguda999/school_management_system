@@ -17,8 +17,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Reduce uvicorn logging
+# Configure specific loggers
+# Reduce uvicorn access logging (HTTP requests)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+# Reduce SQLAlchemy logging (database queries)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
+
+# Keep application logs at configured level
+logging.getLogger("app").setLevel(log_level)
 
 
 @asynccontextmanager

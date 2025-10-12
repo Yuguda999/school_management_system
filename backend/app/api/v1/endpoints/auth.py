@@ -284,7 +284,12 @@ async def school_student_login(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """School-specific student login using admission number and first name."""
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info(f"🔐 Student login attempt for school: {school_code}, admission: {login_data.admission_number}")
+
         # First, verify the school exists and is active
         school_result = await db.execute(
             select(School).where(
@@ -296,8 +301,9 @@ async def school_student_login(
             )
         )
         school = school_result.scalar_one_or_none()
-        
+
         if not school:
+            logger.warning(f"❌ School not found or inactive: {school_code}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="School not found or inactive"
@@ -316,15 +322,17 @@ async def school_student_login(
         )
         student = result.scalar_one_or_none()
         if not student:
+            logger.warning(f"❌ Student not found: {login_data.admission_number}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admission number or first name")
 
         if (student.first_name or '').strip().lower() != login_data.first_name.strip().lower():
+            logger.warning(f"❌ First name mismatch for student: {login_data.admission_number}")
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect admission number or first name")
 
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Unexpected error during school student login: {e}")
+        logger.error(f"❌ Unexpected error during school student login: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error")
 
     access_token_expires = timedelta(minutes=30)
@@ -338,8 +346,10 @@ async def school_student_login(
         expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(
-        data={"sub": student.id, "email": student.email or ""}
+        data={"sub": student.id, "email": student.email or "", "role": UserRole.STUDENT}
     )
+
+    logger.info(f"✅ Student login successful: {student.full_name} ({student.admission_number})")
 
     return LoginResponse(
         access_token=access_token,

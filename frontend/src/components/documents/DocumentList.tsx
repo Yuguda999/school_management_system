@@ -11,7 +11,9 @@ import {
 } from '@heroicons/react/24/outline';
 import { Document, DocumentStatus, documentService } from '../../services/documentService';
 import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 interface DocumentListProps {
   studentId: string;
@@ -30,6 +32,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { showSuccess, showError } = useToast();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
 
   useEffect(() => {
     fetchDocuments();
@@ -102,7 +105,15 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   const handleDelete = async (doc: Document) => {
-    if (!window.confirm(`Are you sure you want to delete "${doc.title}"?`)) {
+    const confirmed = await confirm({
+      title: 'Delete Document',
+      message: `Are you sure you want to delete "${doc.title}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -310,6 +321,18 @@ const DocumentList: React.FC<DocumentListProps> = ({
           </div>
         </div>
       ))}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message || ''}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+      />
     </div>
   );
 };

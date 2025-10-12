@@ -5,13 +5,15 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from datetime import date
 
-from app.models.student import Student
+from app.models.student import Student, StudentClassHistory, ClassHistoryStatus
 from app.models.user import User, UserRole
-from app.models.academic import Class
-from app.schemas.student import StudentCreate, StudentUpdate
+from app.models.academic import Class, Term
+from app.models.grade import Grade
+from app.schemas.student import StudentCreate, StudentUpdate, StudentProfileResponse, PerformanceTrendsResponse
 from app.services.enrollment_service import EnrollmentService
 from app.utils.enum_converter import convert_gender_enum, convert_student_status_enum
 from datetime import datetime
+from decimal import Decimal
 
 
 def convert_date_string(date_str):
@@ -662,3 +664,286 @@ class StudentService:
             students.append(student)
 
         return students
+
+    # Student Portal Methods
+    @staticmethod
+    async def get_student_by_user_id(
+        db: AsyncSession,
+        user_id: str,
+        school_id: str
+    ) -> Optional[Student]:
+        """Get student record linked to a user account"""
+        result = await db.execute(
+            select(Student).options(
+                selectinload(Student.current_class)
+            ).where(
+                Student.user_id == user_id,
+                Student.school_id == school_id,
+                Student.is_deleted == False
+            )
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def get_student_class_history(
+        db: AsyncSession,
+        student_id: str,
+        school_id: str
+    ) -> List[StudentClassHistory]:
+        """Get all class history for a student"""
+        result = await db.execute(
+            select(StudentClassHistory).options(
+                selectinload(StudentClassHistory.class_),
+                selectinload(StudentClassHistory.term),
+                selectinload(StudentClassHistory.promoted_to_class)
+            ).where(
+                StudentClassHistory.student_id == student_id,
+                StudentClassHistory.school_id == school_id,
+                StudentClassHistory.is_deleted == False
+            ).order_by(desc(StudentClassHistory.enrollment_date))
+        )
+        return result.scalars().all()
+
+    @staticmethod
+    async def get_student_grades_for_term(
+        db: AsyncSession,
+        student_id: str,
+        term_id: str,
+        school_id: str
+    ) -> List[Grade]:
+        """Get all published grades for a student in a specific term"""
+        result = await db.execute(
+            select(Grade).options(
+                selectinload(Grade.subject),
+                selectinload(Grade.exam)
+            ).where(
+                Grade.student_id == student_id,
+                Grade.term_id == term_id,
+                Grade.school_id == school_id,
+                Grade.is_published == True,
+                Grade.is_deleted == False
+            ).order_by(Grade.created_at)
+        )
+        return result.scalars().all()
+
+    @staticmethod
+    async def get_student_performance_trends(
+        db: AsyncSession,
+        student_id: str,
+        school_id: str
+    ) -> dict:
+        """Calculate performance trends across all terms for a student"""
+        # Get all terms the student has grades in
+        result = await db.execute(
+            select(Grade.term_id, func.count(Grade.id).label('grade_count')).where(
+                Grade.student_id == student_id,
+                Grade.school_id == school_id,
+                Grade.is_published == True,
+                Grade.is_deleted == False
+            ).group_by(Grade.term_id)
+        )
+        term_data = result.all()
+
+        if not term_data:
+            return {
+                "student_id": student_id,
+                "terms": [],
+                "overall_average": 0.0,
+                "best_term": None,
+                "improvement_trend": "no_data",
+                "subject_performance": []
+            }
+
+        # Get detailed data for each term
+        terms_list = []
+        all_averages = []
+
+        for term_id, _ in term_data:
+            # Get term info
+            term_result = await db.execute(
+                select(Term).where(Term.id == term_id)
+            )
+            term = term_result.scalar_one_or_none()
+
+            if not term:
+                continue
+
+            # Get grades for this term
+            grades_result = await db.execute(
+                select(Grade).where(
+                    Grade.student_id == student_id,
+                    Grade.term_id == term_id,
+                    Grade.school_id == school_id,
+                    Grade.is_published == True,
+                    Grade.is_deleted == False
+                )
+            )
+            grades = grades_result.scalars().all()
+
+            if grades:
+                total_percentage = sum(float(g.percentage) for g in grades)
+                average = total_percentage / len(grades)
+                all_averages.append(average)
+
+                terms_list.append({
+                    "term_id": term_id,
+                    "term_name": term.name,
+                    "academic_session": term.academic_session,
+                    "average_score": round(average, 2),
+                    "total_subjects": len(grades),
+                    "start_date": term.start_date.isoformat() if term.start_date else None
+                })
+
+        # Sort terms by date
+        terms_list.sort(key=lambda x: x.get("start_date", ""), reverse=True)
+
+        # Calculate overall average
+        overall_avg = sum(all_averages) / len(all_averages) if all_averages else 0.0
+
+        # Find best term
+        best_term = max(terms_list, key=lambda x: x["average_score"]) if terms_list else None
+
+        # Determine improvement trend
+        improvement_trend = "stable"
+        if len(all_averages) >= 2:
+            recent_avg = sum(all_averages[:2]) / 2 if len(all_averages) >= 2 else all_averages[0]
+            older_avg = sum(all_averages[-2:]) / 2 if len(all_averages) >= 2 else all_averages[-1]
+
+            if recent_avg > older_avg + 5:
+                improvement_trend = "improving"
+            elif recent_avg < older_avg - 5:
+                improvement_trend = "declining"
+
+        return {
+            "student_id": student_id,
+            "terms": terms_list,
+            "overall_average": round(overall_avg, 2),
+            "best_term": best_term,
+            "improvement_trend": improvement_trend,
+            "subject_performance": []  # Can be enhanced later with subject-specific trends
+        }
+
+    # Class History Management
+    @staticmethod
+    async def create_class_history(
+        db: AsyncSession,
+        student_id: str,
+        class_id: str,
+        term_id: str,
+        academic_session: str,
+        school_id: str,
+        enrollment_date: date = None,
+        status: ClassHistoryStatus = ClassHistoryStatus.ACTIVE
+    ) -> StudentClassHistory:
+        """Create a class history record for a student"""
+        if enrollment_date is None:
+            enrollment_date = date.today()
+
+        # Check if record already exists
+        existing_result = await db.execute(
+            select(StudentClassHistory).where(
+                StudentClassHistory.student_id == student_id,
+                StudentClassHistory.term_id == term_id,
+                StudentClassHistory.school_id == school_id,
+                StudentClassHistory.is_deleted == False
+            )
+        )
+        existing = existing_result.scalar_one_or_none()
+
+        if existing:
+            # Update existing record
+            existing.class_id = class_id
+            existing.academic_session = academic_session
+            existing.status = status
+            existing.is_current = (status == ClassHistoryStatus.ACTIVE)
+            await db.commit()
+            await db.refresh(existing)
+            return existing
+
+        # Create new record
+        history = StudentClassHistory(
+            student_id=student_id,
+            class_id=class_id,
+            term_id=term_id,
+            academic_session=academic_session,
+            school_id=school_id,
+            enrollment_date=enrollment_date,
+            status=status,
+            is_current=(status == ClassHistoryStatus.ACTIVE)
+        )
+
+        db.add(history)
+        await db.commit()
+        await db.refresh(history)
+
+        return history
+
+    @staticmethod
+    async def update_class_history_status(
+        db: AsyncSession,
+        history_id: str,
+        status: ClassHistoryStatus,
+        school_id: str,
+        promoted_to_class_id: Optional[str] = None,
+        promotion_date: Optional[date] = None,
+        remarks: Optional[str] = None
+    ) -> Optional[StudentClassHistory]:
+        """Update class history status (e.g., mark as completed, promoted)"""
+        result = await db.execute(
+            select(StudentClassHistory).where(
+                StudentClassHistory.id == history_id,
+                StudentClassHistory.school_id == school_id,
+                StudentClassHistory.is_deleted == False
+            )
+        )
+        history = result.scalar_one_or_none()
+
+        if not history:
+            return None
+
+        history.status = status
+        history.is_current = (status == ClassHistoryStatus.ACTIVE)
+
+        if status == ClassHistoryStatus.COMPLETED:
+            history.completion_date = date.today()
+
+        if promoted_to_class_id:
+            history.promoted_to_class_id = promoted_to_class_id
+            history.promotion_date = promotion_date or date.today()
+
+        if remarks:
+            history.remarks = remarks
+
+        await db.commit()
+        await db.refresh(history)
+
+        return history
+
+    @staticmethod
+    async def set_current_class_history(
+        db: AsyncSession,
+        student_id: str,
+        term_id: str,
+        school_id: str
+    ) -> None:
+        """Set all class history records for a student to not current except the specified term"""
+        # Get all history records for the student
+        result = await db.execute(
+            select(StudentClassHistory).where(
+                StudentClassHistory.student_id == student_id,
+                StudentClassHistory.school_id == school_id,
+                StudentClassHistory.is_deleted == False
+            )
+        )
+        histories = result.scalars().all()
+
+        for history in histories:
+            if history.term_id == term_id:
+                history.is_current = True
+                history.status = ClassHistoryStatus.ACTIVE
+            else:
+                history.is_current = False
+                if history.status == ClassHistoryStatus.ACTIVE:
+                    history.status = ClassHistoryStatus.COMPLETED
+
+        await db.commit()

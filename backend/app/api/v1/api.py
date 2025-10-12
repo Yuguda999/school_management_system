@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import all endpoint routers
-from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates
+from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, materials
 
 api_router = APIRouter()
 
@@ -22,6 +22,7 @@ api_router.include_router(grades.router, prefix="/grades", tags=["grades"])
 api_router.include_router(communication.router, prefix="/communication", tags=["communication"])
 api_router.include_router(teacher_invitations.router, prefix="/teacher-invitations", tags=["teacher-invitations"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
+api_router.include_router(materials.router, prefix="/materials", tags=["materials"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(platform_admin.router, prefix="/platform", tags=["platform-admin"])
@@ -42,9 +43,11 @@ api_router.include_router(grades.router, prefix="/school/{school_code}/grades", 
 api_router.include_router(communication.router, prefix="/school/{school_code}/communication", tags=["school-communication"])
 api_router.include_router(teacher_invitations.router, prefix="/school/{school_code}/teacher-invitations", tags=["school-teacher-invitations"])
 api_router.include_router(documents.router, prefix="/school/{school_code}/documents", tags=["school-documents"])
+api_router.include_router(materials.router, prefix="/school/{school_code}/materials", tags=["school-materials"])
 api_router.include_router(dashboard.router, prefix="/school/{school_code}/dashboard", tags=["school-dashboard"])
 api_router.include_router(reports.router, prefix="/school/{school_code}/reports", tags=["school-reports"])
 api_router.include_router(report_card_templates.router, prefix="/school/{school_code}/templates", tags=["school-report-card-templates"])
+api_router.include_router(student_portal.router, prefix="/school/{school_code}/students/me", tags=["school-student-portal"])
 
 
 @api_router.get("/")

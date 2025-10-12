@@ -61,9 +61,19 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads/"
     allowed_extensions: str = "pdf,doc,docx,jpg,jpeg,png,gif"
 
+    # Teacher Materials Configuration
+    material_upload_dir: str = "uploads/materials/"
+    max_material_size: int = 52428800  # 50MB
+    allowed_material_types: str = "pdf,doc,docx,ppt,pptx,xls,xlsx,jpg,jpeg,png,gif,webp,mp4,mp3,wav,zip,txt,csv"
+    max_materials_per_teacher: int = 1000
+    teacher_storage_quota_mb: int = 5000  # 5GB per teacher
+    enable_material_preview: bool = True
+    enable_material_versioning: bool = True
+    material_retention_days: int = 365  # Keep deleted materials for 1 year
+
     # CORS
     allowed_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8080"
-    
+
     # Pagination
     default_page_size: int = 20
     max_page_size: int = 100
@@ -75,6 +85,10 @@ class Settings(BaseSettings):
     def get_allowed_extensions_list(self) -> List[str]:
         """Get allowed extensions as a list"""
         return [i.strip() for i in self.allowed_extensions.split(",")]
+
+    def get_allowed_material_types_list(self) -> List[str]:
+        """Get allowed material types as a list"""
+        return [i.strip() for i in self.allowed_material_types.split(",")]
 
     model_config = SettingsConfigDict(
         env_file=".env",

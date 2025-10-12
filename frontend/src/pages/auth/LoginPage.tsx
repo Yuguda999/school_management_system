@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { LoginCredentials } from '../../types';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SchoolSelectionModal from '../../components/auth/SchoolSelectionModal';
+import { useToast } from '../../hooks/useToast';
 
 const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,6 +14,7 @@ const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
 
   const { login, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool } = useAuth();
+  const { showError } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -56,20 +58,32 @@ const LoginPage: React.FC = () => {
       // Use the specific error message from the backend
       const errorMessage = err.response?.data?.detail;
 
+      // Handle specific error cases with both inline error and toast notification
       if (errorMessage) {
         setError(errorMessage);
+        showError(errorMessage, 'Login Failed');
       } else {
         // Provide more specific fallback messages based on the error type
         if (err.response?.status === 401) {
-          setError('Invalid email or password. Please check your credentials and try again.');
+          const message = 'Invalid email or password. Please check your credentials and try again.';
+          setError(message);
+          showError(message, 'Login Failed');
         } else if (err.response?.status === 403) {
-          setError('Access denied. Please use your school\'s login page.');
+          const message = 'Access denied. Please use your school\'s login page.';
+          setError(message);
+          showError(message, 'Access Denied');
         } else if (err.response?.status === 500) {
-          setError('Server error occurred. Please try again later.');
+          const message = 'Server error occurred. Please try again later.';
+          setError(message);
+          showError(message, 'Server Error');
         } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-          setError('Unable to connect to the server. Please check your internet connection.');
+          const message = 'Unable to connect to the server. Please check your internet connection.';
+          setError(message);
+          showError(message, 'Network Error');
         } else {
-          setError('An unexpected error occurred. Please try again.');
+          const message = 'An unexpected error occurred. Please try again.';
+          setError(message);
+          showError(message, 'Login Failed');
         }
       }
     } finally {

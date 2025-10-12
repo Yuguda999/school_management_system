@@ -15,6 +15,7 @@ import {
   DocumentTextIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  FolderIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -53,7 +54,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
   const navigation: NavigationItem[] = [
     {
       name: 'Dashboard',
-      href: `/${schoolCode}/dashboard`,
+      href: user?.role === 'student' ? `/${schoolCode}/student/dashboard` : `/${schoolCode}/dashboard`,
       icon: HomeIcon,
       roles: ['school_owner', 'school_admin', 'teacher', 'student', 'parent'],
       description: 'School overview and analytics'
@@ -88,6 +89,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
       description: 'Subject management'
     },
     {
+      name: 'Materials',
+      href: `/${schoolCode}/teacher/materials`,
+      icon: FolderIcon,
+      roles: ['teacher'],
+      description: 'Educational materials management'
+    },
+    {
       name: 'Fees',
       href: `/${schoolCode}/fees`,
       icon: CurrencyDollarIcon,
@@ -96,7 +104,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
     },
     {
       name: 'Grades',
-      href: `/${schoolCode}/grades`,
+      href: user?.role === 'student' ? `/${schoolCode}/student/grades` : `/${schoolCode}/grades`,
       icon: ChartBarIcon,
       roles: ['school_owner', 'school_admin', 'teacher', 'student', 'parent'],
       description: 'Academic performance'

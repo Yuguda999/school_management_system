@@ -69,10 +69,12 @@ class User(TenantBaseModel):
     school = relationship("School", back_populates="users")
     owned_schools = relationship("SchoolOwnership", foreign_keys="SchoolOwnership.user_id", back_populates="user")
     taught_classes = relationship("Class", back_populates="teacher")
-    children = relationship("Student", back_populates="parent")
+    student = relationship("Student", foreign_keys="Student.user_id", back_populates="user", uselist=False)
+    children = relationship("Student", foreign_keys="Student.parent_id", back_populates="parent")
     sent_messages = relationship("Message", foreign_keys="Message.sender_id", back_populates="sender")
     received_messages = relationship("Message", foreign_keys="Message.recipient_id", back_populates="recipient")
     subjects = relationship("Subject", secondary="teacher_subjects", back_populates="teachers")
+    uploaded_materials = relationship("TeacherMaterial", foreign_keys="TeacherMaterial.uploaded_by", back_populates="uploader")
     
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

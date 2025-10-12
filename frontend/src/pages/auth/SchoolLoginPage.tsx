@@ -7,6 +7,7 @@ import { LoginCredentials } from '../../types';
 import { schoolService, SchoolPublicInfo } from '../../services/schoolService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SchoolSelectionModal from '../../components/auth/SchoolSelectionModal';
+import { useToast } from '../../hooks/useToast';
 
 const SchoolLoginPage: React.FC = () => {
   const { schoolCode } = useParams<{ schoolCode: string }>();
@@ -18,6 +19,7 @@ const SchoolLoginPage: React.FC = () => {
   const [schoolNotFound, setSchoolNotFound] = useState(false);
 
   const { schoolLogin, studentLogin, user, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool, clearAuthState } = useAuth();
+  const { showError, showWarning } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -166,33 +168,50 @@ const SchoolLoginPage: React.FC = () => {
       // Navigation will be handled by useEffect
     } catch (error: any) {
       console.error('Login error:', error);
-      
-      // Handle specific error cases
+
+      // Handle specific error cases with both inline error and toast notification
       if (error.response?.status === 404) {
-        setError('School not found or inactive. Please check the school code.');
+        const message = 'School not found or inactive. Please check the school code.';
+        setError(message);
+        showError(message, 'School Not Found');
       } else if (error.response?.status === 401) {
         const errorDetail = error.response?.data?.detail;
         if (errorDetail === 'Incorrect email or password') {
-          setError('Incorrect email or password. Please verify your credentials.');
+          const message = 'Incorrect email or password. Please verify your credentials.';
+          setError(message);
+          showError(message, 'Login Failed');
         } else if (errorDetail === 'User account is inactive') {
-          setError('Your account is inactive. Please contact your school administrator.');
+          const message = 'Your account is inactive. Please contact your school administrator.';
+          setError(message);
+          showError(message, 'Account Inactive');
         } else {
-          setError('Authentication failed. Please check your credentials.');
+          const message = 'Authentication failed. Please check your credentials.';
+          setError(message);
+          showError(message, 'Login Failed');
         }
       } else if (error.response?.status === 403) {
         // Clear any partial authentication state
         clearAuthState();
         const errorDetail = error.response?.data?.detail || 'You do not have access to this school. Please contact your school administrator.';
         setError(errorDetail);
+        showError(errorDetail, 'Access Denied');
       } else if (error.response?.status === 500) {
-        setError('Server error occurred. Please try again later.');
+        const message = 'Server error occurred. Please try again later.';
+        setError(message);
+        showError(message, 'Server Error');
       } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-        setError('Network error. Please check your internet connection and try again.');
+        const message = 'Network error. Please check your internet connection and try again.';
+        setError(message);
+        showError(message, 'Network Error');
       } else if (error.message === 'No refresh token') {
         // This happens when API interceptor tries to refresh token for auth endpoints
-        setError('Authentication failed. Please check your credentials.');
+        const message = 'Authentication failed. Please check your credentials.';
+        setError(message);
+        showError(message, 'Login Failed');
       } else {
-        setError(error.response?.data?.detail || 'Login failed. Please try again.');
+        const message = error.response?.data?.detail || 'Login failed. Please try again.';
+        setError(message);
+        showError(message, 'Login Failed');
       }
     } finally {
       setIsLoading(false);
@@ -210,12 +229,12 @@ const SchoolLoginPage: React.FC = () => {
       // Navigation will be handled by useEffect when user state updates
     } catch (err: any) {
       console.error('❌ Student login failed:', err);
-      
+
       // Clear any partial authentication state on errors
       if (err.response?.status === 403) {
         clearAuthState();
       }
-      
+
       const errorMessage = err.response?.data?.detail;
       console.log('🎓 Student login error details:', {
         status: err.response?.status,
@@ -224,21 +243,35 @@ const SchoolLoginPage: React.FC = () => {
         message: err.message,
         errorMessage
       });
-      
+
+      // Handle specific error cases with both inline error and toast notification
       if (errorMessage) {
         setError(errorMessage);
+        showError(errorMessage, 'Student Login Failed');
       } else if (err.response?.status === 401) {
-        setError('Invalid admission number or first name.');
+        const message = 'Invalid admission number or first name. Please check your credentials.';
+        setError(message);
+        showError(message, 'Login Failed');
       } else if (err.response?.status === 403) {
-        setError('You do not have access to this school. Please contact your school administrator.');
+        const message = 'You do not have access to this school. Please contact your school administrator.';
+        setError(message);
+        showError(message, 'Access Denied');
       } else if (err.response?.status === 404) {
-        setError('School not found or inactive. Please check the school code.');
+        const message = 'School not found or inactive. Please check the school code.';
+        setError(message);
+        showError(message, 'School Not Found');
       } else if (err.response?.status === 500) {
-        setError('Server error occurred. Please try again later.');
+        const message = 'Server error occurred. Please try again later.';
+        setError(message);
+        showError(message, 'Server Error');
       } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-        setError('Unable to connect to the server. Please check your internet connection.');
+        const message = 'Unable to connect to the server. Please check your internet connection.';
+        setError(message);
+        showError(message, 'Network Error');
       } else {
-        setError(`An unexpected error occurred: ${err.message || 'Please try again.'}`);
+        const message = `An unexpected error occurred: ${err.message || 'Please try again.'}`;
+        setError(message);
+        showError(message, 'Login Failed');
       }
     } finally {
       setIsLoading(false);

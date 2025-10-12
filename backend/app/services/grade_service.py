@@ -764,7 +764,108 @@ class GradeService:
                 grade_response.subject_name = grade.subject.name
             if grade.exam:
                 grade_response.exam_name = grade.exam.name
+                grade_response.exam_type = grade.exam.exam_type
             grade_responses.append(grade_response)
+
+        # Group grades by subject and calculate subject-level summaries
+        from app.schemas.grade import SubjectGradeSummary
+        subject_map = {}
+        for grade in grades:
+            subject_id = grade.subject_id
+            if subject_id not in subject_map:
+                subject_map[subject_id] = {
+                    'subject_id': subject_id,
+                    'subject_name': grade.subject.name if grade.subject else 'Unknown',
+                    'grades': []
+                }
+            subject_map[subject_id]['grades'].append(grade)
+
+        # Calculate subject summaries with positions
+        subject_summaries = []
+        for subject_id, subject_data in subject_map.items():
+            subject_grades = subject_data['grades']
+            subject_total_score = sum(g.score for g in subject_grades)
+            subject_total_marks = sum(g.total_marks for g in subject_grades)
+            subject_avg_percentage = (subject_total_score / subject_total_marks * 100) if subject_total_marks > 0 else 0
+            subject_grade = GradeService.calculate_grade(subject_avg_percentage)
+
+            # Calculate position for this subject among classmates
+            subject_position = None
+            subject_total_students = None
+            if student.current_class_id:
+                # Get all students in the same class
+                class_students_result = await db.execute(
+                    select(Student.id).where(
+                        Student.current_class_id == student.current_class_id,
+                        Student.school_id == school_id,
+                        Student.is_deleted == False
+                    )
+                )
+                class_student_ids = [row[0] for row in class_students_result.fetchall()]
+                subject_total_students = len(class_student_ids)
+
+                # Calculate average for each student in this subject
+                student_subject_averages = []
+                for class_student_id in class_student_ids:
+                    student_subject_grades_result = await db.execute(
+                        select(
+                            func.sum(Grade.score).label('total_score'),
+                            func.sum(Grade.total_marks).label('total_possible')
+                        ).where(
+                            Grade.student_id == class_student_id,
+                            Grade.subject_id == subject_id,
+                            Grade.term_id == term_id,
+                            Grade.school_id == school_id,
+                            Grade.is_deleted == False
+                        )
+                    )
+                    result = student_subject_grades_result.first()
+                    if result and result.total_possible and result.total_possible > 0:
+                        avg_percentage = (result.total_score / result.total_possible) * 100
+                        student_subject_averages.append((class_student_id, avg_percentage))
+
+                # Sort by percentage (descending) and find position
+                student_subject_averages.sort(key=lambda x: x[1], reverse=True)
+                for i, (sid, _) in enumerate(student_subject_averages):
+                    if sid == student_id:
+                        subject_position = i + 1
+                        break
+
+            # Convert subject grades to GradeResponse
+            subject_grade_responses = []
+            for grade in subject_grades:
+                grade_response = GradeResponse.from_orm(grade)
+                grade_response.score = float(grade.score)
+                grade_response.total_marks = float(grade.total_marks)
+                grade_response.percentage = float(grade.percentage) if grade.percentage else 0.0
+                if grade.subject:
+                    grade_response.subject_name = grade.subject.name
+                if grade.exam:
+                    grade_response.exam_name = grade.exam.name
+                    grade_response.exam_type = grade.exam.exam_type
+                subject_grade_responses.append(grade_response)
+
+            subject_summaries.append(SubjectGradeSummary(
+                subject_id=subject_id,
+                subject_name=subject_data['subject_name'],
+                grades=subject_grade_responses,
+                average_score=float(subject_total_score),
+                average_percentage=float(subject_avg_percentage),
+                grade=subject_grade, position=subject_position,
+                total_students=subject_total_students
+            ))
+
+        # Get total students in class for overall position context
+        total_students_in_class = None
+        if student.current_class_id:
+            total_students_result = await db.execute(
+                select(func.count(Student.id)).where(
+                    Student.current_class_id == student.current_class_id,
+                    Student.school_id == school_id,
+                    Student.is_deleted == False
+                )
+            )
+            total_students_in_class = total_students_result.scalar() or 0
 
         return StudentGradesSummary(
             student_id=student_id,
@@ -780,7 +881,9 @@ class GradeService:
             overall_percentage=float(overall_percentage),
             overall_grade=overall_grade,
             position=position,
-            grades=grade_responses
+            total_students=total_students_in_class,
+            grades=grade_responses,
+            subject_summaries=subject_summaries
         )
 
     @staticmethod

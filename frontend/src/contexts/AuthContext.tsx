@@ -92,12 +92,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const token = localStorage.getItem('access_token');
         if (token) {
+          // Restore login source and school code from localStorage
+          const storedLoginSource = localStorage.getItem('login_source') as 'platform' | 'school' | null;
+          const storedSchoolCode = localStorage.getItem('school_code');
+
+          if (storedLoginSource) {
+            setLoginSource(storedLoginSource);
+          }
+          if (storedSchoolCode) {
+            setSchoolCode(storedSchoolCode);
+          }
+
           const userData = await authService.getCurrentUser();
           setUser(userData);
         }
       } catch (error) {
         console.error('Failed to initialize auth:', error);
+        // Clear all auth-related data on initialization failure
         localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('login_source');
+        localStorage.removeItem('school_code');
       } finally {
         setLoading(false);
       }
@@ -156,9 +171,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Always store the access token for API requests
       localStorage.setItem('access_token', response.access_token);
 
-      // Track login source
+      // Track login source and persist to localStorage
       setLoginSource('platform');
       setSchoolCode(null);
+      localStorage.setItem('login_source', 'platform');
+      localStorage.removeItem('school_code');
 
       // Handle school selection requirement
       if (response.requires_school_selection && response.available_schools) {
@@ -224,9 +241,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Always store the access token for API requests
       localStorage.setItem('access_token', response.access_token);
 
-      // Track login source
+      // Track login source and persist to localStorage
       setLoginSource('school');
       setSchoolCode(schoolCode);
+      localStorage.setItem('login_source', 'school');
+      localStorage.setItem('school_code', schoolCode);
 
       // Handle school selection requirement
       if (response.requires_school_selection && response.available_schools) {
@@ -248,6 +267,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         is_verified: true,
         profile_completed: response.profile_completed,
         school_id: response.school_id,
+        school_code: schoolCode, // Add school code to user object
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -255,7 +275,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🏫 AuthContext: Setting user state:', {
         id: user.id,
         role: user.role,
-        school_id: user.school_id
+        school_id: user.school_id,
+        school_code: user.school_code
       });
 
       setUser(user);
@@ -299,13 +320,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Always store the access token for API requests
       localStorage.setItem('access_token', response.access_token);
 
-      // Track login source
+      // Track login source and persist to localStorage
       if (schoolCode) {
         setLoginSource('school');
         setSchoolCode(schoolCode);
+        localStorage.setItem('login_source', 'school');
+        localStorage.setItem('school_code', schoolCode);
       } else {
         setLoginSource('platform');
         setSchoolCode(null);
+        localStorage.setItem('login_source', 'platform');
+        localStorage.removeItem('school_code');
       }
 
       // Convert response to User object
@@ -320,6 +345,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         is_verified: true,
         profile_completed: response.profile_completed,
         school_id: response.school_id,
+        school_code: schoolCode, // Add school code to user object
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -327,6 +353,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🎓 AuthContext: Setting user state:', {
         id: user.id,
         school_id: user.school_id,
+        school_code: user.school_code,
         role: user.role
       });
 
@@ -404,17 +431,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    // Store login source before clearing state
-    const currentLoginSource = loginSource;
-    const currentSchoolCode = schoolCode;
-    
+    // Get login source and school code from localStorage (more reliable than state)
+    const currentLoginSource = localStorage.getItem('login_source');
+    const currentSchoolCode = localStorage.getItem('school_code');
+
+    // Clear all authentication data
     authService.logout();
     setUser(null);
     setRequiresSchoolSelection(false);
     setAvailableSchools([]);
     setLoginSource(null);
     setSchoolCode(null);
-    
+
+    // Clear persisted login tracking
+    localStorage.removeItem('login_source');
+    localStorage.removeItem('school_code');
+
     // Redirect to appropriate login page
     if (currentLoginSource === 'school' && currentSchoolCode) {
       window.location.href = `/${currentSchoolCode}/login`;
@@ -430,6 +462,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setAvailableSchools([]);
     setLoginSource(null);
     setSchoolCode(null);
+
+    // Clear persisted login tracking
+    localStorage.removeItem('login_source');
+    localStorage.removeItem('school_code');
   };
 
   const updateUser = async () => {

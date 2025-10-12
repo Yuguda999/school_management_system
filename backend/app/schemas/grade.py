@@ -101,9 +101,10 @@ class GradeResponse(GradeBase):
     student_name: Optional[str] = None
     subject_name: Optional[str] = None
     exam_name: Optional[str] = None
+    exam_type: Optional[ExamType] = None
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -130,6 +131,21 @@ class BulkGradeCreate(BaseModel):
         return v
 
 
+class SubjectGradeSummary(BaseModel):
+    """Summary of grades for a single subject"""
+    subject_id: str
+    subject_name: str
+    grades: List[GradeResponse]
+    average_score: float
+    average_percentage: float
+    grade: Optional[GradeScale] = None
+    position: Optional[int] = None
+    total_students: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class StudentGradesSummary(BaseModel):
     student_id: str
     student_name: str
@@ -144,8 +160,10 @@ class StudentGradesSummary(BaseModel):
     overall_percentage: float
     overall_grade: Optional[GradeScale] = None
     position: Optional[int] = None
+    total_students: Optional[int] = None
     grades: List[GradeResponse]
-    
+    subject_summaries: Optional[List[SubjectGradeSummary]] = None
+
     class Config:
         from_attributes = True
 

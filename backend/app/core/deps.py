@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,12 @@ security = HTTPBearer()
 
 @dataclass
 class SchoolContext:
-    """Context object that holds current school information from JWT token"""
+    """Context object that holds current school information from JWT token
+
+    The user field can be either a User or Student object, depending on who is authenticated.
+    """
     school_id: str
-    user: User
+    user: Union[User, 'Student']  # Can be User or Student
     school: Optional[School] = None
 
 
@@ -77,20 +80,66 @@ async def get_school_context(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)
 ) -> SchoolContext:
-    """Get current school context from JWT token"""
+    """Get current school context from JWT token - handles both User and Student"""
+    import logging
+    logger = logging.getLogger(__name__)
+
     token = credentials.credentials
     payload = verify_token(token)
 
     user_id: str = payload.get("sub")
     school_id: str = payload.get("school_id")
+    role: str = payload.get("role")
 
     if user_id is None:
+        logger.warning("❌ No user_id in JWT token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
         )
 
-    # Get user from database
+    # Import Student model here to avoid circular imports
+    from app.models.student import Student, StudentStatus
+
+    # Check if this is a student based on role in JWT
+    if role == UserRole.STUDENT:
+        logger.debug(f"🔍 Authenticating student: {user_id}")
+
+        # Get student from database
+        result = await db.execute(select(Student).where(Student.id == user_id, Student.is_deleted == False))
+        student = result.scalar_one_or_none()
+
+        if student is None:
+            logger.warning(f"❌ Student not found in database: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Student not found",
+            )
+
+        if student.status != StudentStatus.ACTIVE:
+            logger.warning(f"❌ Student account inactive: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Student account is inactive",
+            )
+
+        # Use school_id from JWT token if available, otherwise fall back to student's school_id
+        current_school_id = school_id or student.school_id
+
+        if not current_school_id:
+            logger.warning(f"❌ No school context for student: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No school context available",
+            )
+
+        logger.debug(f"✅ Student authenticated: {student.full_name} (school: {current_school_id})")
+
+        # Return SchoolContext with the Student object
+        # SchoolContext now accepts Union[User, Student] for the user field
+        return SchoolContext(school_id=current_school_id, user=student)
+
+    # Get regular user from database
     result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
     user = result.scalar_one_or_none()
 

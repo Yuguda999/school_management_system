@@ -16,7 +16,7 @@ import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import TermSwitcher from '../terms/TermSwitcher';
 import SchoolManagement from './SchoolManagement';
 
-type SchoolSettingsTab = 'overview' | 'schools' | 'terms' | 'academic' | 'general';
+type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general';
 
 const SchoolSettings: React.FC = () => {
   const { user } = useAuth();
@@ -54,16 +54,10 @@ const SchoolSettings: React.FC = () => {
       description: 'Manage your schools'
     }] : []),
     {
-      id: 'terms' as SchoolSettingsTab,
-      name: 'Terms',
-      icon: CalendarIcon,
-      description: 'Manage academic terms'
-    },
-    {
       id: 'academic' as SchoolSettingsTab,
       name: 'Academic',
       icon: AcademicCapIcon,
-      description: 'Academic year and session settings'
+      description: 'Academic year and term settings'
     },
     {
       id: 'general' as SchoolSettingsTab,
@@ -108,7 +102,7 @@ const SchoolSettings: React.FC = () => {
                       Create New Term
                     </button>
                     <button
-                      onClick={() => setActiveTab('terms')}
+                      onClick={() => window.location.href = `/${user?.school?.code}/terms`}
                       className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       <CalendarIcon className="h-4 w-4 mr-2" />
@@ -160,38 +154,6 @@ const SchoolSettings: React.FC = () => {
       case 'schools':
         return user?.role === 'school_owner' ? <SchoolManagement /> : null;
 
-      case 'terms':
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                  Term Management
-                </h3>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Create, edit, and manage academic terms for your school
-                </p>
-              </div>
-              <button
-                onClick={handleCreateTerm}
-                className="btn btn-primary"
-              >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Create Term
-              </button>
-            </div>
-
-            <CurrentTermIndicator variant="banner" />
-
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <TermList
-                onEdit={handleEditTerm}
-                onRefresh={refresh}
-              />
-            </div>
-          </div>
-        );
-
       case 'academic':
         return (
           <div className="space-y-6">
@@ -206,10 +168,24 @@ const SchoolSettings: React.FC = () => {
 
             {/* Current Academic Session */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                Current Academic Session
-              </h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                  Current Academic Session
+                </h4>
+                <button
+                  onClick={() => window.location.href = `/${user?.school?.code}/terms`}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  Manage Terms →
+                </button>
+              </div>
               <CurrentTermIndicator variant="card" />
+              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <strong>Note:</strong> For comprehensive term management including creating, editing, and archiving terms,
+                  please use the dedicated <a href={`/${user?.school?.code}/terms`} className="underline font-medium">Term Management</a> page.
+                </p>
+              </div>
             </div>
 
             {/* Academic Year Configuration */}

@@ -18,14 +18,17 @@ import { Subject, CreateSubjectForm, TeacherSubjectAssignment } from '../../type
 import { academicService } from '../../services/academicService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 import { usePermissions } from '../../hooks/usePermissions';
 import SubjectForm from './SubjectForm';
 import SubjectTeacherAssignmentModal from './SubjectTeacherAssignmentModal';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const SubjectsPage: React.FC = () => {
   const { user } = useAuth();
   const { canManageSubjects } = usePermissions();
   const { showSuccess, showError } = useToast();
+  const { confirm, confirmState, handleClose, handleConfirm } = useConfirm();
   const navigate = useNavigate();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +102,15 @@ const SubjectsPage: React.FC = () => {
   };
 
   const handleDeleteSubject = async (subject: Subject) => {
-    if (!window.confirm(`Are you sure you want to delete "${subject.name}"?`)) {
+    const confirmed = await confirm({
+      title: 'Delete Subject',
+      message: `Are you sure you want to delete "${subject.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -459,6 +470,18 @@ const SubjectsPage: React.FC = () => {
           }}
         />
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        onClose={handleClose}
+        onConfirm={handleConfirm}
+        title={confirmState.title}
+        message={confirmState.message || ''}
+        confirmText={confirmState.confirmText}
+        cancelText={confirmState.cancelText}
+        variant={confirmState.variant}
+      />
     </div>
   );
 };

@@ -1,8 +1,9 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, EmailStr, validator
 from datetime import date, datetime
-from app.models.student import StudentStatus
+from app.models.student import StudentStatus, ClassHistoryStatus
 from app.models.user import Gender
+from app.models.grade import GradeScale
 
 
 class StudentBase(BaseModel):
@@ -196,3 +197,88 @@ class CSVStudentRow(BaseModel):
 
     # Additional Information
     notes: Optional[str] = None
+
+
+# Student Class History Schemas
+class StudentClassHistoryBase(BaseModel):
+    student_id: str
+    class_id: str
+    term_id: str
+    academic_session: str
+    enrollment_date: date
+    completion_date: Optional[date] = None
+    is_current: bool = False
+    status: ClassHistoryStatus
+    promoted_to_class_id: Optional[str] = None
+    promotion_date: Optional[date] = None
+    remarks: Optional[str] = None
+
+
+class StudentClassHistoryCreate(StudentClassHistoryBase):
+    pass
+
+
+class StudentClassHistoryUpdate(BaseModel):
+    completion_date: Optional[date] = None
+    is_current: Optional[bool] = None
+    status: Optional[ClassHistoryStatus] = None
+    promoted_to_class_id: Optional[str] = None
+    promotion_date: Optional[date] = None
+    remarks: Optional[str] = None
+
+
+class StudentClassHistoryResponse(StudentClassHistoryBase):
+    id: str
+    student_name: Optional[str] = None
+    class_name: Optional[str] = None
+    term_name: Optional[str] = None
+    promoted_to_class_name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Student-specific schemas for portal access
+class StudentProfileResponse(BaseModel):
+    """Complete student profile for student portal"""
+    id: str
+    admission_number: str
+    first_name: str
+    last_name: str
+    middle_name: Optional[str] = None
+    full_name: str
+    date_of_birth: date
+    age: int
+    gender: Gender
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+
+    # Current academic info
+    current_class_id: Optional[str] = None
+    current_class_name: Optional[str] = None
+    status: StudentStatus
+    admission_date: date
+
+    # Parent/Guardian info (limited)
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PerformanceTrendsResponse(BaseModel):
+    """Performance trends across multiple terms"""
+    student_id: str
+    student_name: str
+    terms: List[Dict[str, Any]]  # List of term data with averages, positions, etc.
+    overall_average: float
+    best_term: Optional[Dict[str, Any]] = None
+    improvement_trend: str  # "improving", "declining", "stable"
+    subject_performance: List[Dict[str, Any]]  # Performance by subject across terms
+
+    class Config:
+        from_attributes = True

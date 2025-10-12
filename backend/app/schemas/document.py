@@ -99,14 +99,16 @@ class DocumentResponse(DocumentBase):
             'is_pdf': obj.is_pdf,
         }
         
-        # Add related data if available
-        if hasattr(obj, 'uploader') and obj.uploader:
-            data['uploader_name'] = obj.uploader.full_name
-        if hasattr(obj, 'verifier') and obj.verifier:
-            data['verifier_name'] = obj.verifier.full_name
-        if hasattr(obj, 'student') and obj.student:
-            data['student_name'] = obj.student.full_name
-            
+        # Add related data if available (check if loaded to avoid lazy loading)
+        obj_dict = obj.__dict__
+
+        if 'uploader' in obj_dict and obj_dict['uploader'] is not None:
+            data['uploader_name'] = obj_dict['uploader'].full_name
+        if 'verifier' in obj_dict and obj_dict['verifier'] is not None:
+            data['verifier_name'] = obj_dict['verifier'].full_name
+        if 'student' in obj_dict and obj_dict['student'] is not None:
+            data['student_name'] = obj_dict['student'].full_name
+
         return cls(**data)
 
 

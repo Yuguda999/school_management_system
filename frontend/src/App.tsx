@@ -16,7 +16,9 @@ import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileComplet
 import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
+import MaterialsPage from './pages/MaterialsPage';
 import StudentDashboardPage from './pages/students/StudentDashboardPage';
+import StudentGradesPage from './pages/students/StudentGradesPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import StudentsPage from './pages/students/StudentsPage';
 import StudentDetailPage from './pages/students/StudentDetailPage';
@@ -110,6 +112,16 @@ function App() {
           }
         />
 
+        {/* Student Grades */}
+        <Route
+          path="student/grades"
+          element={
+            <SchoolRoute allowedRoles={['student']}>
+              <StudentGradesPage />
+            </SchoolRoute>
+          }
+        />
+
         {/* Teacher Profile */}
         <Route
           path="teacher/profile"
@@ -126,6 +138,16 @@ function App() {
           element={
             <SchoolRoute allowedRoles={['teacher']}>
               <TeacherSubjectsPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Teacher Materials */}
+        <Route
+          path="teacher/materials"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <MaterialsPage />
             </SchoolRoute>
           }
         />

@@ -226,6 +226,56 @@ class StudentService {
       responseType: 'blob',
     });
   }
+
+  // Student Portal Methods (for authenticated students)
+  async getMyProfile(): Promise<any> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    return apiService.get(buildSchoolApiUrl(schoolCode, 'students/me/profile'));
+  }
+
+  async getMyClassHistory(): Promise<any[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    return apiService.get(buildSchoolApiUrl(schoolCode, 'students/me/class-history'));
+  }
+
+  async getMyGrades(termId?: string): Promise<any[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    const params = termId ? `?term_id=${termId}` : '';
+    return apiService.get(buildSchoolApiUrl(schoolCode, `students/me/grades${params}`));
+  }
+
+  async getMyGradesSummary(termId: string): Promise<any> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    return apiService.get(buildSchoolApiUrl(schoolCode, `students/me/grades/summary?term_id=${termId}`));
+  }
+
+  async getMyPerformanceTrends(): Promise<any> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    return apiService.get(buildSchoolApiUrl(schoolCode, 'students/me/performance/trends'));
+  }
+
+  async getMyTerms(): Promise<any[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    return apiService.get(buildSchoolApiUrl(schoolCode, 'students/me/terms'));
+  }
 }
 
 export const studentService = new StudentService();

@@ -7,7 +7,7 @@ from datetime import date, datetime
 import uuid
 
 from app.models.academic import Enrollment, Subject, Class, Term
-from app.models.student import Student
+from app.models.student import Student, StudentClassHistory, ClassHistoryStatus
 from app.schemas.academic import EnrollmentCreate, EnrollmentResponse
 
 
@@ -192,6 +192,11 @@ class EnrollmentService:
             for enrollment in enrollments:
                 await db.refresh(enrollment)
 
+            # Create class history records for students
+            await EnrollmentService._create_class_history_for_enrollments(
+                db, students, class_id, current_term, school_id
+            )
+
         return enrollments
 
     @staticmethod
@@ -370,3 +375,40 @@ class EnrollmentService:
         enrollment.is_deleted = True
         await db.commit()
         return True
+
+    @staticmethod
+    async def _create_class_history_for_enrollments(
+        db: AsyncSession,
+        students: List[Student],
+        class_id: str,
+        term: Term,
+        school_id: str
+    ) -> None:
+        """Helper method to create class history records for enrolled students"""
+        for student in students:
+            # Check if class history already exists for this student-term combination
+            existing_result = await db.execute(
+                select(StudentClassHistory).where(
+                    StudentClassHistory.student_id == student.id,
+                    StudentClassHistory.term_id == term.id,
+                    StudentClassHistory.school_id == school_id,
+                    StudentClassHistory.is_deleted == False
+                )
+            )
+            existing = existing_result.scalar_one_or_none()
+
+            if not existing:
+                # Create new class history record
+                history = StudentClassHistory(
+                    student_id=student.id,
+                    class_id=class_id,
+                    term_id=term.id,
+                    academic_session=term.academic_session,
+                    school_id=school_id,
+                    enrollment_date=date.today(),
+                    status=ClassHistoryStatus.ACTIVE,
+                    is_current=term.is_current
+                )
+                db.add(history)
+
+        await db.commit()

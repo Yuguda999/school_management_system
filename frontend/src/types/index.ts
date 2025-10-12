@@ -1010,3 +1010,232 @@ export interface Theme {
   primaryColor: string;
   secondaryColor: string;
 }
+
+// ============================================================================
+// Teacher Materials Management Types
+// ============================================================================
+
+export type MaterialType =
+  | 'pdf'
+  | 'document'
+  | 'presentation'
+  | 'spreadsheet'
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'archive'
+  | 'other';
+
+export type ShareType =
+  | 'all_students'
+  | 'class'
+  | 'individual_student'
+  | 'teacher'
+  | 'public';
+
+export type AccessType =
+  | 'view'
+  | 'download'
+  | 'preview';
+
+export interface TeacherMaterial {
+  id: string;
+  title: string;
+  description?: string;
+  material_type: MaterialType;
+  file_name: string;
+  original_file_name: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  school_id: string;
+  subject_id?: string;
+  grade_level?: string;
+  topic?: string;
+  tags: string[];
+  is_published: boolean;
+  published_at?: string;
+  scheduled_publish_at?: string;
+  version_number: number;
+  parent_material_id?: string;
+  is_current_version: boolean;
+  view_count: number;
+  download_count: number;
+  is_favorite: boolean;
+  created_at: string;
+  updated_at: string;
+
+  // Computed properties
+  file_size_mb?: number;
+  is_image?: boolean;
+  is_pdf?: boolean;
+  is_video?: boolean;
+  is_audio?: boolean;
+  can_preview?: boolean;
+
+  // Related data
+  uploader_name?: string;
+  subject_name?: string;
+  share_count?: number;
+}
+
+export interface MaterialCreate {
+  title: string;
+  description?: string;
+  material_type?: MaterialType;
+  subject_id?: string;
+  grade_level?: string;
+  topic?: string;
+  tags?: string[];
+  is_published?: boolean;
+  scheduled_publish_at?: string;
+}
+
+export interface MaterialUpdate {
+  title?: string;
+  description?: string;
+  material_type?: MaterialType;
+  subject_id?: string;
+  grade_level?: string;
+  topic?: string;
+  tags?: string[];
+  is_published?: boolean;
+  scheduled_publish_at?: string;
+  is_favorite?: boolean;
+}
+
+export interface MaterialUploadResponse {
+  message: string;
+  material_id: string;
+  file_url: string;
+  preview_url?: string;
+}
+
+export interface BulkUploadResponse {
+  message: string;
+  successful_uploads: MaterialUploadResponse[];
+  failed_uploads: Array<{ filename: string; error: string }>;
+  total_count: number;
+  success_count: number;
+  failure_count: number;
+}
+
+export interface MaterialShare {
+  id: string;
+  material_id: string;
+  school_id: string;
+  share_type: ShareType;
+  target_id?: string;
+  can_download: boolean;
+  can_view: boolean;
+  expires_at?: string;
+  shared_by: string;
+  shared_at: string;
+  created_at: string;
+
+  // Computed properties
+  is_expired?: boolean;
+
+  // Related data
+  sharer_name?: string;
+  target_name?: string;
+  material_title?: string;
+}
+
+export interface MaterialShareCreate {
+  material_id?: string;
+  share_type: ShareType;
+  target_id?: string;
+  can_download?: boolean;
+  can_view?: boolean;
+  expires_at?: string;
+}
+
+export interface BulkShareCreate {
+  material_ids: string[];
+  share_type: ShareType;
+  target_id?: string;
+  can_download?: boolean;
+  can_view?: boolean;
+  expires_at?: string;
+}
+
+export interface MaterialFolder {
+  id: string;
+  name: string;
+  description?: string;
+  parent_folder_id?: string;
+  teacher_id: string;
+  school_id: string;
+  color?: string;
+  icon?: string;
+  created_at: string;
+  updated_at: string;
+
+  // Related data
+  material_count?: number;
+  subfolder_count?: number;
+}
+
+export interface MaterialFolderCreate {
+  name: string;
+  description?: string;
+  parent_folder_id?: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface MaterialFolderUpdate {
+  name?: string;
+  description?: string;
+  parent_folder_id?: string;
+  color?: string;
+  icon?: string;
+}
+
+export interface MaterialStats {
+  total_materials: number;
+  published_materials: number;
+  draft_materials: number;
+  total_storage_mb: number;
+  materials_by_type: Record<string, number>;
+  materials_by_subject: Record<string, number>;
+  recent_uploads: TeacherMaterial[];
+  popular_materials: TeacherMaterial[];
+  total_views: number;
+  total_downloads: number;
+}
+
+export interface MaterialAnalytics {
+  material_id: string;
+  view_count: number;
+  download_count: number;
+  share_count: number;
+  unique_viewers: number;
+  recent_access: Array<Record<string, any>>;
+  access_by_date: Record<string, number>;
+}
+
+export interface StorageQuota {
+  used_mb: number;
+  quota_mb: number;
+  percentage_used: number;
+  remaining_mb: number;
+  material_count: number;
+  largest_materials: TeacherMaterial[];
+}
+
+export interface MaterialFilters {
+  subject_id?: string;
+  grade_level?: string;
+  material_type?: MaterialType;
+  tags?: string[];
+  search?: string;
+  is_published?: boolean;
+  is_favorite?: boolean;
+}
+
+export interface MaterialListParams extends MaterialFilters {
+  skip?: number;
+  limit?: number;
+}

@@ -124,6 +124,7 @@ class Subject(TenantBaseModel):
     grades = relationship("Grade", back_populates="subject")
     teachers = relationship("User", secondary=teacher_subject_association, back_populates="subjects")
     classes = relationship("Class", secondary=class_subject_association, back_populates="subjects")
+    materials = relationship("TeacherMaterial", back_populates="subject")
     
     def __repr__(self):
         return f"<Subject(id={self.id}, name={self.name}, code={self.code})>"
