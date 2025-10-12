@@ -99,9 +99,16 @@ const TeacherSetupPage: React.FC = () => {
 
       showSuccess('Welcome to the team! Your account has been set up successfully.');
 
-      // Redirect based on profile completion status
+      // Get school code from invitation or user data
+      const schoolCode = invitation?.school_code || response.school_code || localStorage.getItem('school_code');
+
+      // Redirect based on profile completion status with school code
       if (response.profile_completed) {
-        navigate('/teacher/dashboard');
+        if (schoolCode) {
+          navigate(`/${schoolCode}/teacher/dashboard`);
+        } else {
+          navigate('/teacher/dashboard');
+        }
       } else {
         navigate('/teacher/complete-profile');
       }

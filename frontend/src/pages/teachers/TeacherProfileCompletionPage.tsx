@@ -8,13 +8,23 @@ const TeacherProfileCompletionPage: React.FC = () => {
   const { user } = useAuth();
 
   const handleProfileComplete = () => {
-    // Redirect to teacher dashboard after profile completion
-    navigate('/teacher/dashboard');
+    // Redirect to teacher dashboard after profile completion with school code
+    const schoolCode = user?.school?.code || user?.school_code || localStorage.getItem('school_code');
+    if (schoolCode) {
+      navigate(`/${schoolCode}/teacher/dashboard`);
+    } else {
+      navigate('/teacher/dashboard');
+    }
   };
 
   // If user is not a teacher, redirect to regular dashboard
   if (user && user.role !== 'teacher') {
-    navigate('/dashboard');
+    const schoolCode = user.school?.code || user.school_code || localStorage.getItem('school_code');
+    if (schoolCode) {
+      navigate(`/${schoolCode}/dashboard`);
+    } else {
+      navigate('/dashboard');
+    }
     return null;
   }
 

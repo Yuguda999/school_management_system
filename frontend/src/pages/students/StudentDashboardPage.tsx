@@ -23,11 +23,17 @@ const StudentDashboardPage: React.FC = () => {
 
   useEffect(() => {
     if (user && user.role !== 'student') {
-      navigate('/dashboard');
+      // Redirect non-students to the school dashboard with school code
+      const userSchoolCode = user.school?.code || user.school_code || schoolCode;
+      if (userSchoolCode) {
+        navigate(`/${userSchoolCode}/dashboard`);
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       loadDashboardData();
     }
-  }, [user, navigate]);
+  }, [user, navigate, schoolCode]);
 
   const loadDashboardData = async () => {
     try {

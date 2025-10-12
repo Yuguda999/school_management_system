@@ -210,6 +210,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const completeUserData = await authService.getCurrentUser();
         console.log('🏫 AuthContext: Complete user data with school:', completeUserData);
         setUser(completeUserData);
+
+        // Store school code in localStorage
+        const schoolCodeToStore = completeUserData.school?.code || completeUserData.school_code;
+        if (schoolCodeToStore) {
+          localStorage.setItem('school_code', schoolCodeToStore);
+        }
       } catch (error) {
         console.error('🏫 AuthContext: Failed to fetch complete user data:', error);
         // Continue with basic user data if complete data fetch fails
@@ -288,11 +294,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const completeUserData = await authService.getCurrentUser();
         console.log('🏫 AuthContext: Complete user data with school:', completeUserData);
         setUser(completeUserData);
+
+        // Store school code in localStorage
+        const schoolCodeToStore = completeUserData.school?.code || completeUserData.school_code || schoolCode;
+        if (schoolCodeToStore) {
+          localStorage.setItem('school_code', schoolCodeToStore);
+        }
       } catch (error) {
         console.error('🏫 AuthContext: Failed to fetch complete user data:', error);
         // Continue with basic user data if complete data fetch fails
       }
-      
+
       console.log('🏫 AuthContext: School login completed successfully');
     } catch (error: any) {
       console.error('🏫 AuthContext: School login failed:', error);
@@ -403,9 +415,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🏫 School information:', userData.school);
       console.log('🎨 School settings:', userData.school?.settings);
 
-      // Update login source tracking
+      // Update login source tracking and store school code
       setLoginSource('school');
-      setSchoolCode(userData.school?.code || null);
+      const newSchoolCode = userData.school?.code || userData.school_code || null;
+      setSchoolCode(newSchoolCode);
+
+      // Store school code in localStorage for persistence
+      if (newSchoolCode) {
+        localStorage.setItem('school_code', newSchoolCode);
+      }
 
       // Force a complete state update to trigger all re-renders
       setUser(null); // Clear first to force re-render

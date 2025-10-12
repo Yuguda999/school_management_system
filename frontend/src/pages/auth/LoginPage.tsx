@@ -13,7 +13,7 @@ const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool } = useAuth();
+  const { login, isAuthenticated, requiresSchoolSelection, availableSchools, selectSchool, user } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -26,16 +26,35 @@ const LoginPage: React.FC = () => {
 
   // Handle navigation after authentication
   useEffect(() => {
-    if (isAuthenticated && !requiresSchoolSelection) {
-      const from = location.state?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
-    }
-  }, [isAuthenticated, requiresSchoolSelection, navigate, location.state?.from?.pathname]);
+    if (isAuthenticated && !requiresSchoolSelection && user) {
+      // Get school code from user object
+      const schoolCode = user.school?.code || user.school_code || localStorage.getItem('school_code');
 
-  if (isAuthenticated && !requiresSchoolSelection) {
-    // Redirect to the page they were trying to visit or dashboard
-    const from = location.state?.from?.pathname || '/dashboard';
-    return <Navigate to={from} replace />;
+      if (schoolCode) {
+        // If we have a school code, redirect to school-specific dashboard
+        const from = location.state?.from?.pathname || `/${schoolCode}/dashboard`;
+        navigate(from, { replace: true });
+      } else {
+        // Fallback to generic dashboard (shouldn't happen for school users)
+        const from = location.state?.from?.pathname || '/dashboard';
+        navigate(from, { replace: true });
+      }
+    }
+  }, [isAuthenticated, requiresSchoolSelection, user, navigate, location.state?.from?.pathname]);
+
+  if (isAuthenticated && !requiresSchoolSelection && user) {
+    // Get school code from user object
+    const schoolCode = user.school?.code || user.school_code || localStorage.getItem('school_code');
+
+    if (schoolCode) {
+      // If we have a school code, redirect to school-specific dashboard
+      const from = location.state?.from?.pathname || `/${schoolCode}/dashboard`;
+      return <Navigate to={from} replace />;
+    } else {
+      // Fallback to generic dashboard (shouldn't happen for school users)
+      const from = location.state?.from?.pathname || '/dashboard';
+      return <Navigate to={from} replace />;
+    }
   }
 
   // Show school selection modal if required

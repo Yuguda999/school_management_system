@@ -32,7 +32,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // User doesn't have required role, redirect to dashboard
+    // User doesn't have required role, redirect to their school dashboard
+    const schoolCode = user.school?.code || user.school_code || localStorage.getItem('school_code');
+    if (schoolCode) {
+      return <Navigate to={`/${schoolCode}/dashboard`} replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 

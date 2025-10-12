@@ -227,33 +227,13 @@ async def school_login(
             detail="User account is inactive"
         )
 
-    # Handle school owners - all school owners must select a school
+    # Handle school owners - when logging in via school code, automatically log into that school
+    # No school selection required since they explicitly chose this school by using its login page
     requires_school_selection = False
     available_schools = None
-    school_id = user.school_id
+    school_id = school.id  # Use the school they're logging into
 
-    if user.role == UserRole.SCHOOL_OWNER:
-        owned_schools = await SchoolOwnershipService.get_owned_schools(db, user.id)
-        if len(owned_schools) > 0:
-            requires_school_selection = True
-            # Get ownership information for each school
-            school_ownerships = await SchoolOwnershipService.get_user_ownerships(db, user.id)
-            ownership_map = {ownership.school_id: ownership for ownership in school_ownerships}
-
-            available_schools = [
-                SchoolOption(
-                    id=school.id,
-                    name=school.name,
-                    code=school.code,
-                    logo_url=school.logo_url,
-                    is_primary=ownership_map.get(school.id).is_primary_owner if ownership_map.get(school.id) else False
-                )
-                for school in owned_schools
-            ]
-            # Don't set school_id for school owners until they select
-            school_id = None
-
-    # Create tokens
+    # Create tokens with the school context
     access_token_expires = timedelta(minutes=30)
     access_token = create_access_token(
         data={"sub": user.id, "email": user.email, "role": user.role, "school_id": school_id},
@@ -570,23 +550,32 @@ async def change_password(
 
 @router.get("/me")
 async def get_current_user_info(
-    current_user_id: str = Depends(get_current_user_id),
+    school_context: SchoolContext = Depends(get_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get current user information - handles both User and Student models"""
-    
+
+    # Get user_id from the user object in school_context
+    current_user_id = school_context.user.id
+    # Get school_id from JWT token (for school owners who switch schools)
+    token_school_id = school_context.school_id
+
     # First try to get as a regular User
     result = await db.execute(
         select(User).where(User.id == current_user_id, User.is_deleted == False)
     )
     user = result.scalar_one_or_none()
-    
+
     if user:
+        # For school owners, use the school_id from the JWT token (current session)
+        # For other users, use their default school_id from the database
+        effective_school_id = token_school_id if user.role == UserRole.SCHOOL_OWNER and token_school_id else user.school_id
+
         # Get school information if user has a school_id
         school_data = None
-        if user.school_id:
+        if effective_school_id:
             school_result = await db.execute(
-                select(School).where(School.id == user.school_id, School.is_deleted == False)
+                select(School).where(School.id == effective_school_id, School.is_deleted == False)
             )
             school = school_result.scalar_one_or_none()
             if school:
@@ -628,8 +617,10 @@ async def get_current_user_info(
             "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
-            "school_id": user.school_id,
+            "school_id": effective_school_id,  # Use effective school_id (from token for school owners)
             "school": school_data,
+            "school_code": school_data["code"] if school_data else None,  # Direct access to school code
+            "school_name": school_data["name"] if school_data else None,  # Direct access to school name
             "is_active": user.is_active,
             "is_verified": user.is_verified,
             "profile_completed": user.profile_completed,
@@ -704,6 +695,8 @@ async def get_current_user_info(
             "role": UserRole.STUDENT,
             "school_id": student.school_id,
             "school": school_data,
+            "school_code": school_data["code"] if school_data else None,  # Direct access to school code
+            "school_name": school_data["name"] if school_data else None,  # Direct access to school name
             "is_active": student.status == StudentStatus.ACTIVE,
             "is_verified": True,  # Students are considered verified upon login
             "profile_completed": True,  # Students are considered profile completed

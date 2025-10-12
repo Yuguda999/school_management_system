@@ -7,8 +7,8 @@ const RoleBasedRedirect: React.FC = () => {
   const { user, loading } = useAuth();
   const { schoolCode: urlSchoolCode } = useParams<{ schoolCode: string }>();
 
-  // Get school code from URL or user's school
-  const schoolCode = urlSchoolCode || user?.school_code || localStorage.getItem('school_code');
+  // Get school code from URL, user's school object, or user's school_code field
+  const schoolCode = urlSchoolCode || user?.school?.code || user?.school_code || localStorage.getItem('school_code');
 
   useEffect(() => {
     // Log the redirect for debugging

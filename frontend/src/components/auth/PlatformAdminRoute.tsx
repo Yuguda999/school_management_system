@@ -24,7 +24,11 @@ const PlatformAdminRoute: React.FC<PlatformAdminRouteProps> = ({ children }) => 
   }
 
   if (user.role !== 'platform_super_admin') {
-    // Redirect school users to their dashboard
+    // Redirect school users to their school dashboard
+    const schoolCode = user.school?.code || user.school_code || localStorage.getItem('school_code');
+    if (schoolCode) {
+      return <Navigate to={`/${schoolCode}/dashboard`} replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
 

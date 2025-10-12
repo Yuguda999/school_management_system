@@ -51,21 +51,22 @@ const SchoolManagement: React.FC = () => {
       console.log('🔄 SchoolManagement: Starting school switch to:', schoolId);
       setSwitchingSchool(schoolId);
 
+      // Find the school being switched to
+      const targetSchool = schools.find(s => s.id === schoolId);
+      if (!targetSchool) {
+        throw new Error('School not found');
+      }
+
       await selectSchool(schoolId);
 
       console.log('✅ SchoolManagement: School switch completed');
       showSuccess('School switched successfully');
 
-      // Wait a moment for state to update, then navigate
+      // Wait a moment for state to update, then navigate to the new school's dashboard
       setTimeout(() => {
-        console.log('🔄 SchoolManagement: Navigating to dashboard...');
-        // Get the school code from the current URL or from the selected school
-        const currentSchoolCode = window.location.pathname.split('/')[1];
-        if (currentSchoolCode) {
-          navigate(`/${currentSchoolCode}/dashboard`);
-        } else {
-          navigate('/dashboard');
-        }
+        console.log('🔄 SchoolManagement: Navigating to new school dashboard...');
+        // Use the school code from the selected school
+        navigate(`/${targetSchool.code}/dashboard`);
       }, 200);
 
     } catch (error: any) {
