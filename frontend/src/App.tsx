@@ -16,6 +16,10 @@ import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileComplet
 import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
+import TeacherToolsPage from './pages/teachers/TeacherToolsPage';
+import TeacherLessonPlannerPage from './pages/teachers/TeacherLessonPlannerPage';
+import AssignmentGeneratorPage from './pages/teachers/AssignmentGeneratorPage';
+import RubricBuilderPage from './pages/teachers/RubricBuilderPage';
 import MaterialsPage from './pages/MaterialsPage';
 import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import StudentGradesPage from './pages/students/StudentGradesPage';
@@ -148,6 +152,46 @@ function App() {
           element={
             <SchoolRoute allowedRoles={['teacher']}>
               <MaterialsPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Teacher Tools */}
+        <Route
+          path="teacher/tools"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <TeacherToolsPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Teacher Lesson Planner */}
+        <Route
+          path="teacher/tools/lesson-planner"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <TeacherLessonPlannerPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Teacher Assignment Generator */}
+        <Route
+          path="teacher/tools/assignment-generator"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <AssignmentGeneratorPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* Teacher Rubric Builder */}
+        <Route
+          path="teacher/tools/rubric-builder"
+          element={
+            <SchoolRoute allowedRoles={['teacher']}>
+              <RubricBuilderPage />
             </SchoolRoute>
           }
         />

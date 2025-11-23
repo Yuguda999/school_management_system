@@ -11,7 +11,8 @@ import {
   ChatBubbleLeftRightIcon,
   ClockIcon,
   CheckCircleIcon,
-  UserIcon
+  UserIcon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
@@ -164,6 +165,14 @@ const TeacherDashboardPage: React.FC = () => {
       icon: ChatBubbleLeftRightIcon,
       color: 'bg-pink-500',
       action: () => navigate('/communication')
+    },
+    {
+      id: 'tools',
+      title: 'Teacher Tools',
+      description: 'Access teaching tools and utilities',
+      icon: WrenchScrewdriverIcon,
+      color: 'bg-cyan-500',
+      action: () => navigate('/teacher/tools')
     },
     {
       id: 'profile',

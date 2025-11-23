@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -94,6 +95,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
       icon: FolderIcon,
       roles: ['teacher'],
       description: 'Educational materials management'
+    },
+    {
+      name: 'Teacher Tools',
+      href: `/${schoolCode}/teacher/tools`,
+      icon: WrenchScrewdriverIcon,
+      roles: ['teacher'],
+      description: 'Teaching tools and utilities'
     },
     {
       name: 'Fees',

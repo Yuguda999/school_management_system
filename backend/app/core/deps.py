@@ -246,11 +246,17 @@ async def get_current_school(
 def require_roles(allowed_roles: List[UserRole]):
     """Dependency to check if user has required role"""
     def role_checker(school_context: SchoolContext = Depends(get_current_school_context)) -> SchoolContext:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔐 Role check - User role: {school_context.user.role}, Allowed roles: {allowed_roles}")
+
         if school_context.user.role not in allowed_roles:
+            logger.warning(f"❌ Access denied - User role {school_context.user.role} not in {allowed_roles}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not enough permissions"
+                detail=f"Not enough permissions. Required roles: {[role.value for role in allowed_roles]}, Your role: {school_context.user.role.value}"
             )
+        logger.info(f"✅ Access granted - User has required role")
         return school_context
     return role_checker
 

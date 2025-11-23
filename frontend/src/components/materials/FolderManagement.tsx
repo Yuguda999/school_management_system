@@ -145,15 +145,32 @@ const FolderManagement: React.FC<FolderManagementProps> = ({ onFolderSelect, onM
 
   const handleViewMaterial = async (material: TeacherMaterial) => {
     try {
-      // Fetch the preview blob with authentication
-      const blob = await materialService.previewMaterial(material.id);
-      const url = window.URL.createObjectURL(blob);
+      // Check if material can be previewed (PDF, images, videos, etc.)
+      const previewableTypes = [
+        'application/pdf',
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+        'text/plain', 'text/html',
+        'video/mp4', 'video/webm',
+        'audio/mpeg', 'audio/wav', 'audio/mp3'
+      ];
 
-      // Open in new tab
-      window.open(url, '_blank', 'noopener,noreferrer');
+      const canPreview = previewableTypes.some(type => material.mime_type?.includes(type));
 
-      // Clean up the blob URL after a delay
-      setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      if (canPreview) {
+        // Fetch the preview blob with authentication
+        const blob = await materialService.previewMaterial(material.id);
+        const url = window.URL.createObjectURL(blob);
+
+        // Open in new tab
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        // Clean up the blob URL after a delay
+        setTimeout(() => window.URL.revokeObjectURL(url), 10000);
+      } else {
+        // For non-previewable files (DOCX, etc.), download them instead
+        await handleDownloadMaterial(material);
+        showSuccess('Download started - file cannot be previewed in browser');
+      }
     } catch (error) {
       console.error('Failed to view material:', error);
       showError('Failed to open material');
@@ -166,7 +183,8 @@ const FolderManagement: React.FC<FolderManagementProps> = ({ onFolderSelect, onM
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = material.title;
+      // Use original filename if available, otherwise use title with extension from mime type
+      link.download = material.original_file_name || material.title;
       link.click();
       window.URL.revokeObjectURL(url);
       showSuccess('Download started');

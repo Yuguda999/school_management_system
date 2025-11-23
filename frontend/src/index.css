@@ -152,4 +152,73 @@
   .responsive-grid-3 {
     @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
   }
+
+  /* Markdown Styling for Lesson Plans */
+  .prose h1 {
+    @apply text-2xl font-bold text-gray-900 dark:text-white mt-6 mb-4;
+  }
+
+  .prose h2 {
+    @apply text-xl font-semibold text-gray-900 dark:text-white mt-5 mb-3;
+  }
+
+  .prose h3 {
+    @apply text-lg font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2;
+  }
+
+  .prose h4 {
+    @apply text-base font-semibold text-gray-800 dark:text-gray-200 mt-3 mb-2;
+  }
+
+  .prose p {
+    @apply text-gray-700 dark:text-gray-300 mb-3 leading-relaxed;
+  }
+
+  .prose ul, .prose ol {
+    @apply text-gray-700 dark:text-gray-300 mb-3 pl-6;
+  }
+
+  .prose li {
+    @apply mb-1;
+  }
+
+  .prose strong {
+    @apply font-semibold text-gray-900 dark:text-white;
+  }
+
+  .prose em {
+    @apply italic text-gray-800 dark:text-gray-200;
+  }
+
+  .prose code {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm;
+  }
+
+  .prose pre {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-4 rounded-lg overflow-x-auto mb-4;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-blue-500 dark:border-blue-400 pl-4 italic text-gray-700 dark:text-gray-300 my-4;
+  }
+
+  .prose table {
+    @apply w-full border-collapse mb-4;
+  }
+
+  .prose th {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold p-2 border border-gray-300 dark:border-gray-600;
+  }
+
+  .prose td {
+    @apply p-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300;
+  }
+
+  .prose hr {
+    @apply border-gray-300 dark:border-gray-600 my-6;
+  }
+
+  .prose a {
+    @apply text-blue-600 dark:text-blue-400 hover:underline;
+  }
 }

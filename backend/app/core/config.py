@@ -77,7 +77,10 @@ class Settings(BaseSettings):
     # Pagination
     default_page_size: int = 20
     max_page_size: int = 100
-    
+
+    # AI/Gemini Configuration
+    gemini_api_key: Optional[str] = None
+
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed origins as a list"""
         return [i.strip() for i in self.allowed_origins.split(",")]
