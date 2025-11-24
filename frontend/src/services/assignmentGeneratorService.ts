@@ -8,6 +8,7 @@ export interface AssignmentRequest {
   difficulty_level: string;
   duration: string;
   learning_objectives: string;
+  number_of_questions?: number;
   additional_context?: string;
   standards?: string;
   files?: File[];
@@ -43,11 +44,15 @@ class AssignmentGeneratorService {
       formData.append('difficulty_level', request.difficulty_level);
       formData.append('duration', request.duration);
       formData.append('learning_objectives', request.learning_objectives);
-      
+
+      if (request.number_of_questions) {
+        formData.append('number_of_questions', request.number_of_questions.toString());
+      }
+
       if (request.additional_context) {
         formData.append('additional_context', request.additional_context);
       }
-      
+
       if (request.standards) {
         formData.append('standards', request.standards);
       }

@@ -1,27 +1,28 @@
 """
-Gemini AI Service for AI-powered features
+OpenRouter AI Service for AI-powered features
 """
 import logging
+import json
 from typing import AsyncGenerator, Optional, List
-from google import genai
-from google.genai import types
+import httpx
 from app.core.config import settings
 from app.services.ai_service_base import AIServiceBase
 
 logger = logging.getLogger(__name__)
 
 
-class GeminiService(AIServiceBase):
-    """Service for interacting with Google Gemini AI"""
+class OpenRouterService(AIServiceBase):
+    """Service for interacting with OpenRouter AI"""
 
     def __init__(self):
-        """Initialize Gemini client"""
-        api_key = settings.gemini_api_key
+        """Initialize OpenRouter client"""
+        api_key = settings.openrouter_api_key
         if not api_key:
-            raise ValueError("GEMINI_API_KEY is not configured in settings")
+            raise ValueError("OPENROUTER_API_KEY is not configured in settings")
 
-        self.client = genai.Client(api_key=api_key)
-        self._model = "gemini-2.0-flash-exp"  # Using the latest flash model
+        self.api_key = api_key
+        self._model = settings.openrouter_model
+        self.base_url = "https://openrouter.ai/api/v1"
 
     @property
     def model(self) -> str:
@@ -40,7 +41,7 @@ class GeminiService(AIServiceBase):
         uploaded_files: Optional[List[str]] = None
     ) -> AsyncGenerator[str, None]:
         """
-        Generate a lesson plan using Gemini AI with streaming response
+        Generate a lesson plan using OpenRouter AI with streaming response
 
         Args:
             subject: Subject name (e.g., "Mathematics", "Science")
@@ -50,27 +51,12 @@ class GeminiService(AIServiceBase):
             learning_objectives: Learning objectives for the lesson
             additional_context: Any additional context or requirements
             standards: Educational standards to align with
-            uploaded_files: Optional list of file URIs uploaded to Gemini
+            uploaded_files: Optional list of file paths (will be read and included in prompt)
 
         Yields:
             Chunks of the generated lesson plan text
         """
-        file_uris_to_delete = []
         try:
-            prompt_parts = []
-
-            # Add uploaded files to the prompt if any
-            if uploaded_files:
-                for file_uri in uploaded_files:
-                    try:
-                        # Get the file object from Gemini
-                        file_obj = self.client.files.get(name=file_uri)
-                        prompt_parts.append(file_obj)
-                        file_uris_to_delete.append(file_uri)
-                        logger.info(f"Added file to prompt: {file_uri}")
-                    except Exception as e:
-                        logger.error(f"Error getting file {file_uri}: {str(e)}")
-
             # Build the text prompt
             text_prompt = self._build_lesson_plan_prompt(
                 subject=subject,
@@ -83,8 +69,6 @@ class GeminiService(AIServiceBase):
                 has_files=bool(uploaded_files)
             )
 
-            prompt_parts.append(text_prompt)
-            
             # System instruction for the AI
             system_instruction = """You are an expert educational consultant and curriculum designer with years of experience creating engaging, effective lesson plans.
 
@@ -106,37 +90,75 @@ Your lesson plans should be:
 Format your response in markdown with clear headings and sections."""
 
             # Generate content with streaming
-            logger.info(f"Generating lesson plan for {subject} - {topic} ({grade_level})")
+            logger.info(f"Generating lesson plan for {subject} - {topic} ({grade_level}) using OpenRouter")
 
-            response = self.client.models.generate_content_stream(
-                model=self.model,
-                contents=prompt_parts,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.7,  # Balanced creativity and consistency
-                    top_p=0.95,
-                    top_k=40,
-                    max_output_tokens=4096,
-                )
-            )
-
-            # Stream the response
-            for chunk in response:
-                if chunk.text:
-                    yield chunk.text
+            async for chunk in self._stream_completion(
+                system_instruction=system_instruction,
+                user_prompt=text_prompt
+            ):
+                yield chunk
 
         except Exception as e:
             logger.error(f"Error generating lesson plan: {str(e)}")
             raise Exception(f"Failed to generate lesson plan: {str(e)}")
-        finally:
-            # Clean up uploaded files after generation
-            for file_uri in file_uris_to_delete:
-                try:
-                    self.client.files.delete(name=file_uri)
-                    logger.info(f"Deleted file from Gemini: {file_uri}")
-                except Exception as e:
-                    logger.error(f"Error deleting file {file_uri}: {str(e)}")
     
+    async def _stream_completion(
+        self,
+        system_instruction: str,
+        user_prompt: str
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream completion from OpenRouter API
+
+        Args:
+            system_instruction: System instruction for the AI
+            user_prompt: User prompt
+
+        Yields:
+            Chunks of the generated text
+        """
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 4096,
+            "stream": True
+        }
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload
+            ) as response:
+                response.raise_for_status()
+                
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        data_str = line[6:]  # Remove "data: " prefix
+                        
+                        if data_str.strip() == "[DONE]":
+                            break
+                        
+                        try:
+                            data = json.loads(data_str)
+                            if "choices" in data and len(data["choices"]) > 0:
+                                delta = data["choices"][0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    yield content
+                        except json.JSONDecodeError:
+                            continue
+
     def _build_lesson_plan_prompt(
         self,
         subject: str,
@@ -163,19 +185,19 @@ Format your response in markdown with clear headings and sections."""
 **Learning Objectives:**
 {learning_objectives}
 """
-        
+
         if standards:
             prompt += f"""
 **Educational Standards to Align With:**
 {standards}
 """
-        
+
         if additional_context:
             prompt += f"""
 **Additional Context/Requirements:**
 {additional_context}
 """
-        
+
         prompt += """
 
 Please create a detailed lesson plan that includes the following sections:
@@ -248,6 +270,94 @@ Please create a detailed lesson plan that includes the following sections:
 Please make the lesson plan practical, engaging, and ready to use in the classroom."""
 
         return prompt
+
+    def upload_file(self, file_path: str) -> str:
+        """
+        Note: OpenRouter doesn't support file uploads like Gemini.
+        This method returns the file path for compatibility.
+        Files will be read and included in the prompt text instead.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            str: File path (for compatibility with Gemini interface)
+        """
+        logger.info(f"File marked for inclusion in prompt: {file_path}")
+        return file_path
+
+    async def generate_assignment_stream(
+        self,
+        subject: str,
+        grade_level: str,
+        topic: str,
+        assignment_type: str,
+        difficulty_level: str,
+        duration: str,
+        learning_objectives: str,
+        number_of_questions: Optional[int] = None,
+        additional_context: Optional[str] = None,
+        standards: Optional[str] = None,
+        uploaded_files: Optional[List[str]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate an assignment using OpenRouter AI with streaming response
+
+        Args:
+            subject: Subject name
+            grade_level: Grade level
+            topic: Assignment topic
+            assignment_type: Type (essay, project, worksheet, quiz, homework)
+            difficulty_level: Difficulty (easy, medium, hard, challenging)
+            duration: Duration or length
+            learning_objectives: Learning objectives
+            number_of_questions: Number of questions to generate (for quizzes, worksheets, etc.)
+            additional_context: Additional context
+            standards: Educational standards
+            uploaded_files: Optional list of file paths
+
+        Yields:
+            Chunks of the generated assignment text
+        """
+        try:
+            # Build the text prompt
+            text_prompt = self._build_assignment_prompt(
+                subject, grade_level, topic, assignment_type,
+                difficulty_level, duration, learning_objectives,
+                number_of_questions, additional_context, standards, bool(uploaded_files)
+            )
+
+            # System instruction
+            system_instruction = """You are an expert educational consultant and curriculum designer with years of experience creating effective assignments for teachers.
+
+IMPORTANT INSTRUCTIONS:
+- Start directly with the assignment content - NO introductory phrases like "Here is an assignment..." or "Okay, here is..."
+- End with the assignment content - NO concluding remarks like "This should help..." or "Good luck!" or "Feel free to..."
+- Be direct and professional
+- Use clear markdown formatting with proper headings
+
+Your assignments should be:
+- Pedagogically sound and age-appropriate
+- Engaging and challenging at the appropriate level
+- Clear and easy to understand for students
+- Include diverse assessment methods
+- Consider different learning styles
+- Include clear grading criteria
+
+Format your response in markdown with clear headings and sections."""
+
+            # Generate content with streaming
+            logger.info(f"Generating assignment for {subject} - {topic} ({grade_level}) using OpenRouter")
+
+            async for chunk in self._stream_completion(
+                system_instruction=system_instruction,
+                user_prompt=text_prompt
+            ):
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"Error generating assignment: {str(e)}")
+            raise Exception(f"Failed to generate assignment: {str(e)}")
 
     def _build_assignment_prompt(
         self,
@@ -503,6 +613,75 @@ Ensure all questions/problems are complete, specific, and ready to use without m
 
         return prompt
 
+    async def generate_rubric_stream(
+        self,
+        assignment_title: str,
+        subject: str,
+        grade_level: str,
+        rubric_type: str,
+        criteria_count: int,
+        performance_levels: int,
+        learning_objectives: str,
+        additional_context: Optional[str] = None,
+        uploaded_files: Optional[List[str]] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a rubric using OpenRouter AI with streaming response
+
+        Args:
+            assignment_title: Title of the assignment
+            subject: Subject name
+            grade_level: Grade level
+            rubric_type: Type (analytic, holistic, single-point)
+            criteria_count: Number of criteria (3-10)
+            performance_levels: Number of performance levels (3-5)
+            learning_objectives: Learning objectives
+            additional_context: Additional context
+            uploaded_files: Optional list of file paths
+
+        Yields:
+            Chunks of the generated rubric text
+        """
+        try:
+            # Build the text prompt
+            text_prompt = self._build_rubric_prompt(
+                assignment_title, subject, grade_level, rubric_type,
+                criteria_count, performance_levels, learning_objectives,
+                additional_context, bool(uploaded_files)
+            )
+
+            # System instruction
+            system_instruction = """You are an expert educational assessment specialist with years of experience creating effective rubrics for teachers.
+
+IMPORTANT INSTRUCTIONS:
+- Start directly with the rubric content - NO introductory phrases like "Here is a rubric..." or "Okay, here is..."
+- End with the rubric content - NO concluding remarks like "This rubric should..." or "Good luck!" or "Feel free to..."
+- Be direct and professional
+- Use clear markdown formatting with proper headings and tables
+
+Your rubrics should be:
+- Clear and specific in criteria descriptions
+- Aligned with learning objectives
+- Fair and objective
+- Easy to use for grading
+- Helpful for student self-assessment
+- Include appropriate point values
+
+Format your response in markdown with clear headings, tables for analytic rubrics, and well-structured sections."""
+
+            # Generate content with streaming
+            logger.info(f"Generating rubric for {assignment_title} ({grade_level}) using OpenRouter")
+
+            async for chunk in self._stream_completion(
+                system_instruction=system_instruction,
+                user_prompt=text_prompt
+            ):
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"Error generating rubric: {str(e)}")
+            raise Exception(f"Failed to generate rubric: {str(e)}")
+
     def _build_rubric_prompt(
         self,
         assignment_title: str,
@@ -650,237 +829,16 @@ Please ensure the rubric is:
 
         return prompt
 
-    def upload_file(self, file_path: str) -> str:
-        """
-        Upload a file to Gemini Files API
-
-        Args:
-            file_path: Path to the file to upload
-
-        Returns:
-            str: File URI that can be used in prompts
-        """
-        try:
-            uploaded_file = self.client.files.upload(file=file_path)
-            logger.info(f"Uploaded file to Gemini: {uploaded_file.name}")
-            return uploaded_file.name
-        except Exception as e:
-            logger.error(f"Error uploading file to Gemini: {str(e)}")
-            raise Exception(f"Failed to upload file: {str(e)}")
-
-    async def generate_assignment_stream(
-        self,
-        subject: str,
-        grade_level: str,
-        topic: str,
-        assignment_type: str,
-        difficulty_level: str,
-        duration: str,
-        learning_objectives: str,
-        number_of_questions: Optional[int] = None,
-        additional_context: Optional[str] = None,
-        standards: Optional[str] = None,
-        uploaded_files: Optional[List[str]] = None
-    ) -> AsyncGenerator[str, None]:
-        """
-        Generate an assignment using Gemini AI with streaming response
-
-        Args:
-            subject: Subject name
-            grade_level: Grade level
-            topic: Assignment topic
-            assignment_type: Type (essay, project, worksheet, quiz, homework)
-            difficulty_level: Difficulty (easy, medium, hard, challenging)
-            duration: Duration or length
-            learning_objectives: Learning objectives
-            number_of_questions: Number of questions to generate (for quizzes, worksheets, etc.)
-            additional_context: Additional context
-            standards: Educational standards
-            uploaded_files: Optional list of file URIs
-
-        Yields:
-            Chunks of the generated assignment text
-        """
-        try:
-            prompt_parts = []
-            file_uris_to_delete = []
-
-            # Add uploaded files if any
-            if uploaded_files:
-                for file_uri in uploaded_files:
-                    file_obj = self.client.files.get(name=file_uri)
-                    prompt_parts.append(file_obj)
-                    file_uris_to_delete.append(file_uri)
-
-            # Build the text prompt
-            text_prompt = self._build_assignment_prompt(
-                subject, grade_level, topic, assignment_type,
-                difficulty_level, duration, learning_objectives,
-                number_of_questions, additional_context, standards, bool(uploaded_files)
-            )
-
-            prompt_parts.append(text_prompt)
-
-            # System instruction
-            system_instruction = """You are an expert educational consultant and curriculum designer with years of experience creating effective assignments for teachers.
-
-IMPORTANT INSTRUCTIONS:
-- Start directly with the assignment content - NO introductory phrases like "Here is an assignment..." or "Okay, here is..."
-- End with the assignment content - NO concluding remarks like "This should help..." or "Good luck!" or "Feel free to..."
-- Be direct and professional
-- Use clear markdown formatting with proper headings
-
-Your assignments should be:
-- Pedagogically sound and age-appropriate
-- Engaging and challenging at the appropriate level
-- Clear and easy to understand for students
-- Include diverse assessment methods
-- Consider different learning styles
-- Include clear grading criteria
-
-Format your response in markdown with clear headings and sections."""
-
-            # Generate content with streaming
-            logger.info(f"Generating assignment for {subject} - {topic} ({grade_level})")
-
-            try:
-                response = self.client.models.generate_content_stream(
-                    model=self.model,
-                    contents=prompt_parts,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.7,
-                        max_output_tokens=4096,
-                    )
-                )
-
-                # Stream the response
-                for chunk in response:
-                    if chunk.text:
-                        yield chunk.text
-
-            finally:
-                # Clean up uploaded files
-                for file_uri in file_uris_to_delete:
-                    try:
-                        self.client.files.delete(name=file_uri)
-                        logger.info(f"Deleted file from Gemini: {file_uri}")
-                    except Exception as e:
-                        logger.warning(f"Failed to delete file {file_uri}: {str(e)}")
-
-        except Exception as e:
-            logger.error(f"Error generating assignment: {str(e)}")
-            raise Exception(f"Failed to generate assignment: {str(e)}")
-
-    async def generate_rubric_stream(
-        self,
-        assignment_title: str,
-        subject: str,
-        grade_level: str,
-        rubric_type: str,
-        criteria_count: int,
-        performance_levels: int,
-        learning_objectives: str,
-        additional_context: Optional[str] = None,
-        uploaded_files: Optional[List[str]] = None
-    ) -> AsyncGenerator[str, None]:
-        """
-        Generate a rubric using Gemini AI with streaming response
-
-        Args:
-            assignment_title: Title of the assignment
-            subject: Subject name
-            grade_level: Grade level
-            rubric_type: Type (analytic, holistic, single-point)
-            criteria_count: Number of criteria (3-10)
-            performance_levels: Number of performance levels (3-5)
-            learning_objectives: Learning objectives
-            additional_context: Additional context
-            uploaded_files: Optional list of file URIs
-
-        Yields:
-            Chunks of the generated rubric text
-        """
-        try:
-            prompt_parts = []
-            file_uris_to_delete = []
-
-            # Add uploaded files if any
-            if uploaded_files:
-                for file_uri in uploaded_files:
-                    file_obj = self.client.files.get(name=file_uri)
-                    prompt_parts.append(file_obj)
-                    file_uris_to_delete.append(file_uri)
-
-            # Build the text prompt
-            text_prompt = self._build_rubric_prompt(
-                assignment_title, subject, grade_level, rubric_type,
-                criteria_count, performance_levels, learning_objectives,
-                additional_context, bool(uploaded_files)
-            )
-
-            prompt_parts.append(text_prompt)
-
-            # System instruction
-            system_instruction = """You are an expert educational assessment specialist with years of experience creating effective rubrics for teachers.
-
-IMPORTANT INSTRUCTIONS:
-- Start directly with the rubric content - NO introductory phrases like "Here is a rubric..." or "Okay, here is..."
-- End with the rubric content - NO concluding remarks like "This rubric should..." or "Good luck!" or "Feel free to..."
-- Be direct and professional
-- Use clear markdown formatting with proper headings and tables
-
-Your rubrics should be:
-- Clear and specific in criteria descriptions
-- Aligned with learning objectives
-- Fair and objective
-- Easy to use for grading
-- Helpful for student self-assessment
-- Include appropriate point values
-
-Format your response in markdown with clear headings, tables for analytic rubrics, and well-structured sections."""
-
-            # Generate content with streaming
-            logger.info(f"Generating rubric for {assignment_title} ({grade_level})")
-
-            try:
-                response = self.client.models.generate_content_stream(
-                    model=self.model,
-                    contents=prompt_parts,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.7,
-                        max_output_tokens=4096,
-                    )
-                )
-
-                # Stream the response
-                for chunk in response:
-                    if chunk.text:
-                        yield chunk.text
-
-            finally:
-                # Clean up uploaded files
-                for file_uri in file_uris_to_delete:
-                    try:
-                        self.client.files.delete(name=file_uri)
-                        logger.info(f"Deleted file from Gemini: {file_uri}")
-                    except Exception as e:
-                        logger.warning(f"Failed to delete file {file_uri}: {str(e)}")
-
-        except Exception as e:
-            logger.error(f"Error generating rubric: {str(e)}")
-            raise Exception(f"Failed to generate rubric: {str(e)}")
-
 
 # Singleton instance
-_gemini_service: Optional[GeminiService] = None
+_openrouter_service: Optional[OpenRouterService] = None
 
 
-def get_gemini_service() -> GeminiService:
-    """Get or create Gemini service instance"""
-    global _gemini_service
-    if _gemini_service is None:
-        _gemini_service = GeminiService()
-    return _gemini_service
+def get_openrouter_service() -> OpenRouterService:
+    """Get or create OpenRouter service instance"""
+    global _openrouter_service
+    if _openrouter_service is None:
+        _openrouter_service = OpenRouterService()
+    return _openrouter_service
+
 

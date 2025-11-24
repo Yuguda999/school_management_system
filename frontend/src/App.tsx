@@ -23,6 +23,14 @@ import RubricBuilderPage from './pages/teachers/RubricBuilderPage';
 import MaterialsPage from './pages/MaterialsPage';
 import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import StudentGradesPage from './pages/students/StudentGradesPage';
+import CBTTestsPage from './pages/cbt/CBTTestsPage';
+import CBTTestCreatePage from './pages/cbt/CBTTestCreatePage';
+import CBTTestDetailPage from './pages/cbt/CBTTestDetailPage';
+import TestSubmissionsPage from './pages/cbt/TestSubmissionsPage';
+import SubmissionDetailPage from './pages/cbt/SubmissionDetailPage';
+import StudentCBTPage from './pages/cbt/StudentCBTPage';
+import StudentTestTakingPage from './pages/cbt/StudentTestTakingPage';
+import StudentResultsPage from './pages/cbt/StudentResultsPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import StudentsPage from './pages/students/StudentsPage';
 import StudentDetailPage from './pages/students/StudentDetailPage';
@@ -196,6 +204,75 @@ function App() {
           }
         />
 
+        {/* CBT - Teacher Routes */}
+        <Route
+          path="cbt/tests"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <CBTTestsPage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="cbt/tests/new"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <CBTTestCreatePage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="cbt/tests/:testId"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <CBTTestDetailPage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="cbt/tests/:testId/edit"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <CBTTestCreatePage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="cbt/tests/:testId/submissions"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <TestSubmissionsPage />
+            </SchoolRoute>
+          }
+        />
+        <Route
+          path="cbt/submissions/:submissionId"
+          element={
+            <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+              <SubmissionDetailPage />
+            </SchoolRoute>
+          }
+        />
+
+        {/* CBT - Student Routes */}
+        <Route
+          path="cbt/student"
+          element={
+            <SchoolRoute allowedRoles={['student']}>
+              <StudentCBTPage />
+            </SchoolRoute>
+          }
+        />
+
+        <Route
+          path="cbt/student/results/:submissionId"
+          element={
+            <SchoolRoute allowedRoles={['student']}>
+              <StudentResultsPage />
+            </SchoolRoute>
+          }
+        />
+
         {/* Student Management */}
         <Route
           path="students"
@@ -330,7 +407,17 @@ function App() {
         />
 
       </Route>
-      
+
+      {/* Full-Screen CBT Test Taking - Outside Layout */}
+      <Route
+        path="/:schoolCode/cbt/student/take/:submissionId"
+        element={
+          <SchoolRoute allowedRoles={['student']}>
+            <StudentTestTakingPage />
+          </SchoolRoute>
+        }
+      />
+
       {/* Catch all route */}
       <Route path="*" element={<RoleBasedRedirect />} />
     </Routes>

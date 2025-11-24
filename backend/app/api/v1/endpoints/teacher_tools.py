@@ -12,7 +12,7 @@ import os
 
 from app.core.database import get_db
 from app.core.deps import require_teacher, SchoolContext
-from app.services.gemini_service import get_gemini_service
+from app.services.ai_service_factory import get_ai_service
 from app.services.material_service import MaterialService
 from app.models.teacher_material import MaterialType
 from app.schemas.teacher_material import MaterialCreate
@@ -97,10 +97,10 @@ async def generate_lesson_plan(
             f"{subject} - {topic} ({grade_level})"
         )
 
-        # Get Gemini service
-        gemini_service = get_gemini_service()
+        # Get AI service
+        ai_service = get_ai_service()
 
-        # Upload files to Gemini if any
+        # Upload files to AI service if any
         uploaded_file_uris = []
         if files:
             for file in files:
@@ -111,18 +111,18 @@ async def generate_lesson_plan(
                     temp_file_path = temp_file.name
                     temp_files.append(temp_file_path)
 
-                # Upload to Gemini
+                # Upload to AI service
                 try:
-                    file_uri = gemini_service.upload_file(temp_file_path)
+                    file_uri = ai_service.upload_file(temp_file_path)
                     uploaded_file_uris.append(file_uri)
-                    logger.info(f"Uploaded file {file.filename} to Gemini: {file_uri}")
+                    logger.info(f"Uploaded file {file.filename} to AI service: {file_uri}")
                 except Exception as e:
                     logger.error(f"Error uploading file {file.filename}: {str(e)}")
 
         # Create async generator for streaming
         async def generate():
             try:
-                async for chunk in gemini_service.generate_lesson_plan_stream(
+                async for chunk in ai_service.generate_lesson_plan_stream(
                     subject=subject,
                     grade_level=grade_level,
                     topic=topic,
@@ -172,11 +172,11 @@ async def check_lesson_planner_health(
     Check if the lesson planner service is available
     """
     try:
-        gemini_service = get_gemini_service()
+        ai_service = get_ai_service()
         return {
             "status": "healthy",
             "service": "lesson_planner",
-            "model": gemini_service.model
+            "model": ai_service.model
         }
     except Exception as e:
         logger.error(f"Lesson planner health check failed: {str(e)}")
@@ -296,6 +296,7 @@ async def generate_assignment(
     difficulty_level: str = Form(...),
     duration: str = Form(...),
     learning_objectives: str = Form(...),
+    number_of_questions: Optional[int] = Form(None),
     additional_context: Optional[str] = Form(None),
     standards: Optional[str] = Form(None),
     files: List[UploadFile] = File(default=[]),
@@ -303,9 +304,10 @@ async def generate_assignment(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Generate an assignment using Gemini AI with streaming response
+    Generate an assignment using AI with streaming response
 
     Supports file uploads for reference materials.
+    Optionally specify number_of_questions for quizzes, worksheets, etc.
     """
     uploaded_file_uris = []
     temp_files = []
@@ -313,7 +315,7 @@ async def generate_assignment(
     try:
         # Handle file uploads if any
         if files and len(files) > 0 and files[0].filename:
-            gemini_service = get_gemini_service()
+            ai_service = get_ai_service()
 
             for file in files:
                 # Save to temporary file
@@ -323,17 +325,17 @@ async def generate_assignment(
                     temp_file_path = temp_file.name
                     temp_files.append(temp_file_path)
 
-                # Upload to Gemini
-                file_uri = gemini_service.upload_file(temp_file_path)
+                # Upload to AI service
+                file_uri = ai_service.upload_file(temp_file_path)
                 uploaded_file_uris.append(file_uri)
-                logger.info(f"Uploaded file to Gemini: {file.filename} -> {file_uri}")
+                logger.info(f"Uploaded file to AI service: {file.filename} -> {file_uri}")
 
         # Generate assignment with streaming
-        gemini_service = get_gemini_service()
+        ai_service = get_ai_service()
 
         async def generate():
             try:
-                async for chunk in gemini_service.generate_assignment_stream(
+                async for chunk in ai_service.generate_assignment_stream(
                     subject=subject,
                     grade_level=grade_level,
                     topic=topic,
@@ -341,6 +343,7 @@ async def generate_assignment(
                     difficulty_level=difficulty_level,
                     duration=duration,
                     learning_objectives=learning_objectives,
+                    number_of_questions=number_of_questions,
                     additional_context=additional_context,
                     standards=standards,
                     uploaded_files=uploaded_file_uris if uploaded_file_uris else None
@@ -384,11 +387,11 @@ async def generate_assignment(
 async def assignment_generator_health():
     """Health check for assignment generator"""
     try:
-        gemini_service = get_gemini_service()
+        ai_service = get_ai_service()
         return {
             "status": "healthy",
             "service": "assignment_generator",
-            "model": gemini_service.model
+            "model": ai_service.model
         }
     except Exception as e:
         logger.error(f"Assignment generator health check failed: {str(e)}")
@@ -517,7 +520,7 @@ async def generate_rubric(
     try:
         # Handle file uploads if any
         if files and len(files) > 0 and files[0].filename:
-            gemini_service = get_gemini_service()
+            ai_service = get_ai_service()
 
             for file in files:
                 # Save to temporary file
@@ -527,17 +530,17 @@ async def generate_rubric(
                     temp_file_path = temp_file.name
                     temp_files.append(temp_file_path)
 
-                # Upload to Gemini
-                file_uri = gemini_service.upload_file(temp_file_path)
+                # Upload to AI service
+                file_uri = ai_service.upload_file(temp_file_path)
                 uploaded_file_uris.append(file_uri)
-                logger.info(f"Uploaded file to Gemini: {file.filename} -> {file_uri}")
+                logger.info(f"Uploaded file to AI service: {file.filename} -> {file_uri}")
 
         # Generate rubric with streaming
-        gemini_service = get_gemini_service()
+        ai_service = get_ai_service()
 
         async def generate():
             try:
-                async for chunk in gemini_service.generate_rubric_stream(
+                async for chunk in ai_service.generate_rubric_stream(
                     assignment_title=assignment_title,
                     subject=subject,
                     grade_level=grade_level,
@@ -587,11 +590,11 @@ async def generate_rubric(
 async def rubric_builder_health():
     """Health check for rubric builder"""
     try:
-        gemini_service = get_gemini_service()
+        ai_service = get_ai_service()
         return {
             "status": "healthy",
             "service": "rubric_builder",
-            "model": gemini_service.model
+            "model": ai_service.model
         }
     except Exception as e:
         logger.error(f"Rubric builder health check failed: {str(e)}")

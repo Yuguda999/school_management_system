@@ -81,6 +81,196 @@ export type UserRole = 'platform_super_admin' | 'school_owner' | 'school_admin' 
 
 export type Gender = 'male' | 'female' | 'other';
 
+// CBT (Computer-Based Testing) Types
+export type TestStatus = 'draft' | 'published' | 'archived';
+export type SubmissionStatus = 'not_started' | 'in_progress' | 'submitted' | 'graded';
+
+export interface CBTQuestionOption {
+  id?: string;
+  option_label: string;
+  option_text: string;
+  is_correct: boolean;
+  order_number: number;
+  question_id?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CBTQuestion {
+  id?: string;
+  question_text: string;
+  question_type?: string;
+  points: number;
+  order_number: number;
+  image_url?: string;
+  media_url?: string;
+  test_id?: string;
+  options: CBTQuestionOption[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CBTTest {
+  id?: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  subject_id: string;
+  grade_level?: string;
+  duration_minutes: number;
+  total_points?: number;
+  pass_percentage?: number;
+  randomize_questions?: boolean;
+  randomize_options?: boolean;
+  allow_multiple_attempts?: boolean;
+  max_attempts?: number;
+  show_results_immediately?: boolean;
+  show_correct_answers?: boolean;
+  status?: TestStatus;
+  created_by?: string;
+  school_id?: string;
+  questions?: CBTQuestion[];
+  question_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CBTTestSchedule {
+  id?: string;
+  test_id: string;
+  start_datetime: string;
+  end_datetime: string;
+  class_id?: string;
+  student_ids?: string[];
+  school_id?: string;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CBTAnswer {
+  id?: string;
+  submission_id?: string;
+  question_id: string;
+  selected_option_id?: string;
+  is_correct?: boolean;
+  points_earned?: number;
+  answered_at?: string;
+  time_spent_seconds?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StudentBasicInfo {
+  id: string;
+  admission_number: string;
+  first_name: string;
+  last_name: string;
+  middle_name?: string;
+}
+
+export interface CBTSubmission {
+  id?: string;
+  test_id: string;
+  schedule_id: string;
+  student_id?: string;
+  status?: SubmissionStatus;
+  started_at?: string;
+  submitted_at?: string;
+  time_spent_seconds?: number;
+  total_score?: number;
+  total_possible?: number;
+  percentage?: number;
+  passed?: boolean;
+  attempt_number?: number;
+  school_id?: string;
+  answers?: CBTAnswer[];
+  student?: StudentBasicInfo;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CBTTestForStudent {
+  id: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  duration_minutes: number;
+  total_points: number;
+  question_count: number;
+  questions: CBTQuestion[];
+}
+
+export interface AvailableTest {
+  submission_id: string;
+  test_id: string;
+  test_title: string;
+  test_description?: string;
+  subject_name?: string;
+  duration_minutes: number;
+  total_points: number;
+  start_datetime: string;
+  end_datetime: string;
+  is_available: boolean;
+  can_attempt: boolean;
+  status: SubmissionStatus;
+  attempt_number: number;
+  max_attempts: number;
+  score?: number;
+  percentage?: number;
+  passed?: boolean;
+}
+
+// CBT Form Types
+export interface CBTTestCreate {
+  title: string;
+  description?: string;
+  instructions?: string;
+  subject_id: string;
+  grade_level?: string;
+  duration_minutes: number;
+  pass_percentage?: number;
+  randomize_questions?: boolean;
+  randomize_options?: boolean;
+  allow_multiple_attempts?: boolean;
+  max_attempts?: number;
+  show_results_immediately?: boolean;
+  show_correct_answers?: boolean;
+  questions?: CBTQuestion[];
+}
+
+export interface CBTTestUpdate {
+  title?: string;
+  description?: string;
+  instructions?: string;
+  subject_id?: string;
+  grade_level?: string;
+  duration_minutes?: number;
+  pass_percentage?: number;
+  randomize_questions?: boolean;
+  randomize_options?: boolean;
+  allow_multiple_attempts?: boolean;
+  max_attempts?: number;
+  show_results_immediately?: boolean;
+  show_correct_answers?: boolean;
+  status?: TestStatus;
+}
+
+export interface CBTScheduleCreate {
+  test_id: string;
+  start_datetime: string;
+  end_datetime: string;
+  class_id?: string;
+  student_ids?: string[];
+}
+
+export interface CBTSubmissionSubmit {
+  answers: {
+    question_id: string;
+    selected_option_id?: string;
+  }[];
+}
+
 export interface LoginCredentials {
   email: string;
   password: string;

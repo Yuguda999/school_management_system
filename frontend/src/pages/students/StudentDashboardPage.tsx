@@ -8,7 +8,8 @@ import {
   CalendarIcon,
   BellIcon,
   CurrencyDollarIcon,
-  BookOpenIcon
+  BookOpenIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { studentService } from '../../services/studentService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -52,6 +53,13 @@ const StudentDashboardPage: React.FC = () => {
   };
 
   const quickLinks = [
+    {
+      name: 'My Tests',
+      description: 'Take online tests and view results',
+      icon: ClipboardDocumentCheckIcon,
+      href: `/${schoolCode}/cbt/student`,
+      color: 'bg-red-500'
+    },
     {
       name: 'My Grades',
       description: 'View your academic performance',

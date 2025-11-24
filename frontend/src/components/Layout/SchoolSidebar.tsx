@@ -17,6 +17,7 @@ import {
   ChevronRightIcon,
   FolderIcon,
   WrenchScrewdriverIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -102,6 +103,20 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose }) => {
       icon: WrenchScrewdriverIcon,
       roles: ['teacher'],
       description: 'Teaching tools and utilities'
+    },
+    {
+      name: 'CBT Tests',
+      href: `/${schoolCode}/cbt/tests`,
+      icon: ClipboardDocumentCheckIcon,
+      roles: ['teacher', 'school_admin', 'school_owner'],
+      description: 'Computer-Based Testing'
+    },
+    {
+      name: 'My Tests',
+      href: `/${schoolCode}/cbt/student`,
+      icon: ClipboardDocumentCheckIcon,
+      roles: ['student'],
+      description: 'Take online tests'
     },
     {
       name: 'Fees',

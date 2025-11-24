@@ -15,7 +15,8 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  FolderPlusIcon
+  FolderPlusIcon,
+  HashtagIcon
 } from '@heroicons/react/24/outline';
 import PageHeader from '../../components/Layout/PageHeader';
 import { useToast } from '../../hooks/useToast';
@@ -31,6 +32,7 @@ interface AssignmentFormData {
   difficulty_level: string;
   duration: string;
   learning_objectives: string;
+  number_of_questions?: number;
   additional_context?: string;
   standards?: string;
 }
@@ -373,6 +375,32 @@ const AssignmentGeneratorPage: React.FC = () => {
                 </div>
                 {errors.duration && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.duration.message}</p>
+                )}
+              </div>
+
+              {/* Number of Questions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of Questions (Optional)
+                </label>
+                <div className="relative">
+                  <HashtagIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    {...register('number_of_questions', {
+                      valueAsNumber: true,
+                      min: { value: 1, message: 'Must be at least 1' },
+                      max: { value: 100, message: 'Maximum 100 questions' }
+                    })}
+                    type="number"
+                    className="input pl-10"
+                    placeholder="e.g., 10, 15, 20"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Specify how many questions to generate (for quizzes, worksheets, etc.)
+                </p>
+                {errors.number_of_questions && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.number_of_questions.message}</p>
                 )}
               </div>
 

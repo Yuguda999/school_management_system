@@ -78,8 +78,11 @@ class Settings(BaseSettings):
     default_page_size: int = 20
     max_page_size: int = 100
 
-    # AI/Gemini Configuration
+    # AI Configuration
+    ai_provider: str = "gemini"  # Options: "gemini", "openrouter"
     gemini_api_key: Optional[str] = None
+    openrouter_api_key: Optional[str] = None
+    openrouter_model: str = "openrouter/auto"  # Default to auto model selection
 
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed origins as a list"""
