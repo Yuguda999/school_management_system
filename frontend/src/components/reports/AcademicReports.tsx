@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  AcademicCapIcon, 
+import {
+  AcademicCapIcon,
   TrophyIcon,
   ChartBarIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, AcademicReport } from '../../services/reportsService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
+import Card from '../ui/Card';
 
 const AcademicReports: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
@@ -62,7 +64,7 @@ const AcademicReports: React.FC = () => {
           { student_id: '5', student_name: 'Eva Brown', class_name: 'Class 10-A', average_grade: 93.7 },
         ],
       };
-      
+
       setReport(mockReport);
     } catch (err) {
       setError('Failed to fetch academic report');
@@ -73,23 +75,23 @@ const AcademicReports: React.FC = () => {
   };
 
   const getGradeColor = (grade: number) => {
-    if (grade >= 90) return 'text-green-600';
-    if (grade >= 80) return 'text-blue-600';
-    if (grade >= 70) return 'text-yellow-600';
-    return 'text-red-600';
+    if (grade >= 90) return 'text-green-600 dark:text-green-400';
+    if (grade >= 80) return 'text-blue-600 dark:text-blue-400';
+    if (grade >= 70) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
   };
 
   const getPassRateColor = (rate: number) => {
-    if (rate >= 95) return 'text-green-600 bg-green-100 dark:bg-green-900/20';
-    if (rate >= 85) return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
-    if (rate >= 75) return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
-    return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+    if (rate >= 95) return 'text-green-600 bg-green-100 dark:bg-green-900/30';
+    if (rate >= 85) return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30';
+    if (rate >= 75) return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30';
+    return 'text-red-600 bg-red-100 dark:bg-red-900/30';
   };
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -97,7 +99,7 @@ const AcademicReports: React.FC = () => {
   if (error || !report) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button
           onClick={fetchAcademicReport}
           className="mt-2 btn btn-primary"
@@ -109,19 +111,19 @@ const AcademicReports: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Current Term Indicator */}
       <CurrentTermIndicator variant="banner" />
 
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Academic Performance Reports</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Academic Performance Reports</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Comprehensive academic performance analysis for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
-        <button className="btn btn-primary flex items-center space-x-2">
+        <button className="btn btn-primary w-full sm:w-auto flex items-center justify-center space-x-2">
           <ArrowDownTrayIcon className="h-4 w-4" />
           <span>Export Report</span>
         </button>
@@ -129,165 +131,171 @@ const AcademicReports: React.FC = () => {
 
       {/* Overall Performance */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card p-6 text-center">
-          <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg inline-block mb-3">
-            <AcademicCapIcon className="h-8 w-8 text-blue-600" />
+        <Card variant="glass" className="text-center border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl inline-block mb-3 text-blue-600 dark:text-blue-400">
+            <AcademicCapIcon className="h-8 w-8" />
           </div>
-          <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
             {report.overall_performance.average_grade}%
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Average Grade</p>
-        </div>
-        
-        <div className="card p-6 text-center">
-          <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg inline-block mb-3">
-            <ChartBarIcon className="h-8 w-8 text-green-600" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Average Grade</p>
+        </Card>
+
+        <Card variant="glass" className="text-center border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+          <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-xl inline-block mb-3 text-green-600 dark:text-green-400">
+            <ChartBarIcon className="h-8 w-8" />
           </div>
-          <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
             {report.overall_performance.pass_rate}%
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Pass Rate</p>
-        </div>
-        
-        <div className="card p-6 text-center">
-          <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg inline-block mb-3">
-            <TrophyIcon className="h-8 w-8 text-purple-600" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Pass Rate</p>
+        </Card>
+
+        <Card variant="glass" className="text-center border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+          <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl inline-block mb-3 text-purple-600 dark:text-purple-400">
+            <TrophyIcon className="h-8 w-8" />
           </div>
-          <p className="text-3xl font-semibold text-gray-900 dark:text-white">
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
             {report.overall_performance.distinction_rate}%
           </p>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Distinction Rate</p>
-        </div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Distinction Rate</p>
+        </Card>
       </div>
 
-      {/* Subject-wise Performance */}
-      <div className="card p-6">
-        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          Subject-wise Performance
-        </h4>
-        <div className="space-y-4">
-          {report.subject_wise_performance.map((subject) => (
-            <div key={subject.subject_id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div className="flex-1">
-                <h5 className="font-medium text-gray-900 dark:text-white">
-                  {subject.subject_name}
-                </h5>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {subject.total_students} students
-                </p>
-              </div>
-              <div className="flex items-center space-x-6">
-                <div className="text-center">
-                  <p className={`text-lg font-semibold ${getGradeColor(subject.average_grade)}`}>
-                    {subject.average_grade}%
-                  </p>
-                  <p className="text-xs text-gray-500">Avg Grade</p>
-                </div>
-                <div className="text-center">
-                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${getPassRateColor(subject.pass_rate)}`}>
-                    {subject.pass_rate}%
-                  </span>
-                  <p className="text-xs text-gray-500 mt-1">Pass Rate</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Class-wise Performance */}
-      <div className="card p-6">
-        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          Class-wise Performance
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {report.class_wise_performance.map((classData) => (
-            <div key={classData.class_id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h5 className="font-medium text-gray-900 dark:text-white">
-                    {classData.class_name}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Subject-wise Performance */}
+        <Card variant="glass" className="h-full">
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <BookOpenIcon className="h-5 w-5 mr-2 text-primary-500" />
+            Subject-wise Performance
+          </h4>
+          <div className="space-y-4">
+            {report.subject_wise_performance.map((subject) => (
+              <div key={subject.subject_id} className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700/50 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <div className="flex-1">
+                  <h5 className="font-bold text-gray-900 dark:text-white">
+                    {subject.subject_name}
                   </h5>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {classData.total_students} students
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {subject.total_students} students
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className={`text-lg font-semibold ${getGradeColor(classData.average_grade)}`}>
-                    {classData.average_grade}%
-                  </p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPassRateColor(classData.pass_rate)}`}>
-                    {classData.pass_rate}% pass
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Average Grade</span>
-                    <span>{classData.average_grade}%</span>
+                <div className="flex items-center space-x-6">
+                  <div className="text-center">
+                    <p className={`text-lg font-bold ${getGradeColor(subject.average_grade)}`}>
+                      {subject.average_grade}%
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">Avg Grade</p>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{ width: `${classData.average_grade}%` }}
-                    ></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Pass Rate</span>
-                    <span>{classData.pass_rate}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div
-                      className="bg-green-600 h-2 rounded-full"
-                      style={{ width: `${classData.pass_rate}%` }}
-                    ></div>
+                  <div className="text-center">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getPassRateColor(subject.pass_rate)}`}>
+                      {subject.pass_rate}%
+                    </span>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Pass Rate</p>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Class-wise Performance */}
+        <Card variant="glass" className="h-full">
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+            <AcademicCapIcon className="h-5 w-5 mr-2 text-primary-500" />
+            Class-wise Performance
+          </h4>
+          <div className="grid grid-cols-1 gap-4">
+            {report.class_wise_performance.map((classData) => (
+              <div key={classData.class_id} className="p-4 border border-gray-100 dark:border-gray-700/50 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h5 className="font-bold text-gray-900 dark:text-white">
+                      {classData.class_name}
+                    </h5>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {classData.total_students} students
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-lg font-bold ${getGradeColor(classData.average_grade)}`}>
+                      {classData.average_grade}%
+                    </p>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getPassRateColor(classData.pass_rate)}`}>
+                      {classData.pass_rate}% pass
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Average Grade</span>
+                      <span>{classData.average_grade}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000"
+                        style={{ width: `${classData.average_grade}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <span>Pass Rate</span>
+                      <span>{classData.pass_rate}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-green-600 h-1.5 rounded-full transition-all duration-1000"
+                        style={{ width: `${classData.pass_rate}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
 
       {/* Top Performers */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <TrophyIcon className="h-6 w-6 text-yellow-600" />
-          <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+      <Card variant="glass" className="border-l-4 border-l-yellow-500">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-yellow-600 dark:text-yellow-400">
+            <TrophyIcon className="h-6 w-6" />
+          </div>
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white">
             Top Performers
           </h4>
         </div>
         <div className="space-y-3">
           {report.top_performers.map((student, index) => (
-            <div key={student.student_id} className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center justify-center w-8 h-8 bg-yellow-200 dark:bg-yellow-800 rounded-full">
-                  <span className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-                    {index + 1}
+            <div key={student.student_id} className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-xl hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center justify-center w-10 h-10 bg-yellow-200 dark:bg-yellow-800 rounded-full shadow-sm ring-2 ring-white dark:ring-gray-800">
+                  <span className="text-sm font-bold text-yellow-800 dark:text-yellow-200">
+                    #{index + 1}
                   </span>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <p className="font-bold text-gray-900 dark:text-white">
                     {student.student_name}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {student.class_name}
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-lg font-semibold text-yellow-600">
+                <p className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
                   {student.average_grade}%
                 </p>
-                <p className="text-xs text-gray-500">Average Grade</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">Average Grade</p>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

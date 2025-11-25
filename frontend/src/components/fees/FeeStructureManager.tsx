@@ -8,6 +8,8 @@ import {
   CalendarIcon,
   AcademicCapIcon,
   UserGroupIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { FeeStructure, CreateFeeStructureForm } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,7 +20,7 @@ import DataTable, { Column } from '../ui/DataTable';
 import Modal from '../ui/Modal';
 import ConfirmationModal from '../ui/ConfirmationModal';
 import FeeStructureForm from './FeeStructureForm';
-import LoadingSpinner from '../ui/LoadingSpinner';
+import Card from '../ui/Card';
 
 const FeeStructureManager: React.FC = () => {
   const { user } = useAuth();
@@ -32,6 +34,7 @@ const FeeStructureManager: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFeeStructure, setSelectedFeeStructure] = useState<FeeStructure | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     academic_session: '',
     fee_type: '',
@@ -64,15 +67,26 @@ const FeeStructureManager: React.FC = () => {
   const handleCreateFeeStructure = async (data: CreateFeeStructureForm) => {
     try {
       setFormLoading(true);
-      const newFeeStructure = await FeeService.createFeeStructure(data);
+      await FeeService.createFeeStructure(data);
       showSuccess('Fee structure created successfully');
       setShowCreateModal(false);
       fetchFeeStructures();
     } catch (error: any) {
       console.error('Failed to create fee structure:', error);
-      const errorMessage = typeof error.response?.data?.detail === 'string'
-        ? error.response.data.detail
-        : error.message || 'Failed to create fee structure';
+
+      // Extract validation error message
+      let errorMessage = 'Failed to create fee structure';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = error.response.data.detail
+            .map((err: any) => `${err.loc?.join('.') || 'Field'}: ${err.msg}`)
+            .join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
       showError(errorMessage);
     } finally {
       setFormLoading(false);
@@ -142,16 +156,17 @@ const FeeStructureManager: React.FC = () => {
   const columns: Column<FeeStructure>[] = [
     {
       key: 'name',
-      label: 'Fee Structure',
+      header: 'Fee Structure',
+      sortable: true,
       render: (fee) => (
         <div className="flex items-center">
           <div className="h-10 w-10 flex-shrink-0">
-            <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400">
               <span className="text-lg">{FeeService.getFeeTypeIcon(fee.fee_type)}</span>
             </div>
           </div>
           <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
               {fee.name}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
@@ -163,14 +178,15 @@ const FeeStructureManager: React.FC = () => {
     },
     {
       key: 'amount',
-      label: 'Amount',
+      header: 'Amount',
+      sortable: true,
       render: (fee) => (
         <div>
-          <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+          <div className="text-sm font-bold text-green-600 dark:text-green-400">
             {FeeService.formatCurrency(fee.amount)}
           </div>
           {fee.late_fee_amount && (
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-red-500 dark:text-red-400">
               +{FeeService.formatCurrency(fee.late_fee_amount)} late fee
             </div>
           )}
@@ -179,7 +195,7 @@ const FeeStructureManager: React.FC = () => {
     },
     {
       key: 'applicable_to',
-      label: 'Applicable To',
+      header: 'Applicable To',
       render: (fee) => (
         <div className="flex items-center">
           <UserGroupIcon className="h-4 w-4 text-gray-400 mr-2" />
@@ -191,7 +207,8 @@ const FeeStructureManager: React.FC = () => {
     },
     {
       key: 'due_date',
-      label: 'Due Date',
+      header: 'Due Date',
+      sortable: true,
       render: (fee) => (
         <div className="flex items-center">
           <CalendarIcon className="h-4 w-4 text-gray-400 mr-2" />
@@ -203,151 +220,149 @@ const FeeStructureManager: React.FC = () => {
     },
     {
       key: 'status',
-      label: 'Status',
+      header: 'Status',
       render: (fee) => (
         <div className="flex flex-col space-y-1">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            fee.is_active
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-          }`}>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${fee.is_active
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+            }`}>
             {fee.is_active ? 'Active' : 'Inactive'}
           </span>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            fee.is_mandatory
-              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-              : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-          }`}>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${fee.is_mandatory
+            ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+            }`}>
             {fee.is_mandatory ? 'Mandatory' : 'Optional'}
           </span>
-        </div>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (fee) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewFeeStructure(fee)}
-            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-            title="View Details"
-          >
-            <EyeIcon className="h-4 w-4" />
-          </button>
-          {canManageFees() && (
-            <>
-              <button
-                onClick={() => handleEditClick(fee)}
-                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
-                title="Edit"
-              >
-                <PencilIcon className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => handleDeleteClick(fee)}
-                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                title="Delete"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </button>
-            </>
-          )}
         </div>
       ),
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Fee Structures
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage fee structures for your school
-          </p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex-1">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'} w-full sm:w-auto`}
+          >
+            <FunnelIcon className="w-4 h-4 mr-2" />
+            Filters
+          </button>
         </div>
+
         {canManageFees() && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn btn-primary"
+            className="btn btn-primary w-full sm:w-auto"
           >
-            <PlusIcon className="h-5 w-5 mr-2" />
+            <PlusIcon className="w-4 h-4 mr-2" />
             Create Fee Structure
           </button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="label">Academic Session</label>
-            <input
-              type="text"
-              className="input"
-              placeholder="e.g., 2024-2025"
-              value={filters.academic_session}
-              onChange={(e) => setFilters({ ...filters, academic_session: e.target.value })}
-            />
+      {showFilters && (
+        <Card variant="glass" className="animate-fade-in-up">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="label">Academic Session</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="e.g., 2024-2025"
+                value={filters.academic_session}
+                onChange={(e) => setFilters({ ...filters, academic_session: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Fee Type</label>
+              <select
+                className="input"
+                value={filters.fee_type}
+                onChange={(e) => setFilters({ ...filters, fee_type: e.target.value })}
+              >
+                <option value="">All Types</option>
+                <option value="tuition">Tuition</option>
+                <option value="transport">Transport</option>
+                <option value="library">Library</option>
+                <option value="lab">Laboratory</option>
+                <option value="examination">Examination</option>
+                <option value="sports">Sports</option>
+                <option value="uniform">Uniform</option>
+                <option value="books">Books</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select
+                className="input"
+                value={filters.is_active === undefined ? '' : filters.is_active.toString()}
+                onChange={(e) => setFilters({
+                  ...filters,
+                  is_active: e.target.value === '' ? undefined : e.target.value === 'true'
+                })}
+              >
+                <option value="">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters({ academic_session: '', fee_type: '', is_active: undefined })}
+                className="btn btn-secondary w-full"
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="label">Fee Type</label>
-            <select
-              className="input"
-              value={filters.fee_type}
-              onChange={(e) => setFilters({ ...filters, fee_type: e.target.value })}
-            >
-              <option value="">All Types</option>
-              <option value="tuition">Tuition</option>
-              <option value="transport">Transport</option>
-              <option value="library">Library</option>
-              <option value="lab">Laboratory</option>
-              <option value="examination">Examination</option>
-              <option value="sports">Sports</option>
-              <option value="uniform">Uniform</option>
-              <option value="books">Books</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select
-              className="input"
-              value={filters.is_active === undefined ? '' : filters.is_active.toString()}
-              onChange={(e) => setFilters({
-                ...filters,
-                is_active: e.target.value === '' ? undefined : e.target.value === 'true'
-              })}
-            >
-              <option value="">All Status</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ academic_session: '', fee_type: '', is_active: undefined })}
-              className="btn btn-secondary w-full"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+        </Card>
+      )}
 
       {/* Fee Structures Table */}
-      <div className="card">
-        <DataTable
-          data={feeStructures}
-          columns={columns}
-          loading={loading}
-          emptyMessage="No fee structures found"
-        />
-      </div>
+      <DataTable
+        data={feeStructures}
+        columns={columns}
+        loading={loading}
+        searchable={true}
+        searchPlaceholder="Search fee structures..."
+        emptyMessage="No fee structures found"
+        actions={(fee) => (
+          <>
+            <button
+              onClick={() => handleViewFeeStructure(fee)}
+              className="p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              title="View Details"
+            >
+              <EyeIcon className="w-5 h-5" />
+            </button>
+            {canManageFees() && (
+              <>
+                <button
+                  onClick={() => handleEditClick(fee)}
+                  className="p-1 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                  title="Edit"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleDeleteClick(fee)}
+                  className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title="Delete"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </>
+            )}
+          </>
+        )}
+      />
 
       {/* Create Fee Modal */}
       <Modal
@@ -413,55 +428,56 @@ const FeeStructureManager: React.FC = () => {
         {selectedFeeStructure && (
           <div className="space-y-6">
             {/* Basic Information */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                <CurrencyDollarIcon className="h-5 w-5 mr-2" />
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <CurrencyDollarIcon className="h-5 w-5 mr-2 text-green-600" />
                 Basic Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Fee Structure Name
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <p className="mt-1 text-base font-medium text-gray-900 dark:text-white">
                     {selectedFeeStructure.name}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Fee Type
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 capitalize">
+                  <p className="mt-1 text-base font-medium text-gray-900 dark:text-white capitalize">
                     {selectedFeeStructure.fee_type.replace('_', ' ')}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Academic Session
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <p className="mt-1 text-base font-medium text-gray-900 dark:text-white">
                     {selectedFeeStructure.academic_session}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Status
                   </label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    selectedFeeStructure.is_active
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                  }`}>
-                    {selectedFeeStructure.is_active ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${selectedFeeStructure.is_active
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                      {selectedFeeStructure.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
               </div>
               {selectedFeeStructure.description && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Description
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-300">
                     {selectedFeeStructure.description}
                   </p>
                 </div>
@@ -469,34 +485,34 @@ const FeeStructureManager: React.FC = () => {
             </div>
 
             {/* Payment Configuration */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                <CalendarIcon className="h-5 w-5 mr-2" />
+            <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-6 border border-blue-100 dark:border-blue-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
                 Payment Configuration
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Amount
                   </label>
-                  <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ₦{selectedFeeStructure.amount.toLocaleString()}
+                  <p className="mt-1 text-xl font-bold text-green-600 dark:text-green-400">
+                    {FeeService.formatCurrency(selectedFeeStructure.amount)}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Payment Type
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100 capitalize">
+                  <p className="mt-1 text-base font-medium text-gray-900 dark:text-white capitalize">
                     {selectedFeeStructure.allow_installments ? 'Installment' : 'One-time Payment'}
                   </p>
                 </div>
                 {selectedFeeStructure.allow_installments && selectedFeeStructure.installment_count && selectedFeeStructure.installment_count > 1 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Installments
                     </label>
-                    <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                    <p className="mt-1 text-base font-medium text-gray-900 dark:text-white">
                       {selectedFeeStructure.installment_count} payments
                     </p>
                   </div>
@@ -504,11 +520,11 @@ const FeeStructureManager: React.FC = () => {
               </div>
 
               {selectedFeeStructure.due_date && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <div className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-800">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Due Date
                   </label>
-                  <p className="mt-1 text-sm text-gray-900 dark:text-gray-100">
+                  <p className="mt-1 text-base font-medium text-gray-900 dark:text-white">
                     {new Date(selectedFeeStructure.due_date).toLocaleDateString()}
                   </p>
                 </div>
@@ -516,86 +532,40 @@ const FeeStructureManager: React.FC = () => {
             </div>
 
             {/* Applicable Classes */}
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-                <AcademicCapIcon className="h-5 w-5 mr-2" />
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center">
+                <AcademicCapIcon className="h-5 w-5 mr-2 text-purple-600" />
                 Applicable Classes
               </h3>
               {selectedFeeStructure.applicable_classes && selectedFeeStructure.applicable_classes.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {selectedFeeStructure.applicable_classes.map((classItem, index) => (
                     <div
                       key={index}
-                      className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-600"
+                      className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border border-gray-100 dark:border-gray-600 flex items-center"
                     >
-                      <div className="flex items-center">
-                        <UserGroupIcon className="h-4 w-4 text-gray-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <UserGroupIcon className="h-4 w-4 text-gray-400 mr-2" />
+                      <div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white block">
                           {classItem.name}
                         </span>
+                        {classItem.section && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400 block">
+                            Section: {classItem.section}
+                          </span>
+                        )}
                       </div>
-                      {classItem.section && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          Section: {classItem.section}
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4">
+                <div className="text-center py-6 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
                   <UserGroupIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     This fee structure applies to all classes
                   </p>
                 </div>
               )}
-            </div>
-
-            {/* Additional Information */}
-            {selectedFeeStructure.additional_data && Object.keys(selectedFeeStructure.additional_data).length > 0 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                  Additional Information
-                </h3>
-                <div className="space-y-2">
-                  {Object.entries(selectedFeeStructure.additional_data).map(([key, value]) => (
-                    <div key={key} className="flex justify-between">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                        {key.replace('_', ' ')}:
-                      </span>
-                      <span className="text-sm text-gray-900 dark:text-gray-100">
-                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Timestamps */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                Record Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <label className="block font-medium text-gray-700 dark:text-gray-300">
-                    Created At
-                  </label>
-                  <p className="text-gray-900 dark:text-gray-100">
-                    {new Date(selectedFeeStructure.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block font-medium text-gray-700 dark:text-gray-300">
-                    Last Updated
-                  </label>
-                  <p className="text-gray-900 dark:text-gray-100">
-                    {new Date(selectedFeeStructure.updated_at).toLocaleString()}
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         )}

@@ -155,6 +155,7 @@ class SchoolRegistrationResponse(BaseModel):
 
 class SchoolSettings(BaseModel):
     """Schema for school settings"""
+    currency: Optional[str] = "USD"  # Default currency
     academic_calendar: Optional[Dict[str, Any]] = None
     grading_system: Optional[Dict[str, Any]] = None
     fee_settings: Optional[Dict[str, Any]] = None

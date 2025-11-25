@@ -15,16 +15,89 @@ import TermForm from '../terms/TermForm';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import TermSwitcher from '../terms/TermSwitcher';
 import SchoolManagement from './SchoolManagement';
+import { useCurrency } from '../../contexts/CurrencyContext';
+import { CURRENCY_OPTIONS } from '../../utils/currency';
+import { apiService } from '../../services/api';
+import { useToast } from '../../hooks/useToast';
+import { useEffect } from 'react';
 
 type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general';
 
 const SchoolSettings: React.FC = () => {
   const { user } = useAuth();
+  const { currency, setCurrency } = useCurrency();
   const { refresh } = useCurrentTerm();
+  const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<SchoolSettingsTab>('overview');
   const [showCreateTermModal, setShowCreateTermModal] = useState(false);
   const [showEditTermModal, setShowEditTermModal] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
+
+  // General Settings State
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolType, setSchoolType] = useState('primary');
+  const [loadingGeneral, setLoadingGeneral] = useState(false);
+
+  // Academic Settings State
+  const [academicYearFormat, setAcademicYearFormat] = useState('yyyy/yyyy');
+  const [termsPerYear, setTermsPerYear] = useState('3');
+  const [loadingAcademic, setLoadingAcademic] = useState(false);
+
+  useEffect(() => {
+    if (user?.school) {
+      setSchoolName(user.school_name || '');
+      // Initialize other settings if available in user.school.settings
+      if (user.school.settings?.general_settings?.school_type) {
+        setSchoolType(user.school.settings.general_settings.school_type);
+      }
+      if (user.school.settings?.academic_calendar?.format) {
+        setAcademicYearFormat(user.school.settings.academic_calendar.format);
+      }
+      if (user.school.settings?.academic_calendar?.terms_per_year) {
+        setTermsPerYear(String(user.school.settings.academic_calendar.terms_per_year));
+      }
+    }
+  }, [user]);
+
+  const handleSaveGeneral = async () => {
+    setLoadingGeneral(true);
+    try {
+      await apiService.put('/api/v1/schools/me', {
+        name: schoolName,
+        settings: {
+          general_settings: {
+            school_type: schoolType
+          }
+        }
+      });
+      showSuccess('General settings saved successfully');
+    } catch (error) {
+      console.error('Failed to save general settings:', error);
+      showError('Failed to save general settings');
+    } finally {
+      setLoadingGeneral(false);
+    }
+  };
+
+  const handleSaveAcademic = async () => {
+    setLoadingAcademic(true);
+    try {
+      await apiService.put('/api/v1/schools/me', {
+        settings: {
+          academic_calendar: {
+            format: academicYearFormat,
+            terms_per_year: parseInt(termsPerYear)
+          }
+        }
+      });
+      showSuccess('Academic settings saved successfully');
+    } catch (error) {
+      console.error('Failed to save academic settings:', error);
+      showError('Failed to save academic settings');
+    } finally {
+      setLoadingAcademic(false);
+    }
+  };
 
   const handleCreateTerm = () => {
     setEditingTerm(null);
@@ -199,7 +272,11 @@ const SchoolSettings: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Academic Year Format
                     </label>
-                    <select className="input">
+                    <select
+                      className="input"
+                      value={academicYearFormat}
+                      onChange={(e) => setAcademicYearFormat(e.target.value)}
+                    >
                       <option value="yyyy/yyyy">YYYY/YYYY (e.g., 2023/2024)</option>
                       <option value="yyyy-yyyy">YYYY-YYYY (e.g., 2023-2024)</option>
                     </select>
@@ -208,15 +285,23 @@ const SchoolSettings: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Number of Terms per Year
                     </label>
-                    <select className="input">
+                    <select
+                      className="input"
+                      value={termsPerYear}
+                      onChange={(e) => setTermsPerYear(e.target.value)}
+                    >
                       <option value="2">2 Terms (Semester System)</option>
                       <option value="3">3 Terms (Trimester System)</option>
                     </select>
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <button className="btn btn-primary">
-                    Save Academic Settings
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveAcademic}
+                    disabled={loadingAcademic}
+                  >
+                    {loadingAcademic ? 'Saving...' : 'Save Academic Settings'}
                   </button>
                 </div>
               </div>
@@ -249,7 +334,8 @@ const SchoolSettings: React.FC = () => {
                     <input
                       type="text"
                       className="input"
-                      defaultValue={user?.school_name || ''}
+                      value={schoolName}
+                      onChange={(e) => setSchoolName(e.target.value)}
                       placeholder="Enter school name"
                     />
                   </div>
@@ -257,16 +343,40 @@ const SchoolSettings: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       School Type
                     </label>
-                    <select className="input">
+                    <select
+                      className="input"
+                      value={schoolType}
+                      onChange={(e) => setSchoolType(e.target.value)}
+                    >
                       <option value="primary">Primary School</option>
                       <option value="secondary">Secondary School</option>
                       <option value="combined">Combined School</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Currency
+                    </label>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="input"
+                    >
+                      {CURRENCY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 <div className="flex justify-end">
-                  <button className="btn btn-primary">
-                    Save General Settings
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSaveGeneral}
+                    disabled={loadingGeneral}
+                  >
+                    {loadingGeneral ? 'Saving...' : 'Save General Settings'}
                   </button>
                 </div>
               </div>

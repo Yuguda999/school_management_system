@@ -8,39 +8,59 @@ import {
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
-interface Payment {
-  id: string;
-  student_name: string;
-  class_name: string;
-  fee_type: string;
-  amount: number;
-  due_date: string;
-  paid_date?: string;
-  status: 'paid' | 'pending' | 'overdue';
-  payment_method?: string;
-}
+import { FeePayment, Class } from '../../types';
+import { FeeService } from '../../services/feeService';
+import { academicService } from '../../services/academicService';
+import { useToast } from '../../hooks/useToast';
+import PaymentDetailsModal from './PaymentDetailsModal';
 
 const PaymentTracker: React.FC = () => {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const { showError } = useToast();
+  const [payments, setPayments] = useState<FeePayment[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     status: '',
-    class: '',
+    class_id: '',
     search: '',
   });
+  const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
-    fetchPayments();
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPayments();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [filters]);
+
+  const fetchClasses = async () => {
+    try {
+      const allClasses = await academicService.getClasses({ is_active: true });
+      setClasses(allClasses);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+    }
+  };
 
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      // TODO: Implement actual API call to fetch payments
-      const payments: Payment[] = [];
-      setPayments(payments);
+      const allPayments = await FeeService.getPayments({
+        status: filters.status || undefined,
+        class_id: filters.class_id || undefined,
+        search: filters.search || undefined,
+        page: 1,
+        size: 100
+      });
+      setPayments(allPayments);
     } catch (error) {
       console.error('Error fetching payments:', error);
+      showError('Failed to load payments');
     } finally {
       setLoading(false);
     }
@@ -72,15 +92,7 @@ const PaymentTracker: React.FC = () => {
     }
   };
 
-  const filteredPayments = payments.filter(payment => {
-    const matchesStatus = !filters.status || payment.status === filters.status;
-    const matchesClass = !filters.class || payment.class_name.includes(filters.class);
-    const matchesSearch = !filters.search || 
-      payment.student_name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      payment.fee_type.toLowerCase().includes(filters.search.toLowerCase());
-    
-    return matchesStatus && matchesClass && matchesSearch;
-  });
+
 
   if (loading) {
     return (
@@ -110,7 +122,7 @@ const PaymentTracker: React.FC = () => {
               />
             </div>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Status
@@ -126,23 +138,28 @@ const PaymentTracker: React.FC = () => {
               <option value="overdue">Overdue</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Class
             </label>
-            <input
-              type="text"
-              value={filters.class}
-              onChange={(e) => setFilters({ ...filters, class: e.target.value })}
+            <select
+              value={filters.class_id}
+              onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
               className="input"
-              placeholder="Filter by class..."
-            />
+            >
+              <option value="">All Classes</option>
+              {classes.map((cls) => (
+                <option key={cls.id} value={cls.id}>
+                  {cls.name}
+                </option>
+              ))}
+            </select>
           </div>
-          
+
           <div className="flex items-end">
             <button
-              onClick={() => setFilters({ status: '', class: '', search: '' })}
+              onClick={() => setFilters({ status: '', class_id: '', search: '' })}
               className="btn btn-secondary w-full flex items-center justify-center space-x-2"
             >
               <FunnelIcon className="h-4 w-4" />
@@ -164,7 +181,7 @@ const PaymentTracker: React.FC = () => {
                 Paid Payments
               </p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {filteredPayments.filter(p => p.status === 'paid').length}
+                {payments.filter(p => p.fee_assignment?.status === 'paid').length}
               </p>
             </div>
           </div>
@@ -180,7 +197,7 @@ const PaymentTracker: React.FC = () => {
                 Pending Payments
               </p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {filteredPayments.filter(p => p.status === 'pending').length}
+                {payments.filter(p => p.fee_assignment?.status === 'pending' || p.fee_assignment?.status === 'partial').length}
               </p>
             </div>
           </div>
@@ -196,7 +213,7 @@ const PaymentTracker: React.FC = () => {
                 Overdue Payments
               </p>
               <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                {filteredPayments.filter(p => p.status === 'overdue').length}
+                {payments.filter(p => p.fee_assignment?.status === 'overdue').length}
               </p>
             </div>
           </div>
@@ -212,76 +229,96 @@ const PaymentTracker: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Receipt No
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Student
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Fee Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Due Date
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Method
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {payment.student_name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {payment.class_name}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {payment.fee_type}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    ₹{payment.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {new Date(payment.due_date).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(payment.status)}
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
-                        {payment.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button className="text-blue-600 hover:text-blue-800 dark:text-blue-400">
-                        View
-                      </button>
-                      {payment.status !== 'paid' && (
-                        <button className="text-green-600 hover:text-green-800 dark:text-green-400">
-                          Mark Paid
-                        </button>
-                      )}
-                    </div>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {payments.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                    No payments found matching your filters
                   </td>
                 </tr>
-              ))}
+              ) : (
+                payments.map((payment) => (
+                  <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                      {payment.receipt_number || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {payment.student_name || (payment.student ? `${payment.student.first_name} ${payment.student.last_name}` : 'Unknown')}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {payment.student?.current_class_name || 'N/A'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <span className="capitalize">
+                        {payment.fee_assignment?.fee_structure?.fee_type?.replace('_', ' ') || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {FeeService.formatCurrency(payment.amount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {payment.payment_date ? FeeService.formatDate(payment.payment_date) : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white capitalize">
+                      {payment.payment_method?.replace('_', ' ') || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(payment.fee_assignment?.status || 'pending')}
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.fee_assignment?.status || 'pending')}`}>
+                          {payment.fee_assignment?.status || 'pending'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setShowDetailsModal(true);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {filteredPayments.length === 0 && (
+      {payments.length === 0 && (
         <div className="card p-8 text-center">
           <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No payments found</h3>
@@ -290,6 +327,12 @@ const PaymentTracker: React.FC = () => {
           </p>
         </div>
       )}
+
+      <PaymentDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        payment={selectedPayment}
+      />
     </div>
   );
 };

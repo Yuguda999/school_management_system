@@ -106,6 +106,10 @@ class Student(TenantBaseModel):
         today = date.today()
         return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
 
+    @property
+    def current_class_name(self):
+        return self.current_class.name if self.current_class else None
+
 
 class StudentClassHistory(TenantBaseModel):
     """Student class history tracking for progression and historical data"""

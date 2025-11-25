@@ -2,7 +2,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_school_admin, get_current_school
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school, SchoolContext
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.schemas.academic import EnrollmentCreate, EnrollmentResponse
@@ -14,8 +14,7 @@ router = APIRouter()
 @router.post("/", response_model=EnrollmentResponse)
 async def create_enrollment(
     enrollment_data: EnrollmentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new enrollment (Admin only)"""
@@ -51,6 +50,14 @@ async def get_enrollments(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get enrollments with filtering"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     skip = (page - 1) * size
     
     enrollments = await EnrollmentService.get_enrollments(
@@ -72,8 +79,7 @@ async def get_enrollments(
 async def auto_enroll_class_students(
     class_id: str,
     subject_ids: Optional[List[str]] = Query(None, description="Specific subject IDs to enroll in"),
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Automatically enroll all students in a class to class subjects (Admin only)"""
@@ -92,11 +98,18 @@ async def auto_enroll_class_students(
 @router.post("/auto-enroll/student/{student_id}")
 async def auto_enroll_student_in_class(
     student_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Automatically enroll a student in all subjects of their class (Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # First get the student's class
     from app.services.student_service import StudentService
     student = await StudentService.get_student_by_id(db, student_id, current_school.id)
@@ -128,8 +141,7 @@ async def auto_enroll_student_in_class(
 @router.delete("/{enrollment_id}")
 async def delete_enrollment(
     enrollment_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete an enrollment (Admin only)"""
@@ -156,6 +168,14 @@ async def get_student_enrollments(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all enrollments for a specific student"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     enrollments = await EnrollmentService.get_enrollments(
         db=db,
         school_id=current_school.id,

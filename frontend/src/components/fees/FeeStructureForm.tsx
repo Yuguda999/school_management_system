@@ -72,15 +72,29 @@ const FeeStructureForm: React.FC<FeeStructureFormProps> = ({
   const handleFormSubmit = async (data: CreateFeeStructureForm) => {
     try {
       // Clean up data based on applicable_to selection
+      // Ensure class_ids is an array
+      let classIds = data.class_ids;
+      if (data.applicable_to === 'specific_classes') {
+        if (typeof classIds === 'string') {
+          classIds = [classIds];
+        } else if (!Array.isArray(classIds)) {
+          classIds = [];
+        }
+      } else {
+        classIds = [];
+      }
+
       const submitData = {
         ...data,
-        class_ids: data.applicable_to === 'specific_classes' ? data.class_ids : undefined,
+        class_ids: classIds,
         amount: Number(data.amount),
-        late_fee_amount: data.late_fee_amount ? Number(data.late_fee_amount) : undefined,
-        late_fee_days: data.late_fee_days ? Number(data.late_fee_days) : undefined,
+        late_fee_amount: data.late_fee_amount ? Number(data.late_fee_amount) : 0,
+        late_fee_days: data.late_fee_days ? Number(data.late_fee_days) : 0,
         installment_count: data.allow_installments ? Number(data.installment_count) : 1,
+        due_date: data.due_date || undefined, // Send undefined if empty string
       };
 
+      console.log('📦 Submitting fee structure:', JSON.stringify(submitData, null, 2));
       await onSubmit(submitData);
     } catch (error) {
       console.error('Form submission error:', error);
@@ -151,13 +165,16 @@ const FeeStructureForm: React.FC<FeeStructureFormProps> = ({
             >
               <option value="">Select Fee Type</option>
               <option value="tuition">Tuition</option>
-              <option value="transport">Transport</option>
-              <option value="library">Library</option>
-              <option value="lab">Laboratory</option>
+              <option value="registration">Registration</option>
               <option value="examination">Examination</option>
+              <option value="library">Library</option>
+              <option value="laboratory">Laboratory</option>
               <option value="sports">Sports</option>
+              <option value="transport">Transport</option>
               <option value="uniform">Uniform</option>
               <option value="books">Books</option>
+              <option value="feeding">Feeding</option>
+              <option value="development">Development Levy</option>
               <option value="other">Other</option>
             </select>
             {errors.fee_type && (

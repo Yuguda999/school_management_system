@@ -3,15 +3,15 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
   CalendarIcon,
   ClockIcon,
-  AcademicCapIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
-import { Exam, ExamType, Class, Subject, Term } from '../../types';
+import { Exam, ExamType, Class, Subject } from '../../types';
 import GradeService from '../../services/gradeService';
 import { academicService } from '../../services/academicService';
 import Modal from '../ui/Modal';
@@ -21,6 +21,8 @@ import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import DataTable, { Column } from '../ui/DataTable';
+import Card from '../ui/Card';
 
 interface ExamListProps {
   onExamSelect?: (exam: Exam) => void;
@@ -40,6 +42,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [examToDelete, setExamToDelete] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Filters - Initialize with current term
   const [filters, setFilters] = useState({
@@ -157,51 +160,135 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
     return labels[examType] || examType;
   };
 
-  const getStatusBadge = (exam: Exam) => {
-    if (!exam.is_active) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-          <XCircleIcon className="w-3 h-3 mr-1" />
-          Inactive
-        </span>
-      );
-    }
-    
-    if (exam.is_published) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-          <CheckCircleIcon className="w-3 h-3 mr-1" />
-          Published
-        </span>
-      );
-    }
-    
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-        <ClockIcon className="w-3 h-3 mr-1" />
-        Draft
-      </span>
-    );
-  };
-
-  // Permission check is now handled by the usePermissions hook
+  const columns: Column<Exam>[] = [
+    {
+      key: 'name',
+      header: 'Exam Details',
+      sortable: true,
+      render: (exam) => (
+        <div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {exam.name}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {getExamTypeLabel(exam.exam_type)}
+          </div>
+          <div className="text-xs text-gray-400 dark:text-gray-500">
+            {exam.total_marks} marks • Pass: {exam.pass_marks}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'subject_name',
+      header: 'Academic Info',
+      sortable: true,
+      render: (exam) => (
+        <div>
+          <div className="text-sm text-gray-900 dark:text-white">
+            {exam.subject_name}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {exam.class_name}
+          </div>
+          <div className="text-xs text-gray-400 dark:text-gray-500">
+            {exam.term_name}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'exam_date',
+      header: 'Schedule',
+      sortable: true,
+      render: (exam) => (
+        <div>
+          <div className="flex items-center text-sm text-gray-900 dark:text-white">
+            <CalendarIcon className="w-4 h-4 mr-1 text-gray-400" />
+            {new Date(exam.exam_date).toLocaleDateString()}
+          </div>
+          {exam.start_time && (
+            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <ClockIcon className="w-4 h-4 mr-1 text-gray-400" />
+              {exam.start_time}
+              {exam.duration_minutes && ` (${exam.duration_minutes}min)`}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'progress',
+      header: 'Progress',
+      render: (exam) => (
+        <div className="w-full max-w-[140px]">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-gray-700 dark:text-gray-300">
+              {exam.graded_students || 0} / {exam.total_students || 0}
+            </span>
+            <span className="text-gray-500">
+              {exam.total_students ? Math.round(((exam.graded_students || 0) / exam.total_students) * 100) : 0}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+            <div
+              className="bg-primary-600 h-1.5 rounded-full transition-all duration-500"
+              style={{
+                width: `${exam.total_students ? ((exam.graded_students || 0) / exam.total_students) * 100 : 0}%`
+              }}
+            ></div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'is_active',
+      header: 'Status',
+      render: (exam) => {
+        if (!exam.is_active) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+              <XCircleIcon className="w-3 h-3 mr-1" />
+              Inactive
+            </span>
+          );
+        }
+        if (exam.is_published) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              <CheckCircleIcon className="w-3 h-3 mr-1" />
+              Published
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <ClockIcon className="w-3 h-3 mr-1" />
+            Draft
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Exams
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Manage exams and assessments
-          </p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex-1">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'} w-full sm:w-auto`}
+          >
+            <FunnelIcon className="w-4 h-4 mr-2" />
+            Filters
+          </button>
         </div>
+
         {canManageGrades() && (
           <button
             onClick={handleCreateExam}
-            className="btn btn-primary"
+            className="btn btn-primary w-full sm:w-auto"
           >
             <PlusIcon className="w-4 h-4 mr-2" />
             Create Exam
@@ -210,251 +297,143 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Subject
-            </label>
-            <select
-              value={filters.subject_id}
-              onChange={(e) => setFilters({ ...filters, subject_id: e.target.value })}
-              className="input"
-            >
-              <option value="">All Subjects</option>
-              {subjects.map((subject) => (
-                <option key={subject.id} value={subject.id}>
-                  {subject.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      {showFilters && (
+        <Card variant="glass" className="animate-fade-in-up">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Subject
+              </label>
+              <select
+                value={filters.subject_id}
+                onChange={(e) => setFilters({ ...filters, subject_id: e.target.value })}
+                className="input"
+              >
+                <option value="">All Subjects</option>
+                {subjects.map((subject) => (
+                  <option key={subject.id} value={subject.id}>
+                    {subject.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Class
-            </label>
-            <select
-              value={filters.class_id}
-              onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
-              className="input"
-            >
-              <option value="">All Classes</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Class
+              </label>
+              <select
+                value={filters.class_id}
+                onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
+                className="input"
+              >
+                <option value="">All Classes</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Term
-            </label>
-            <select
-              value={filters.term_id}
-              onChange={(e) => setFilters({ ...filters, term_id: e.target.value })}
-              className="input"
-            >
-              <option value="">All Terms</option>
-              {allTerms.map((term) => (
-                <option key={term.id} value={term.id}>
-                  {term.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Term
+              </label>
+              <select
+                value={filters.term_id}
+                onChange={(e) => setFilters({ ...filters, term_id: e.target.value })}
+                className="input"
+              >
+                <option value="">All Terms</option>
+                {allTerms.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {term.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Type
-            </label>
-            <select
-              value={filters.exam_type}
-              onChange={(e) => setFilters({ ...filters, exam_type: e.target.value as ExamType | '' })}
-              className="input"
-            >
-              <option value="">All Types</option>
-              <option value="continuous_assessment">Continuous Assessment</option>
-              <option value="mid_term">Mid-term Exam</option>
-              <option value="final_exam">Final Exam</option>
-              <option value="quiz">Quiz</option>
-              <option value="assignment">Assignment</option>
-              <option value="project">Project</option>
-              <option value="practical">Practical</option>
-              <option value="oral">Oral Exam</option>
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Type
+              </label>
+              <select
+                value={filters.exam_type}
+                onChange={(e) => setFilters({ ...filters, exam_type: e.target.value as ExamType | '' })}
+                className="input"
+              >
+                <option value="">All Types</option>
+                <option value="continuous_assessment">Continuous Assessment</option>
+                <option value="mid_term">Mid-term Exam</option>
+                <option value="final_exam">Final Exam</option>
+                <option value="quiz">Quiz</option>
+                <option value="assignment">Assignment</option>
+                <option value="project">Project</option>
+                <option value="practical">Practical</option>
+                <option value="oral">Oral Exam</option>
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Status
-            </label>
-            <select
-              value={filters.is_published === undefined ? '' : filters.is_published.toString()}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                is_published: e.target.value === '' ? undefined : e.target.value === 'true'
-              })}
-              className="input"
-            >
-              <option value="">All Status</option>
-              <option value="true">Published</option>
-              <option value="false">Draft</option>
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
+              <select
+                value={filters.is_published === undefined ? '' : filters.is_published.toString()}
+                onChange={(e) => setFilters({
+                  ...filters,
+                  is_published: e.target.value === '' ? undefined : e.target.value === 'true'
+                })}
+                className="input"
+              >
+                <option value="">All Status</option>
+                <option value="true">Published</option>
+                <option value="false">Draft</option>
+              </select>
+            </div>
           </div>
-        </div>
-      </div>
+        </Card>
+      )}
 
       {/* Exam List */}
-      <div className="card">
-        {loading ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">Loading exams...</p>
-          </div>
-        ) : exams.length === 0 ? (
-          <div className="p-8 text-center">
-            <AcademicCapIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No exams found
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {canManageGrades() ? 'Create your first exam to get started.' : 'No exams available at the moment.'}
-            </p>
+      <DataTable
+        data={exams}
+        columns={columns}
+        loading={loading}
+        searchable={true}
+        searchPlaceholder="Search exams..."
+        emptyMessage="No exams found"
+        actions={(exam) => (
+          <>
+            <button
+              onClick={() => onExamSelect?.(exam)}
+              className="p-1 rounded-full text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+              title="View grades"
+            >
+              <ChartBarIcon className="w-5 h-5" />
+            </button>
             {canManageGrades() && (
-              <button
-                onClick={handleCreateExam}
-                className="btn btn-primary"
-              >
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Create Exam
-              </button>
+              <>
+                <button
+                  onClick={() => handleEditExam(exam)}
+                  className="p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                  title="Edit exam"
+                >
+                  <PencilIcon className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => handleDeleteExam(exam.id)}
+                  className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title="Delete exam"
+                >
+                  <TrashIcon className="w-5 h-5" />
+                </button>
+              </>
             )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Exam Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Academic Info
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Schedule
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Progress
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {exams.map((exam) => (
-                  <tr key={exam.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {exam.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {getExamTypeLabel(exam.exam_type)}
-                        </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500">
-                          {exam.total_marks} marks • Pass: {exam.pass_marks}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {exam.subject_name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {exam.class_name}
-                      </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500">
-                        {exam.term_name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <CalendarIcon className="w-4 h-4 mr-1" />
-                        {new Date(exam.exam_date).toLocaleDateString()}
-                      </div>
-                      {exam.start_time && (
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <ClockIcon className="w-4 h-4 mr-1" />
-                          {exam.start_time}
-                          {exam.duration_minutes && ` (${exam.duration_minutes}min)`}
-                        </div>
-                      )}
-                      {exam.venue && (
-                        <div className="text-xs text-gray-400 dark:text-gray-500">
-                          {exam.venue}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {exam.graded_students || 0} / {exam.total_students || 0} graded
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
-                        <div
-                          className="bg-primary-600 h-2 rounded-full"
-                          style={{
-                            width: `${exam.total_students ? ((exam.graded_students || 0) / exam.total_students) * 100 : 0}%`
-                          }}
-                        ></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(exam)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => onExamSelect?.(exam)}
-                          className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
-                          title="View grades"
-                        >
-                          <ChartBarIcon className="w-4 h-4" />
-                        </button>
-                        {canManageGrades() && (
-                          <>
-                            <button
-                              onClick={() => handleEditExam(exam)}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                              title="Edit exam"
-                            >
-                              <PencilIcon className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteExam(exam.id)}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                              title="Delete exam"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          </>
         )}
-      </div>
+      />
 
       {/* Create Exam Modal */}
       <Modal
@@ -493,7 +472,7 @@ const ExamList: React.FC<ExamListProps> = ({ onExamSelect }) => {
         title="Delete Exam"
         message="Are you sure you want to delete this exam? This action cannot be undone and will also delete all associated grades."
         confirmText="Delete"
-        confirmButtonClass="btn-danger"
+        type="danger"
       />
     </div>
   );

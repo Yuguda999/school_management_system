@@ -1,11 +1,11 @@
 import { apiService } from './api';
-import { 
-  FeeStructure, 
-  FeeAssignment, 
-  FeePayment, 
-  CreateFeeStructureForm, 
+import {
+  FeeStructure,
+  FeeAssignment,
+  FeePayment,
+  CreateFeeStructureForm,
   BulkFeeAssignmentForm,
-  CreateFeePaymentForm 
+  CreateFeePaymentForm
 } from '../types';
 
 export class FeeService {
@@ -19,7 +19,7 @@ export class FeeService {
     size?: number;
   }): Promise<FeeStructure[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.academic_session) queryParams.append('academic_session', params.academic_session);
     if (params?.class_level) queryParams.append('class_level', params.class_level);
     if (params?.fee_type) queryParams.append('fee_type', params.fee_type);
@@ -52,11 +52,30 @@ export class FeeService {
     }
   ): Promise<FeeAssignment[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.status) queryParams.append('status', params.status);
 
     const url = `/api/v1/fees/students/${studentId}/assignments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return await apiService.get<FeeAssignment[]>(url);
+  }
+
+  static async getFeeAssignments(params?: {
+    term_id?: string;
+    class_id?: string;
+    status?: string;
+    page?: number;
+    size?: number;
+  }): Promise<FeeAssignment[]> {
+    const queryParams = new URLSearchParams();
+
+    if (params?.term_id) queryParams.append('term_id', params.term_id);
+    if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.page) queryParams.append('skip', ((params.page - 1) * (params.size || 100)).toString());
+    if (params?.size) queryParams.append('limit', params.size.toString());
+
+    const url = `/api/v1/fees/assignments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return await apiService.get<FeeAssignment[]>(url);
   }
 
@@ -73,11 +92,36 @@ export class FeeService {
     }
   ): Promise<FeePayment[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
     const url = `/api/v1/fees/students/${studentId}/payments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return await apiService.get<FeePayment[]>(url);
+  }
+
+  static async getPayments(params?: {
+    start_date?: string;
+    end_date?: string;
+    payment_method?: string;
+    class_id?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    size?: number;
+  }): Promise<FeePayment[]> {
+    const queryParams = new URLSearchParams();
+
+    if (params?.start_date) queryParams.append('start_date', params.start_date);
+    if (params?.end_date) queryParams.append('end_date', params.end_date);
+    if (params?.payment_method) queryParams.append('payment_method', params.payment_method);
+    if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('skip', ((params.page - 1) * (params.size || 100)).toString());
+    if (params?.size) queryParams.append('limit', params.size.toString());
+
+    const url = `/api/v1/fees/payments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return await apiService.get<FeePayment[]>(url);
   }
 
@@ -91,7 +135,7 @@ export class FeeService {
     class_id?: string;
   }): Promise<any> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
 

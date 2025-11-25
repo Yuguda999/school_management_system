@@ -7,6 +7,7 @@ import { AuthProvider } from './contexts/AuthContext.tsx'
 import { ThemeProvider } from './contexts/ThemeContext.tsx'
 import { ToastProvider } from './contexts/ToastContext.tsx'
 import { TermProvider } from './contexts/TermContext.tsx'
+import { CurrencyProvider } from './contexts/CurrencyContext.tsx'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -19,9 +20,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <ToastProvider>
           <AuthProvider>
-            <TermProvider>
-              <App />
-            </TermProvider>
+            <CurrencyProvider>
+              <TermProvider>
+                <App />
+              </TermProvider>
+            </CurrencyProvider>
           </AuthProvider>
         </ToastProvider>
       </ThemeProvider>

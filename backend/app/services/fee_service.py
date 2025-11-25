@@ -1,12 +1,12 @@
 from typing import Optional, List, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from decimal import Decimal
-from datetime import date, datetime
-from app.models.fee import FeeStructure, FeeAssignment, FeePayment, PaymentStatus
-from app.models.student import Student
+from datetime import date, datetime, timedelta
+from sqlalchemy.orm import selectinload, joinedload
+from app.models.fee import FeeStructure, FeeAssignment, FeePayment, PaymentStatus, PaymentMethod
+from app.models.student import Student, StudentStatus
 from app.models.academic import Class, Term
 from app.models.user import User
 from app.schemas.fee import (
@@ -252,7 +252,7 @@ class FeeService:
                 fee_structure_id=bulk_data.fee_structure_id,
                 term_id=bulk_data.term_id,
                 assigned_date=date.today(),
-                due_date=bulk_data.due_date,
+                due_date=bulk_data.due_date or fee_structure.due_date or (date.today() + timedelta(days=30)),
                 amount=fee_structure.amount,
                 discount_amount=bulk_data.discount_amount or Decimal('0.00'),
                 discount_reason=bulk_data.discount_reason,
@@ -265,11 +265,20 @@ class FeeService:
         
         await db.commit()
         
-        # Refresh all assignments
-        for assignment in assignments:
-            await db.refresh(assignment)
+        await db.commit()
         
-        return assignments
+        # Fetch created assignments with relationships
+        assignment_ids = [a.id for a in assignments]
+        query = select(FeeAssignment).where(
+            FeeAssignment.id.in_(assignment_ids)
+        ).options(
+            selectinload(FeeAssignment.student).selectinload(Student.current_class),
+            selectinload(FeeAssignment.fee_structure),
+            selectinload(FeeAssignment.term)
+        )
+        
+        result = await db.execute(query)
+        return result.scalars().all()
     
     @staticmethod
     async def get_student_fee_assignments(
@@ -298,6 +307,98 @@ class FeeService:
         
         result = await db.execute(query)
         return list(result.scalars().all())
+
+    @staticmethod
+    async def get_fee_assignments(
+        db: AsyncSession,
+        school_id: str,
+        term_id: Optional[str] = None,
+        class_id: Optional[str] = None,
+        status: Optional[PaymentStatus] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[FeeAssignment]:
+        """Get all fee assignments for a school with filters"""
+        query = select(FeeAssignment).where(
+            FeeAssignment.school_id == school_id,
+            FeeAssignment.is_deleted == False
+        ).options(
+            selectinload(FeeAssignment.fee_structure),
+            selectinload(FeeAssignment.term),
+            selectinload(FeeAssignment.student).selectinload(Student.user),
+            selectinload(FeeAssignment.student).selectinload(Student.current_class)
+        )
+        
+        if term_id:
+            query = query.where(FeeAssignment.term_id == term_id)
+            
+        if class_id:
+            query = query.join(Student).where(Student.current_class_id == class_id)
+            
+        if status:
+            query = query.where(FeeAssignment.status == status)
+            
+        query = query.offset(skip).limit(limit).order_by(FeeAssignment.created_at.desc())
+        
+        result = await db.execute(query)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_payments(
+        db: AsyncSession,
+        school_id: str,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        payment_method: Optional[PaymentMethod] = None,
+        class_id: Optional[str] = None,
+        status: Optional[PaymentStatus] = None,
+        search: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[FeePayment]:
+        """Get all payments for a school with filters"""
+        query = select(FeePayment).options(
+            selectinload(FeePayment.student).selectinload(Student.current_class),
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure)
+        ).where(
+            FeePayment.school_id == school_id,
+            FeePayment.is_deleted == False
+        ).join(FeePayment.student).options(
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.student).selectinload(Student.user),
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.student).selectinload(Student.current_class),
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure)
+        )
+        
+        if start_date:
+            query = query.where(FeePayment.payment_date >= start_date)
+            
+        if end_date:
+            query = query.where(FeePayment.payment_date <= end_date)
+            
+        if payment_method:
+            query = query.where(FeePayment.payment_method == payment_method)
+            
+        if class_id:
+            query = query.where(Student.current_class_id == class_id)
+            
+        if status:
+            query = query.where(FeeAssignment.status == status)
+            
+        if search:
+            search_term = f"%{search}%"
+            query = query.where(
+                or_(
+                    Student.first_name.ilike(search_term),
+                    Student.last_name.ilike(search_term),
+                    Student.middle_name.ilike(search_term),
+                    Student.admission_number.ilike(search_term)
+                )
+            )
+            
+        query = query.offset(skip).limit(limit).order_by(FeePayment.payment_date.desc())
+        
+        result = await db.execute(query)
+        return list(result.scalars().all())
     
     # Payment Management
     @staticmethod
@@ -322,6 +423,12 @@ class FeeService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Fee assignment not found"
+            )
+            
+        if assignment.status == PaymentStatus.PAID:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Fee assignment is already fully paid"
             )
         
         # Validate payment amount
@@ -354,7 +461,19 @@ class FeeService:
             assignment.status = PaymentStatus.PARTIAL
         
         await db.commit()
-        await db.refresh(payment)
+        await db.commit()
+        
+        # Fetch payment with relationships
+        result = await db.execute(
+            select(FeePayment)
+            .options(
+                selectinload(FeePayment.student).selectinload(Student.current_class),
+                selectinload(FeePayment.collector),
+                selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure)
+            )
+            .where(FeePayment.id == payment.id)
+        )
+        payment = result.scalar_one()
         
         return payment
     

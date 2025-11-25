@@ -50,7 +50,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
     if (watchedFeeStructureId) {
       const feeStructure = feeStructures.find(fs => fs.id === watchedFeeStructureId);
       setSelectedFeeStructure(feeStructure || null);
-      
+
       // Auto-select classes if fee structure is for specific classes
       if (feeStructure?.applicable_to === 'specific_classes' && feeStructure.class_ids) {
         setValue('class_ids', feeStructure.class_ids);
@@ -88,12 +88,18 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
     }
   };
 
-  const fetchStudentsForClasses = async (classIds: string[]) => {
+  const fetchStudentsForClasses = async (classIds: string[] | string) => {
     try {
-      const studentsData = await apiService.get<Student[]>(`/api/v1/students?class_ids=${classIds.join(',')}`);
-      setStudents(studentsData);
+      // Ensure classIds is an array
+      const idsArray = Array.isArray(classIds) ? classIds : [classIds];
+      if (idsArray.length === 0) return;
+
+      // Get all students (using large size)
+      const response = await apiService.get<{ items: Student[] }>(`/api/v1/students?class_ids=${idsArray.join(',')}&size=1000`);
+      setStudents(response.items || []);
     } catch (error) {
       console.error('Failed to fetch students:', error);
+      setStudents([]);
     }
   };
 
@@ -102,6 +108,8 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
       const submitData = {
         ...data,
         discount_amount: data.discount_amount ? Number(data.discount_amount) : 0,
+        due_date: data.due_date || undefined, // Convert empty string to undefined
+        class_ids: Array.isArray(data.class_ids) ? data.class_ids : [data.class_ids],
       };
 
       await onSubmit(submitData);
@@ -172,6 +180,22 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
             )}
           </div>
 
+          {/* Due Date */}
+          <div>
+            <label className="label">
+              Due Date {selectedFeeStructure?.due_date && '(from fee structure)'}
+            </label>
+            <input
+              type="date"
+              className="input"
+              defaultValue={selectedFeeStructure?.due_date || ''}
+              {...register('due_date')}
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Leave blank to use fee structure's due date
+            </p>
+          </div>
+
           {/* Discount Amount */}
           <div>
             <label className="label">
@@ -194,7 +218,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
           Target Classes
         </h3>
-        
+
         {selectedFeeStructure?.applicable_to === 'all' && (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-4">
             <p className="text-sm text-blue-700 dark:text-blue-300">
@@ -246,7 +270,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {students.map((student) => (
                 <div key={student.id} className="text-sm text-gray-700 dark:text-gray-300">
-                  {student.user.first_name} {student.user.last_name}
+                  {student.first_name} {student.last_name}
                 </div>
               ))}
             </div>

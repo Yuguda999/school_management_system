@@ -839,6 +839,7 @@ export interface FeeAssignment {
   fee_structure_id: string;
   term_id: string;
   amount: number;
+  amount_paid: number;
   discount_amount: number;
   amount_outstanding: number;
   due_date: string;
@@ -861,7 +862,8 @@ export interface FeePayment {
   fee_assignment_id: string;
   amount: number;
   payment_method: 'cash' | 'card' | 'bank_transfer' | 'online' | 'cheque';
-  transaction_id?: string;
+  transaction_reference?: string;
+  receipt_number: string;
   payment_date: string;
   collected_by: string;
   notes?: string;
@@ -923,6 +925,7 @@ export interface CreateFeePaymentForm {
   fee_assignment_id: string;
   amount: number;
   payment_method: string;
+  payment_date: string;
   transaction_id?: string;
   notes?: string;
 }

@@ -8,8 +8,11 @@ import {
   AcademicCapIcon,
   CalendarIcon,
   BuildingOfficeIcon,
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
-import { Class, Teacher, Student, CreateClassForm, UpdateClassForm, ClassLevel } from '../../types';
+import { Class, CreateClassForm, UpdateClassForm, ClassLevel } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { academicService } from '../../services/academicService';
@@ -22,11 +25,12 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ClassForm from '../../components/classes/ClassForm';
 import ClassDetails from '../../components/classes/ClassDetails';
 import ClassSubjectManagement from '../../components/classes/ClassSubjectManagement';
+import Card from '../../components/ui/Card';
 
 const ClassesPage: React.FC = () => {
   const { user } = useAuth();
   const { canManageClasses } = usePermissions();
-  const { showSuccess, showError, showWarning, showInfo } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -38,34 +42,26 @@ const ClassesPage: React.FC = () => {
   const [showSubjectManagementModal, setShowSubjectManagementModal] = useState(false);
   const [classForSubjectManagement, setClassForSubjectManagement] = useState<Class | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchClasses();
   }, []);
 
-
-
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      console.log('Fetching classes for user:', user);
       const classesData = await academicService.getClasses({
         is_active: true,
         page: 1,
         size: 100
       });
-      console.log('Fetched classes:', classesData);
       setClasses(classesData);
     } catch (error: any) {
       console.error('Failed to fetch classes:', error);
-      console.error('Error response:', error.response?.data);
-
-      // If backend is not available, show empty state instead of error
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        console.log('Backend not available, showing empty state');
         setClasses([]);
       } else {
-        // Show error message to user for other errors
         const errorMsg = error.response?.data?.detail || 'Failed to load classes. Please try again.';
         showError(errorMsg);
       }
@@ -77,9 +73,6 @@ const ClassesPage: React.FC = () => {
   const handleCreateClass = async (classData: CreateClassForm) => {
     try {
       setFormLoading(true);
-      console.log('Creating class with data:', classData);
-
-      // Validate the data format
       if (!classData.name || !classData.level || !classData.academic_session) {
         showError('Please fill in all required fields', 'Validation Error');
         return;
@@ -88,21 +81,15 @@ const ClassesPage: React.FC = () => {
       showInfo('Creating class...', 'Please wait');
       const newClass = await academicService.createClass(classData);
       setShowCreateModal(false);
-      fetchClasses(); // Refresh the list
+      fetchClasses();
       showSuccess(
-        `Class "${newClass.name}" has been created successfully and is now available for student enrollment.`,
+        `Class "${newClass.name}" has been created successfully.`,
         'Class Created!'
       );
     } catch (error: any) {
       console.error('Failed to create class:', error);
-      console.error('Error response:', error.response?.data);
-
-      if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-        showError('Backend server is not available. Please start the backend server and try again.');
-      } else {
-        const errorMsg = error.response?.data?.detail || 'Failed to create class. Please try again.';
-        showError(errorMsg);
-      }
+      const errorMsg = error.response?.data?.detail || 'Failed to create class. Please try again.';
+      showError(errorMsg);
     } finally {
       setFormLoading(false);
     }
@@ -116,12 +103,12 @@ const ClassesPage: React.FC = () => {
       const updatedClass = await academicService.updateClass(selectedClass.id, classData);
       setShowEditModal(false);
       setSelectedClass(null);
-      fetchClasses(); // Refresh the list
+      fetchClasses();
       showSuccess(
-        `Class "${updatedClass.name}" has been updated successfully. All changes have been saved.`,
+        `Class "${updatedClass.name}" has been updated successfully.`,
         'Class Updated!'
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update class:', error);
       const errorMsg = error.response?.data?.detail || 'Failed to update class. Please try again.';
       showError(errorMsg);
@@ -140,9 +127,9 @@ const ClassesPage: React.FC = () => {
 
     try {
       await academicService.deleteClass(classToDelete.id);
-      fetchClasses(); // Refresh the list
+      fetchClasses();
       showSuccess(
-        `Class "${classToDelete.name}" has been permanently deleted. All associated data has been removed.`,
+        `Class "${classToDelete.name}" has been deleted.`,
         'Class Deleted!'
       );
     } catch (error: any) {
@@ -183,8 +170,8 @@ const ClassesPage: React.FC = () => {
       render: (classItem) => (
         <div className="flex items-center">
           <div className="h-10 w-10 flex-shrink-0">
-            <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-              <BuildingOfficeIcon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 flex items-center justify-center shadow-sm">
+              <BuildingOfficeIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-300" />
             </div>
           </div>
           <div className="ml-4">
@@ -205,15 +192,15 @@ const ClassesPage: React.FC = () => {
         <div className="flex items-center">
           {classItem.teacher_name ? (
             <>
-              <UserGroupIcon className="h-5 w-5 text-gray-400 mr-2" />
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {classItem.teacher_name}
-                </div>
-              </div>
+              <UserGroupIcon className="h-4 w-4 text-gray-400 mr-2" />
+              <span className="text-sm text-gray-900 dark:text-gray-100">
+                {classItem.teacher_name}
+              </span>
             </>
           ) : (
-            <span className="text-sm text-gray-500 dark:text-gray-400">Not assigned</span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400">
+              Unassigned
+            </span>
           )}
         </div>
       ),
@@ -223,29 +210,40 @@ const ClassesPage: React.FC = () => {
       header: 'Students',
       render: (classItem) => (
         <div className="flex items-center">
-          <AcademicCapIcon className="h-5 w-5 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900 dark:text-gray-100">
-            {classItem.student_count || 0}/{classItem.capacity}
-          </span>
+          <div className="w-full max-w-[100px]">
+            <div className="flex justify-between text-xs mb-1">
+              <span className="font-medium text-gray-700 dark:text-gray-300">{classItem.student_count || 0}</span>
+              <span className="text-gray-500">/ {classItem.capacity}</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+              <div
+                className="bg-indigo-600 h-1.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(((classItem.student_count || 0) / classItem.capacity) * 100, 100)}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       ),
     },
     {
       key: 'academic_session',
-      header: 'Academic Session',
+      header: 'Session',
       sortable: true,
       render: (classItem) => (
-        <div className="flex items-center">
-          <CalendarIcon className="h-5 w-5 text-gray-400 mr-2" />
-          <span className="badge badge-secondary">{classItem.academic_session}</span>
-        </div>
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+          <CalendarIcon className="h-3 w-3 mr-1" />
+          {classItem.academic_session}
+        </span>
       ),
     },
     {
       key: 'is_active',
       header: 'Status',
       render: (classItem) => (
-        <span className={`badge ${classItem.is_active ? 'badge-success' : 'badge-error'}`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${classItem.is_active
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+          }`}>
           {classItem.is_active ? 'Active' : 'Inactive'}
         </span>
       ),
@@ -253,17 +251,77 @@ const ClassesPage: React.FC = () => {
   ];
 
   if (loading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
-  return (
-    <div className="space-y-6">
+  const totalStudents = classes.reduce((acc, curr) => acc + (curr.student_count || 0), 0);
+  const totalCapacity = classes.reduce((acc, curr) => acc + curr.capacity, 0);
+  const occupancyRate = totalCapacity > 0 ? Math.round((totalStudents / totalCapacity) * 100) : 0;
 
+  return (
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
-        title="Classes"
+        title="Class Management"
         description="Manage class schedules, assignments, and student enrollment"
-        actions={
-          canManageClasses() ? (
+      />
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card variant="glass" className="border-l-4 border-l-indigo-500">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/30">
+              <BuildingOfficeIcon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Classes</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{classes.length}</p>
+            </div>
+          </div>
+        </Card>
+        <Card variant="glass" className="border-l-4 border-l-blue-500">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+              <AcademicCapIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total Students</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalStudents}</p>
+            </div>
+          </div>
+        </Card>
+        <Card variant="glass" className="border-l-4 border-l-teal-500">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 rounded-xl bg-teal-100 dark:bg-teal-900/30">
+              <ChartBarIcon className="h-6 w-6 text-teal-600 dark:text-teal-400" />
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Occupancy Rate</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{occupancyRate}%</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Actions & Search */}
+      <Card variant="glass">
+        <div className="flex flex-col sm:flex-row justify-between gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search classes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input pl-10 bg-gray-50 dark:bg-gray-900 border-transparent focus:bg-white dark:focus:bg-gray-800 transition-all duration-200"
+              />
+            </div>
+          </div>
+          {canManageClasses() && (
             <button
               onClick={() => setShowCreateModal(true)}
               className="btn btn-primary"
@@ -271,16 +329,18 @@ const ClassesPage: React.FC = () => {
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Class
             </button>
-          ) : null
-        }
-      />
+          )}
+        </div>
+      </Card>
 
       <DataTable
-        data={classes}
+        data={classes.filter(c =>
+          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.teacher_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        )}
         columns={columns}
         loading={loading}
-        searchable={true}
-        searchPlaceholder="Search classes..."
+        searchable={false} // We handle search externally
         emptyMessage="No classes found"
         actions={(classItem) => (
           <>
@@ -289,10 +349,10 @@ const ClassesPage: React.FC = () => {
                 setSelectedClass(classItem);
                 setShowDetailsModal(true);
               }}
-              className="btn btn-ghost btn-sm"
+              className="p-1 rounded-full text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
               title="View Details"
             >
-              <EyeIcon className="h-4 w-4" />
+              <EyeIcon className="h-5 w-5" />
             </button>
             {canManageClasses() && (
               <>
@@ -301,27 +361,27 @@ const ClassesPage: React.FC = () => {
                     setClassForSubjectManagement(classItem);
                     setShowSubjectManagementModal(true);
                   }}
-                  className="btn btn-ghost btn-sm"
+                  className="p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                   title="Manage Subjects"
                 >
-                  <AcademicCapIcon className="h-4 w-4" />
+                  <AcademicCapIcon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => {
                     setSelectedClass(classItem);
                     setShowEditModal(true);
                   }}
-                  className="btn btn-ghost btn-sm"
+                  className="p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   title="Edit Class"
                 >
-                  <PencilIcon className="h-4 w-4" />
+                  <PencilIcon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => handleDeleteClass(classItem)}
-                  className="btn btn-ghost btn-sm text-red-600 hover:text-red-700"
+                  className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   title="Delete Class"
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <TrashIcon className="h-5 w-5" />
                 </button>
               </>
             )}
@@ -329,31 +389,32 @@ const ClassesPage: React.FC = () => {
         )}
       />
 
-      {/* Create Class Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Create New Class"
-        size="lg"
-      >
-        <ClassForm
-          onSubmit={handleCreateClass}
-          onCancel={() => setShowCreateModal(false)}
-          loading={formLoading}
-        />
-      </Modal>
+      {/* Modals */}
+      {showCreateModal && (
+        <Modal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          title="Create New Class"
+          size="lg"
+        >
+          <ClassForm
+            onSubmit={handleCreateClass}
+            onCancel={() => setShowCreateModal(false)}
+            loading={formLoading}
+          />
+        </Modal>
+      )}
 
-      {/* Edit Class Modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedClass(null);
-        }}
-        title="Edit Class"
-        size="lg"
-      >
-        {selectedClass && (
+      {showEditModal && selectedClass && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedClass(null);
+          }}
+          title="Edit Class"
+          size="lg"
+        >
           <ClassForm
             classData={selectedClass}
             onSubmit={handleEditClass}
@@ -363,20 +424,19 @@ const ClassesPage: React.FC = () => {
             }}
             loading={formLoading}
           />
-        )}
-      </Modal>
+        </Modal>
+      )}
 
-      {/* Class Details Modal */}
-      <Modal
-        isOpen={showDetailsModal}
-        onClose={() => {
-          setShowDetailsModal(false);
-          setSelectedClass(null);
-        }}
-        title="Class Details"
-        size="3xl"
-      >
-        {selectedClass && (
+      {showDetailsModal && selectedClass && (
+        <Modal
+          isOpen={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedClass(null);
+          }}
+          title="Class Details"
+          size="3xl"
+        >
           <ClassDetails
             classData={selectedClass}
             onEdit={() => {
@@ -388,10 +448,9 @@ const ClassesPage: React.FC = () => {
               setSelectedClass(null);
             }}
           />
-        )}
-      </Modal>
+        </Modal>
+      )}
 
-      {/* Delete Confirmation Modal */}
       <ConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => {
@@ -405,7 +464,6 @@ const ClassesPage: React.FC = () => {
         type="danger"
       />
 
-      {/* Class Subject Management Modal */}
       {showSubjectManagementModal && classForSubjectManagement && (
         <ClassSubjectManagement
           classData={classForSubjectManagement}

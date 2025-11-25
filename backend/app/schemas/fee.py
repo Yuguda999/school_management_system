@@ -74,6 +74,8 @@ class FeeAssignmentUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+from app.schemas.student import StudentResponse
+
 class FeeAssignmentResponse(FeeAssignmentBase):
     id: str
     amount_paid: Decimal
@@ -83,7 +85,9 @@ class FeeAssignmentResponse(FeeAssignmentBase):
     
     # Related information
     student_name: Optional[str] = None
+    student: Optional[StudentResponse] = None
     fee_structure_name: Optional[str] = None
+    fee_structure: Optional[FeeStructureResponse] = None
     term_name: Optional[str] = None
     
     created_at: datetime
@@ -133,6 +137,8 @@ class FeePaymentResponse(FeePaymentBase):
     
     # Related information
     student_name: Optional[str] = None
+    student: Optional[StudentResponse] = None
+    fee_assignment: Optional[FeeAssignmentResponse] = None
     collector_name: Optional[str] = None
     verifier_name: Optional[str] = None
     
@@ -147,7 +153,7 @@ class BulkFeeAssignmentCreate(BaseModel):
     fee_structure_id: str
     term_id: str
     class_ids: List[str]  # Assign to all students in these classes
-    due_date: date
+    due_date: Optional[date] = None  # Optional - will use fee structure's due_date if not provided
     discount_amount: Optional[Decimal] = Decimal('0.00')
     discount_reason: Optional[str] = None
 

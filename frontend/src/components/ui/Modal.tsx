@@ -26,7 +26,7 @@ const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-4xl',
     '2xl': 'max-w-6xl',
     '3xl': 'max-w-7xl',
-    'full': 'max-w-[95vw]'
+    'full': 'max-w-[98vw]'
   };
 
   return (
@@ -41,33 +41,33 @@ const Modal: React.FC<ModalProps> = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
+        <div className="fixed inset-0 overflow-y-auto z-10">
+          <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
             <Transition.Child
               as={Fragment}
               enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
+              enterFrom="opacity-0 scale-95 translate-y-4 sm:translate-y-0 sm:scale-95"
+              enterTo="opacity-100 scale-100 translate-y-0 sm:scale-100"
               leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
+              leaveFrom="opacity-100 scale-100 translate-y-0 sm:scale-100"
+              leaveTo="opacity-0 scale-95 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className={`w-full ${sizeClasses[size]} transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 text-left align-middle shadow-xl transition-all`}>
+              <Dialog.Panel className={`relative transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 text-left shadow-2xl transition-all w-full ${sizeClasses[size]} my-8 border border-gray-100 dark:border-gray-700`}>
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
                   <Dialog.Title
                     as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+                    className="text-xl font-semibold leading-6 text-gray-900 dark:text-white"
                   >
                     {title}
                   </Dialog.Title>
                   {showCloseButton && (
                     <button
                       type="button"
-                      className="rounded-md text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="rounded-lg p-1 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all duration-200"
                       onClick={onClose}
                     >
                       <span className="sr-only">Close</span>
@@ -77,7 +77,7 @@ const Modal: React.FC<ModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="px-6 py-4 max-h-[80vh] overflow-y-auto">
+                <div className="px-6 py-6 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
                   {children}
                 </div>
               </Dialog.Panel>

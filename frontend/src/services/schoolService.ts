@@ -133,7 +133,7 @@ class SchoolService {
    */
   applyThemeToDocument(themeSettings: SchoolThemeSettings): void {
     const root = document.documentElement;
-    
+
     if (themeSettings.primary_color) {
       root.style.setProperty('--primary-color', themeSettings.primary_color);
     }
@@ -168,7 +168,7 @@ class SchoolService {
    */
   async uploadLogo(file: File): Promise<{ logo_url: string }> {
     const formData = new FormData();
-    formData.append('logo', file);
+    formData.append('file', file);
 
     const response = await apiService.post<{ logo_url: string }>(
       '/api/v1/schools/me/logo',

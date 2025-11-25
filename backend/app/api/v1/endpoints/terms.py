@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_school_admin, get_current_school
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school, SchoolContext, get_current_school_context
 from app.models.user import User
 from app.models.school import School
 from app.models.academic import Term
@@ -16,11 +16,18 @@ router = APIRouter()
 @router.post("/", response_model=TermResponse)
 async def create_term(
     term_data: TermCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new term (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     term = await AcademicService.create_term(db, term_data, current_school.id)
     return TermResponse.from_orm(term)
 
@@ -30,11 +37,18 @@ async def get_terms(
     academic_session: Optional[str] = Query(None, description="Filter by academic session"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     is_current: Optional[bool] = Query(None, description="Filter by current term"),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all terms"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     query = select(Term).where(
         Term.school_id == current_school.id,
         Term.is_deleted == False
@@ -59,11 +73,17 @@ async def get_terms(
 
 @router.get("/current", response_model=TermResponse)
 async def get_current_term(
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get current term"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
     result = await db.execute(
         select(Term).where(
             Term.school_id == current_school.id,
@@ -85,11 +105,17 @@ async def get_current_term(
 @router.get("/{term_id}", response_model=TermResponse)
 async def get_term(
     term_id: str,
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get term by ID"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
     result = await db.execute(
         select(Term).where(
             Term.id == term_id,
@@ -112,11 +138,18 @@ async def get_term(
 async def update_term(
     term_id: str,
     term_data: TermUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update term information (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     result = await db.execute(
         select(Term).where(
             Term.id == term_id,
@@ -146,11 +179,18 @@ async def update_term(
 @router.post("/{term_id}/set-current")
 async def set_current_term(
     term_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Set term as current (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     success = await AcademicService.set_current_term(db, term_id, current_school.id)
     
     if not success:
@@ -165,11 +205,18 @@ async def set_current_term(
 @router.delete("/{term_id}")
 async def delete_term(
     term_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete term (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     result = await db.execute(
         select(Term).where(
             Term.id == term_id,
@@ -195,11 +242,18 @@ async def delete_term(
 @router.post("/bulk", response_model=BulkTermResponse)
 async def create_bulk_terms(
     bulk_data: BulkTermCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create all terms for an academic session at once (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     terms = await AcademicService.create_bulk_terms(db, bulk_data, current_school.id)
 
     return BulkTermResponse(

@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  BuildingOfficeIcon, 
-  UserIcon, 
-  EnvelopeIcon, 
+import {
+  BuildingOfficeIcon,
+  UserIcon,
+  EnvelopeIcon,
   PhoneIcon,
-  AcademicCapIcon,
   CheckCircleIcon,
   SparklesIcon,
   ArrowRightIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import { useToast } from '../../hooks/useToast';
 import { apiService } from '../../services/api';
+import { schoolService } from '../../services/schoolService';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 interface FreemiumRegistration {
   // School Information
@@ -32,14 +34,14 @@ interface FreemiumRegistration {
   established_year?: string;
   current_session: string;
   current_term: string;
-  
+
   // Admin Information
   admin_first_name: string;
   admin_last_name: string;
   admin_email: string;
   admin_password: string;
   admin_phone?: string;
-  
+
   // Theme Settings
   primary_color?: string;
   secondary_color?: string;
@@ -65,14 +67,14 @@ const FreemiumRegistrationPage: React.FC = () => {
     established_year: '',
     current_session: '2024/2025',
     current_term: 'First Term',
-    
+
     // Admin Information
     admin_first_name: '',
     admin_last_name: '',
     admin_email: '',
     admin_password: '',
     admin_phone: '',
-    
+
     // Theme Settings
     primary_color: '#3B82F6',
     secondary_color: '#1E40AF',
@@ -81,8 +83,8 @@ const FreemiumRegistrationPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [step, setStep] = useState(1);
-  const [codeValidation, setCodeValidation] = useState<{isValidating: boolean, isValid: boolean, message: string}>({isValidating: false, isValid: true, message: ''});
-  const [emailValidation, setEmailValidation] = useState<{isValidating: boolean, isValid: boolean, message: string}>({isValidating: false, isValid: true, message: ''});
+  const [codeValidation, setCodeValidation] = useState<{ isValidating: boolean, isValid: boolean, message: string }>({ isValidating: false, isValid: true, message: '' });
+  const [emailValidation, setEmailValidation] = useState<{ isValidating: boolean, isValid: boolean, message: string }>({ isValidating: false, isValid: true, message: '' });
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
 
@@ -129,12 +131,12 @@ const FreemiumRegistrationPage: React.FC = () => {
 
   const validateSchoolCode = async (code: string) => {
     if (!code || code.length < 3) {
-      setCodeValidation({isValidating: false, isValid: false, message: 'School code must be at least 3 characters'});
+      setCodeValidation({ isValidating: false, isValid: false, message: 'School code must be at least 3 characters' });
       return;
     }
 
-    setCodeValidation({isValidating: true, isValid: true, message: 'Checking availability...'});
-    
+    setCodeValidation({ isValidating: true, isValid: true, message: 'Checking availability...' });
+
     try {
       const response = await schoolService.validateSchoolCodeAvailability(code);
       setCodeValidation({
@@ -153,12 +155,12 @@ const FreemiumRegistrationPage: React.FC = () => {
 
   const validateSchoolEmail = async (email: string) => {
     if (!email || !email.includes('@')) {
-      setEmailValidation({isValidating: false, isValid: true, message: ''});
+      setEmailValidation({ isValidating: false, isValid: true, message: '' });
       return;
     }
 
-    setEmailValidation({isValidating: true, isValid: true, message: 'Checking availability...'});
-    
+    setEmailValidation({ isValidating: true, isValid: true, message: 'Checking availability...' });
+
     try {
       const response = await schoolService.validateSchoolEmailAvailability(email);
       setEmailValidation({
@@ -178,9 +180,9 @@ const FreemiumRegistrationPage: React.FC = () => {
   const validateStep = (stepNumber: number): boolean => {
     switch (stepNumber) {
       case 1:
-        return !!(formData.name && formData.code && formData.email && formData.phone) && 
-               codeValidation.isValid && !codeValidation.isValidating &&
-               emailValidation.isValid && !emailValidation.isValidating;
+        return !!(formData.name && formData.code && formData.email && formData.phone) &&
+          codeValidation.isValid && !codeValidation.isValidating &&
+          emailValidation.isValid && !emailValidation.isValidating;
       case 2:
         return !!(formData.address_line1 && formData.city && formData.state && formData.postal_code);
       case 3:
@@ -233,21 +235,21 @@ const FreemiumRegistrationPage: React.FC = () => {
         accent_color: formData.accent_color,
       };
 
-      const response = await apiService.post('/api/v1/schools/register', registrationData);
-      
+      await apiService.post('/api/v1/schools/register', registrationData);
+
       setSubmitted(true);
       showSuccess('School registered successfully! Your 30-day free trial has started.');
-      
+
       // Redirect to school-specific login after a short delay
       setTimeout(() => {
-        navigate(`/${formData.code}/login`, { 
-          state: { 
+        navigate(`/${formData.code}/login`, {
+          state: {
             message: 'Registration successful! Please login with your credentials.',
-            email: formData.admin_email 
+            email: formData.admin_email
           }
         });
       }, 3000);
-      
+
     } catch (error: any) {
       console.error('Registration error:', error);
 
@@ -279,35 +281,48 @@ const FreemiumRegistrationPage: React.FC = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-100 dark:from-gray-900 dark:to-gray-800 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md animate-scale-in">
+          <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-2xl sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-gray-700">
             <div className="text-center">
-              <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500" />
-              <h2 className="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-                Welcome to Your Free Trial!
+              <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30 mb-6">
+                <CheckCircleIcon className="h-12 w-12 text-green-500" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Welcome Aboard!
               </h2>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Your school has been successfully registered. You now have 30 days of full access to all features.
+              <p className="text-gray-600 dark:text-gray-400 mb-8">
+                Your school has been successfully registered. Get ready to transform your educational experience.
               </p>
-              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                  🎉 Trial Benefits
+
+              <div className="bg-primary-50 dark:bg-primary-900/20 rounded-xl p-6 mb-8 text-left">
+                <h3 className="text-sm font-semibold text-primary-900 dark:text-primary-100 uppercase tracking-wider mb-4">
+                  Trial Benefits Unlocked
                 </h3>
-                <ul className="mt-2 text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                  <li>• Up to 100 students</li>
-                  <li>• Up to 10 teachers</li>
-                  <li>• Up to 20 classes</li>
-                  <li>• All premium features included</li>
-                  <li>• Full customer support</li>
+                <ul className="space-y-3">
+                  {[
+                    'Full access to all premium features',
+                    'Unlimited student & teacher accounts',
+                    'Advanced analytics dashboard',
+                    'Priority customer support'
+                  ].map((benefit, index) => (
+                    <li key={index} className="flex items-center text-sm text-primary-800 dark:text-primary-200">
+                      <CheckCircleIcon className="h-5 w-5 mr-3 text-primary-500" />
+                      {benefit}
+                    </li>
+                  ))}
                 </ul>
               </div>
-              <div className="mt-6">
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-500 animate-pulse">
+                  Redirecting to your dashboard...
+                </p>
                 <Link
-                  to="/login"
-                  className="btn btn-primary"
+                  to={`/${formData.code}/login`}
+                  className="block w-full py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
                 >
-                  Login to Your Dashboard
+                  Go to Dashboard Now
                 </Link>
               </div>
             </div>
@@ -318,109 +333,131 @@ const FreemiumRegistrationPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-2xl">
-        {/* Header */}
-        <div className="text-center">
-          <SparklesIcon className="mx-auto h-12 w-12 text-blue-600" />
-          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
-            Start Your Free 30-Day Trial
-          </h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Get instant access to all premium features. No credit card required.
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col lg:flex-row">
+      {/* Left Side - Hero */}
+      <div className="lg:w-1/3 bg-primary-600 relative overflow-hidden hidden lg:flex flex-col justify-between p-12 text-white">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-600 to-secondary-800 opacity-90"></div>
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')] bg-cover bg-center mix-blend-overlay"></div>
+
+        <div className="relative z-10">
+          <div className="h-12 w-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-8 border border-white/30">
+            <SparklesIcon className="h-6 w-6 text-white" />
+          </div>
+          <h1 className="text-4xl font-bold mb-6 leading-tight">
+            Start Your Digital Transformation
+          </h1>
+          <p className="text-primary-100 text-lg leading-relaxed">
+            Join thousands of forward-thinking schools managing their operations efficiently with our platform.
           </p>
         </div>
 
-        {/* Progress Indicator */}
-        <div className="mt-8 mb-8">
-          <div className="flex items-center justify-center">
-            {[1, 2, 3].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
-                <div className={`
-                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                  ${step >= stepNumber 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                  }
-                `}>
-                  {stepNumber}
+        <div className="relative z-10">
+          <div className="flex items-center space-x-4 mb-8">
+            <div className="flex -space-x-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-12 h-12 rounded-full border-4 border-primary-600 bg-gray-300 overflow-hidden">
+                  <img src={`https://i.pravatar.cc/100?img=${i + 20}`} alt="User" className="w-full h-full object-cover" />
                 </div>
-                {stepNumber < 3 && (
-                  <div className={`
-                    w-16 h-1 mx-2
-                    ${step > stepNumber ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
-                  `} />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
+            <div>
+              <p className="font-bold">2,000+ Schools</p>
+              <p className="text-sm text-primary-200">Trust our platform</p>
+            </div>
           </div>
-          <div className="flex justify-between mt-2 text-sm text-gray-600 dark:text-gray-400">
-            <span>School Info</span>
-            <span>Location</span>
-            <span>Admin Account</span>
-          </div>
+          <p className="text-xs text-primary-300">
+            &copy; {new Date().getFullYear()} School Management System
+          </p>
         </div>
+      </div>
 
-        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow-xl sm:rounded-lg sm:px-10">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Right Side - Form */}
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 overflow-y-auto">
+        <div className="max-w-2xl w-full mx-auto">
+          <div className="mb-10">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Create your school account
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Get started with your 30-day free trial. No credit card required.
+            </p>
+          </div>
+
+          {/* Stepper */}
+          <div className="mb-12">
+            <div className="flex items-center justify-between relative">
+              <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-gray-200 dark:bg-gray-700 -z-10"></div>
+              <div className={`absolute left-0 top-1/2 transform -translate-y-1/2 h-1 bg-primary-600 transition-all duration-500 -z-10`} style={{ width: `${((step - 1) / 2) * 100}%` }}></div>
+
+              {[
+                { num: 1, label: 'School Info', icon: BuildingOfficeIcon },
+                { num: 2, label: 'Location', icon: MapPinIcon },
+                { num: 3, label: 'Admin', icon: UserIcon }
+              ].map((item) => (
+                <div key={item.num} className="flex flex-col items-center bg-white dark:bg-gray-900 px-2">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= item.num
+                        ? 'bg-primary-600 border-primary-600 text-white shadow-lg scale-110'
+                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
+                      }`}
+                  >
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <span className={`mt-2 text-xs font-medium transition-colors duration-300 ${step >= item.num ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500'
+                    }`}>
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-8 animate-fade-in-up">
             {/* Step 1: School Information */}
             {step === 1 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  School Information
-                </h3>
-                
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-6 animate-slide-in-right">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      School Name *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      School Name <span className="text-red-500">*</span>
                     </label>
-                    <div className="mt-1 relative">
+                    <div className="relative">
                       <input
                         type="text"
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
                         onBlur={generateSchoolCode}
-                        className="input pl-10"
-                        placeholder="Enter your school name"
+                        className="input pl-10 py-3 rounded-xl"
+                        placeholder="e.g. Springfield High School"
                         required
                       />
-                      <BuildingOfficeIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <BuildingOfficeIcon className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      School Code *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      School Code <span className="text-red-500">*</span>
                     </label>
-                    <div className="mt-1 relative">
+                    <div className="relative">
                       <input
                         type="text"
                         name="code"
                         value={formData.code}
                         onChange={handleInputChange}
-                        className={`input ${!codeValidation.isValid && formData.code ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                        placeholder="e.g., ABCHS"
+                        className={`input py-3 rounded-xl ${!codeValidation.isValid && formData.code ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        placeholder="e.g. SHS"
                         required
                       />
                       {codeValidation.isValidating && (
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <LoadingSpinner size="sm" />
                         </div>
                       )}
                       {!codeValidation.isValidating && codeValidation.isValid && formData.code && (
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      {!codeValidation.isValidating && !codeValidation.isValid && formData.code && (
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <CheckCircleIcon className="h-5 w-5 text-green-500" />
                         </div>
                       )}
                     </div>
@@ -429,18 +466,17 @@ const FreemiumRegistrationPage: React.FC = () => {
                         {codeValidation.message}
                       </p>
                     )}
-                    <p className="mt-1 text-xs text-gray-500">Unique identifier for your school (3-20 characters, letters, numbers, hyphens, underscores)</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Current Session *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Current Session <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="current_session"
                       value={formData.current_session}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       required
                     >
                       <option value="2024/2025">2024/2025</option>
@@ -449,38 +485,24 @@ const FreemiumRegistrationPage: React.FC = () => {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Email Address *
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Official Email <span className="text-red-500">*</span>
                     </label>
-                    <div className="mt-1 relative">
+                    <div className="relative">
                       <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleInputChange}
-                        className={`input pl-10 ${!emailValidation.isValid && formData.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                        placeholder="school@example.com"
+                        className={`input pl-10 py-3 rounded-xl ${!emailValidation.isValid && formData.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        placeholder="admin@school.com"
                         required
                       />
-                      <EnvelopeIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <EnvelopeIcon className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                       {emailValidation.isValidating && (
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                        </div>
-                      )}
-                      {!emailValidation.isValidating && emailValidation.isValid && formData.email && (
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <svg className="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                      )}
-                      {!emailValidation.isValidating && !emailValidation.isValid && formData.email && (
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          <svg className="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
+                          <LoadingSpinner size="sm" />
                         </div>
                       )}
                     </div>
@@ -492,25 +514,25 @@ const FreemiumRegistrationPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Phone Number *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Phone Number <span className="text-red-500">*</span>
                     </label>
-                    <div className="mt-1 relative">
+                    <div className="relative">
                       <input
                         type="tel"
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="input pl-10"
-                        placeholder="+234 123 456 7890"
+                        className="input pl-10 py-3 rounded-xl"
+                        placeholder="+234..."
                         required
                       />
-                      <PhoneIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <PhoneIcon className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Website (Optional)
                     </label>
                     <input
@@ -518,50 +540,35 @@ const FreemiumRegistrationPage: React.FC = () => {
                       name="website"
                       value={formData.website}
                       onChange={handleInputChange}
-                      className="input mt-1"
-                      placeholder="https://yourschool.com"
+                      className="input py-3 rounded-xl"
+                      placeholder="https://..."
                     />
                   </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="btn btn-primary flex items-center"
-                  >
-                    Next Step
-                    <ArrowRightIcon className="ml-2 h-4 w-4" />
-                  </button>
                 </div>
               </div>
             )}
 
             {/* Step 2: Location Information */}
             {step === 2 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  School Location
-                </h3>
-
-                <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-6 animate-slide-in-right">
+                <div className="grid grid-cols-1 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Address Line 1 *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Address Line 1 <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="address_line1"
                       value={formData.address_line1}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       placeholder="Street address"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Address Line 2 (Optional)
                     </label>
                     <input
@@ -569,52 +576,52 @@ const FreemiumRegistrationPage: React.FC = () => {
                       name="address_line2"
                       value={formData.address_line2}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       placeholder="Apartment, suite, etc."
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        City *
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        City <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         name="city"
                         value={formData.city}
                         onChange={handleInputChange}
-                        className="input mt-1"
+                        className="input py-3 rounded-xl"
                         placeholder="City"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        State *
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        State <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         name="state"
                         value={formData.state}
                         onChange={handleInputChange}
-                        className="input mt-1"
+                        className="input py-3 rounded-xl"
                         placeholder="State"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Postal Code *
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Postal Code <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         name="postal_code"
                         value={formData.postal_code}
                         onChange={handleInputChange}
-                        className="input mt-1"
+                        className="input py-3 rounded-xl"
                         placeholder="Postal code"
                         required
                       />
@@ -622,14 +629,14 @@ const FreemiumRegistrationPage: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Country *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Country <span className="text-red-500">*</span>
                     </label>
                     <select
                       name="country"
                       value={formData.country}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       required
                     >
                       <option value="Nigeria">Nigeria</option>
@@ -640,133 +647,96 @@ const FreemiumRegistrationPage: React.FC = () => {
                     </select>
                   </div>
                 </div>
-
-                <div className="flex justify-between">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="btn btn-secondary flex items-center"
-                  >
-                    <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="btn btn-primary flex items-center"
-                  >
-                    Next Step
-                    <ArrowRightIcon className="ml-2 h-4 w-4" />
-                  </button>
-                </div>
               </div>
             )}
 
             {/* Step 3: Admin Account */}
             {step === 3 && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  Create Admin Account
-                </h3>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      First Name *
-                    </label>
-                    <div className="mt-1 relative">
-                      <input
-                        type="text"
-                        name="admin_first_name"
-                        value={formData.admin_first_name}
-                        onChange={handleInputChange}
-                        className="input pl-10"
-                        placeholder="First name"
-                        required
-                      />
-                      <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <div className="space-y-6 animate-slide-in-right">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800 mb-6">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <UserIcon className="h-5 w-5 text-blue-400" aria-hidden="true" />
                     </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">Admin Account</h3>
+                      <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+                        <p>This will be the super admin account with full access to manage the school.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="admin_first_name"
+                      value={formData.admin_first_name}
+                      onChange={handleInputChange}
+                      className="input py-3 rounded-xl"
+                      placeholder="First name"
+                      required
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Last Name *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       name="admin_last_name"
                       value={formData.admin_last_name}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       placeholder="Last name"
                       required
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Email Address *
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Admin Email <span className="text-red-500">*</span>
                     </label>
-                    <div className="mt-1 relative">
+                    <div className="relative">
                       <input
                         type="email"
                         name="admin_email"
                         value={formData.admin_email}
                         onChange={handleInputChange}
-                        className="input pl-10"
+                        className="input pl-10 py-3 rounded-xl"
                         placeholder="admin@school.com"
                         required
                       />
-                      <EnvelopeIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Phone Number (Optional)
-                    </label>
-                    <div className="mt-1 relative">
-                      <input
-                        type="tel"
-                        name="admin_phone"
-                        value={formData.admin_phone}
-                        onChange={handleInputChange}
-                        className="input pl-10"
-                        placeholder="+234 123 456 7890"
-                      />
-                      <PhoneIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <EnvelopeIcon className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
                     </div>
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Password *
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Password <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="password"
                       name="admin_password"
                       value={formData.admin_password}
                       onChange={handleInputChange}
-                      className="input mt-1"
+                      className="input py-3 rounded-xl"
                       placeholder="Minimum 8 characters"
                       required
                       minLength={8}
                     />
-                    <p className="mt-1 text-xs text-gray-500">
-                      This will be your login password for the admin dashboard
-                    </p>
                   </div>
                 </div>
 
-                {/* Theme Color Selection */}
-                <div className="mt-6">
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                    School Branding Colors (Optional)
+                    School Branding (Optional)
                   </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Customize your school's login page with your brand colors
-                  </p>
-                  
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -778,19 +748,11 @@ const FreemiumRegistrationPage: React.FC = () => {
                           name="primary_color"
                           value={formData.primary_color}
                           onChange={handleInputChange}
-                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                          className="h-10 w-10 rounded border border-gray-300 cursor-pointer"
                         />
-                        <input
-                          type="text"
-                          value={formData.primary_color}
-                          onChange={handleInputChange}
-                          name="primary_color"
-                          className="input text-xs font-mono"
-                          placeholder="#3B82F6"
-                        />
+                        <span className="text-xs font-mono text-gray-500">{formData.primary_color}</span>
                       </div>
                     </div>
-                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Secondary Color
@@ -801,118 +763,52 @@ const FreemiumRegistrationPage: React.FC = () => {
                           name="secondary_color"
                           value={formData.secondary_color}
                           onChange={handleInputChange}
-                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
+                          className="h-10 w-10 rounded border border-gray-300 cursor-pointer"
                         />
-                        <input
-                          type="text"
-                          value={formData.secondary_color}
-                          onChange={handleInputChange}
-                          name="secondary_color"
-                          className="input text-xs font-mono"
-                          placeholder="#1E40AF"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Accent Color
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="color"
-                          name="accent_color"
-                          value={formData.accent_color}
-                          onChange={handleInputChange}
-                          className="w-12 h-10 rounded border border-gray-300 cursor-pointer"
-                        />
-                        <input
-                          type="text"
-                          value={formData.accent_color}
-                          onChange={handleInputChange}
-                          name="accent_color"
-                          className="input text-xs font-mono"
-                          placeholder="#60A5FA"
-                        />
+                        <span className="text-xs font-mono text-gray-500">{formData.secondary_color}</span>
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Color Preview */}
-                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preview:</p>
-                    <div 
-                      className="h-8 rounded flex items-center justify-center text-white font-medium text-sm"
-                      style={{ backgroundColor: formData.primary_color }}
-                    >
-                      {formData.name || 'Your School Name'}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      This is how your school name will appear on the login page
-                    </p>
-                  </div>
-                </div>
-
-                {/* Trial Benefits Summary */}
-                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                    🎉 Your 30-Day Free Trial Includes:
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-blue-800 dark:text-blue-200">
-                    <div>• Up to 100 students</div>
-                    <div>• Up to 10 teachers</div>
-                    <div>• Up to 20 classes</div>
-                    <div>• All premium features</div>
-                    <div>• Student management</div>
-                    <div>• Grade tracking</div>
-                    <div>• Fee management</div>
-                    <div>• Communication tools</div>
-                    <div>• Reports & analytics</div>
-                    <div>• Full customer support</div>
-                  </div>
-                  <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
-                    No credit card required. Cancel anytime during trial.
-                  </p>
-                </div>
-
-                <div className="flex justify-between">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="btn btn-secondary flex items-center"
-                  >
-                    <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                    Previous
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="btn btn-primary flex items-center"
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        Start Free Trial
-                        <SparklesIcon className="ml-2 h-4 w-4" />
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             )}
-          </form>
-        </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-600 dark:text-gray-400">
-          Already have an account?{' '}
-          <Link to="/login" className="text-blue-600 hover:text-blue-500 font-medium">
-            Sign in here
-          </Link>
+            <div className="flex justify-between pt-6">
+              {step > 1 ? (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-xl shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all duration-200"
+                >
+                  <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                  Back
+                </button>
+              ) : (
+                <div></div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center px-8 py-3 border border-transparent rounded-xl shadow-lg text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:-translate-y-0.5"
+                onClick={step < 3 ? (e) => { e.preventDefault(); nextStep(); } : undefined}
+              >
+                {loading ? (
+                  <LoadingSpinner size="sm" color="white" />
+                ) : step < 3 ? (
+                  <>
+                    Next Step
+                    <ArrowRightIcon className="ml-2 h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    Complete Registration
+                    <CheckCircleIcon className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

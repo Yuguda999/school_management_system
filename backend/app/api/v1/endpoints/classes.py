@@ -23,8 +23,7 @@ router = APIRouter()
 @router.post("/", response_model=ClassResponse)
 async def create_class(
     class_data: ClassCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new class (School Admin only)"""
@@ -56,6 +55,14 @@ async def get_classes(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all classes"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     current_user = school_context.user
     skip = (page - 1) * size
 
@@ -165,8 +172,7 @@ async def get_class(
 async def update_class(
     class_id: str,
     class_data: ClassUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update class information (School Admin only)"""
@@ -197,11 +203,18 @@ async def update_class(
 @router.delete("/{class_id}")
 async def delete_class(
     class_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete class (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     class_obj = await AcademicService.get_class_by_id(db, class_id, current_school.id)
     if not class_obj:
         raise HTTPException(

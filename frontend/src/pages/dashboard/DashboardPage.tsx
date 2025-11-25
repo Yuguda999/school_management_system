@@ -8,6 +8,10 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ChartBarIcon,
+  PlusIcon,
+  MegaphoneIcon,
+  ClipboardDocumentCheckIcon,
+  EnvelopeIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,6 +25,7 @@ import EnrollmentChart from '../../components/dashboard/EnrollmentChart';
 import RevenueChart from '../../components/dashboard/RevenueChart';
 import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
 import PageHeader from '../../components/Layout/PageHeader';
+import Card from '../../components/ui/Card';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -34,7 +39,7 @@ const DashboardPage: React.FC = () => {
       try {
         setLoading(true);
         const dashboardStats = await reportsService.getDashboardStats(currentTerm?.id);
-        setStats(dashboardStats);
+        setStats(dashboardStats as any);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
         // Fallback to mock data if API fails
@@ -53,10 +58,14 @@ const DashboardPage: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [currentTerm?.id]); // Re-fetch when current term changes
+  }, [currentTerm?.id]);
 
   if (loading) {
-    return <LoadingSpinner className="h-64" />;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
   }
 
   const getWelcomeMessage = () => {
@@ -69,8 +78,9 @@ const DashboardPage: React.FC = () => {
     if (!stats) return [];
 
     switch (user?.role) {
-      case 'super_admin':
-      case 'admin':
+      case 'platform_super_admin':
+      case 'school_owner':
+      case 'school_admin':
         return [
           {
             name: 'Total Students',
@@ -78,6 +88,7 @@ const DashboardPage: React.FC = () => {
             icon: AcademicCapIcon,
             change: '+12%',
             changeType: 'increase' as const,
+            color: 'bg-blue-500'
           },
           {
             name: 'Total Teachers',
@@ -85,6 +96,7 @@ const DashboardPage: React.FC = () => {
             icon: UserGroupIcon,
             change: '+3%',
             changeType: 'increase' as const,
+            color: 'bg-purple-500'
           },
           {
             name: 'Total Classes',
@@ -92,13 +104,15 @@ const DashboardPage: React.FC = () => {
             icon: BuildingOfficeIcon,
             change: '+5%',
             changeType: 'increase' as const,
+            color: 'bg-indigo-500'
           },
           {
             name: 'Total Revenue',
-            value: `$${stats.total_revenue.toLocaleString()}`,
+            value: `$${(stats as any).total_revenue?.toLocaleString() || '0'}`,
             icon: CurrencyDollarIcon,
             change: '+8%',
             changeType: 'increase' as const,
+            color: 'bg-green-500'
           },
           {
             name: 'Pending Fees',
@@ -106,6 +120,7 @@ const DashboardPage: React.FC = () => {
             icon: ExclamationTriangleIcon,
             change: '-5%',
             changeType: 'decrease' as const,
+            color: 'bg-red-500'
           },
           {
             name: 'Recent Enrollments',
@@ -113,6 +128,7 @@ const DashboardPage: React.FC = () => {
             icon: CheckCircleIcon,
             change: '+15%',
             changeType: 'increase' as const,
+            color: 'bg-teal-500'
           },
         ];
       case 'teacher':
@@ -123,6 +139,7 @@ const DashboardPage: React.FC = () => {
             icon: AcademicCapIcon,
             change: '+2%',
             changeType: 'increase' as const,
+            color: 'bg-blue-500'
           },
           {
             name: 'My Classes',
@@ -130,6 +147,7 @@ const DashboardPage: React.FC = () => {
             icon: BuildingOfficeIcon,
             change: '0%',
             changeType: 'neutral' as const,
+            color: 'bg-purple-500'
           },
           {
             name: 'Assignments Due',
@@ -137,6 +155,7 @@ const DashboardPage: React.FC = () => {
             icon: ClockIcon,
             change: '+3',
             changeType: 'increase' as const,
+            color: 'bg-orange-500'
           },
           {
             name: 'Average Grade',
@@ -144,68 +163,7 @@ const DashboardPage: React.FC = () => {
             icon: ChartBarIcon,
             change: '+2%',
             changeType: 'increase' as const,
-          },
-        ];
-      case 'student':
-        return [
-          {
-            name: 'My Subjects',
-            value: '8',
-            icon: AcademicCapIcon,
-            change: '0%',
-            changeType: 'neutral' as const,
-          },
-          {
-            name: 'Current GPA',
-            value: '3.7',
-            icon: ChartBarIcon,
-            change: '+0.2',
-            changeType: 'increase' as const,
-          },
-          {
-            name: 'Assignments Due',
-            value: '5',
-            icon: ClockIcon,
-            change: '-2',
-            changeType: 'decrease' as const,
-          },
-          {
-            name: 'Pending Fees',
-            value: '$500',
-            icon: CurrencyDollarIcon,
-            change: '-$100',
-            changeType: 'decrease' as const,
-          },
-        ];
-      case 'parent':
-        return [
-          {
-            name: 'My Children',
-            value: '2',
-            icon: AcademicCapIcon,
-            change: '0%',
-            changeType: 'neutral' as const,
-          },
-          {
-            name: 'Average GPA',
-            value: '3.5',
-            icon: ChartBarIcon,
-            change: '+0.1',
-            changeType: 'increase' as const,
-          },
-          {
-            name: 'Upcoming Events',
-            value: '4',
-            icon: ClockIcon,
-            change: '+1',
-            changeType: 'increase' as const,
-          },
-          {
-            name: 'Pending Fees',
-            value: '$1,200',
-            icon: CurrencyDollarIcon,
-            change: '-$300',
-            changeType: 'decrease' as const,
+            color: 'bg-green-500'
           },
         ];
       default:
@@ -214,137 +172,155 @@ const DashboardPage: React.FC = () => {
   };
 
   const statsData = getStatsForRole();
-  const isAdmin = user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin';
+  const isAdmin = ['platform_super_admin', 'school_owner', 'school_admin'].includes(user?.role || '');
   const isTeacher = user?.role === 'teacher';
-  const isStudent = user?.role === 'student';
-  const isParent = user?.role === 'parent';
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title={getWelcomeMessage()}
-        description={currentTerm ? `Here's what's happening in ${currentTerm.name} (${currentTerm.academic_session}).` : "Here's what's happening at your school today."}
-      />
-
-      {/* Current Term Indicator */}
-      <CurrentTermIndicator variant="banner" />
+    <div className="space-y-8 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <PageHeader
+          title={getWelcomeMessage()}
+          description={currentTerm ? `Here's what's happening in ${currentTerm.name} (${currentTerm.academic_session}).` : "Here's what's happening at your school today."}
+        />
+        <div className="flex-shrink-0">
+          <CurrentTermIndicator variant="compact" />
+        </div>
+      </div>
 
       {/* Stats Grid */}
-      <div className={`grid grid-cols-1 gap-5 ${
-        isAdmin ? 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6' :
+      <div className={`grid grid-cols-1 gap-6 ${isAdmin ? 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6' :
         isTeacher ? 'sm:grid-cols-2 lg:grid-cols-4' :
-        'sm:grid-cols-2 lg:grid-cols-4'
-      }`}>
-        {statsData.map((stat) => (
-          <StatsCard key={stat.name} {...stat} />
+          'sm:grid-cols-2 lg:grid-cols-4'
+        }`}>
+        {statsData.map((stat, index) => (
+          <div key={stat.name} className={`animate-fade-in-up delay-${(index + 1) * 100}`}>
+            <StatsCard {...stat} />
+          </div>
         ))}
       </div>
 
-      {/* Quick Actions for different roles */}
+      {/* Quick Actions */}
       {isAdmin && (
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+        <div className="animate-fade-in-up delay-300">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <button
-              className="btn btn-primary"
+            <Card
+              variant="glass"
+              className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 border-l-4 border-l-primary-500"
               onClick={() => navigate('/students')}
             >
-              Add Student
-            </button>
-            <button
-              className="btn btn-secondary"
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 group-hover:scale-110 transition-transform duration-200">
+                  <PlusIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Add Student</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Register new student</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card
+              variant="glass"
+              className="group hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500"
               onClick={() => navigate('/teachers')}
             >
-              Add Teacher
-            </button>
-            <button
-              className="btn btn-outline"
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-200">
+                  <UserGroupIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Add Teacher</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Onboard new staff</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card
+              variant="glass"
+              className="group hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-l-4 border-l-indigo-500"
               onClick={() => navigate('/classes')}
             >
-              Create Class
-            </button>
-            <button
-              className="btn btn-outline"
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-200">
+                  <BuildingOfficeIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Create Class</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Set up new classroom</p>
+                </div>
+              </div>
+            </Card>
+
+            <Card
+              variant="glass"
+              className="group hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500"
               onClick={() => navigate('/communication')}
             >
-              Send Announcement
-            </button>
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform duration-200">
+                  <MegaphoneIcon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Announcement</h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Broadcast message</p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       )}
 
       {isTeacher && (
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+        <div className="animate-fade-in-up delay-300">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <button className="btn btn-primary">Take Attendance</button>
-            <button className="btn btn-secondary">Grade Assignment</button>
-            <button className="btn btn-outline">Send Message</button>
+            <Card variant="glass" className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/50 text-primary-600">
+                  <CheckCircleIcon className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Take Attendance</span>
+              </div>
+            </Card>
+            <Card variant="glass" className="group hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-600">
+                  <AcademicCapIcon className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Grade Assignment</span>
+              </div>
+            </Card>
+            <Card variant="glass" className="group hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600">
+                  <EnvelopeIcon className="h-6 w-6" />
+                </div>
+                <span className="font-medium">Send Message</span>
+              </div>
+            </Card>
           </div>
         </div>
       )}
 
-      {/* Charts Section - Only for admins and teachers */}
+      {/* Charts Section */}
       {(isAdmin || isTeacher) && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-in-up delay-500">
           <EnrollmentChart />
           <RevenueChart />
         </div>
       )}
 
-      {/* Student/Parent specific sections */}
-      {(isStudent || isParent) && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              {isStudent ? 'My Grades' : 'Children\'s Grades'}
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Mathematics</span>
-                <span className="badge badge-success">A</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Science</span>
-                <span className="badge badge-primary">B+</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600 dark:text-gray-400">English</span>
-                <span className="badge badge-success">A-</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-              Upcoming Events
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Parent-Teacher Meeting</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Tomorrow, 2:00 PM</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-secondary-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Science Fair</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Friday, 10:00 AM</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Recent Activity */}
-      <RecentActivity />
+      <div className="animate-fade-in-up delay-700">
+        <RecentActivity />
+      </div>
     </div>
   );
 };

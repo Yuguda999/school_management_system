@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   PencilIcon,
   TrashIcon,
-  EyeIcon,
   CheckCircleIcon,
   XCircleIcon,
   ChartBarIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  UserIcon,
+  AcademicCapIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
 import { Grade, Exam, GradeScale } from '../../types';
 import GradeService from '../../services/gradeService';
@@ -15,6 +18,8 @@ import ConfirmationModal from '../ui/ConfirmationModal';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
+import DataTable, { Column } from '../ui/DataTable';
+import Card from '../ui/Card';
 
 interface GradeListProps {
   exam: Exam;
@@ -121,63 +126,27 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
 
   const getGradeColor = (grade?: GradeScale): string => {
     if (!grade) return 'text-gray-500';
-    
+
     switch (grade) {
       case 'A+':
       case 'A':
-        return 'text-green-600';
+        return 'text-green-600 dark:text-green-400';
       case 'B+':
       case 'B':
-        return 'text-blue-600';
+        return 'text-blue-600 dark:text-blue-400';
       case 'C+':
       case 'C':
-        return 'text-yellow-600';
+        return 'text-yellow-600 dark:text-yellow-400';
       case 'D+':
       case 'D':
-        return 'text-orange-600';
+        return 'text-orange-600 dark:text-orange-400';
       case 'E':
       case 'F':
-        return 'text-red-600';
+        return 'text-red-600 dark:text-red-400';
       default:
         return 'text-gray-500';
     }
   };
-
-  const getStatusBadge = (grade: Grade) => {
-    if (grade.is_published) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-          <CheckCircleIcon className="w-3 h-3 mr-1" />
-          Published
-        </span>
-      );
-    }
-    
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-        <XCircleIcon className="w-3 h-3 mr-1" />
-        Draft
-      </span>
-    );
-  };
-
-  const getPassFailBadge = (grade: Grade) => {
-    if (Number(grade.score) >= exam.pass_marks) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-          Pass
-        </span>
-      );
-    }
-    
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
-        Fail
-      </span>
-    );
-  };
-
-  // Permission check is now handled by the usePermissions hook
 
   const calculateStatistics = () => {
     if (grades.length === 0) return null;
@@ -201,208 +170,195 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
 
   const stats = calculateStatistics();
 
+  const columns: Column<Grade>[] = [
+    {
+      key: 'student_name',
+      header: 'Student',
+      sortable: true,
+      render: (grade) => (
+        <div className="flex items-center">
+          <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-3">
+            <UserIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+          </div>
+          <div>
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              {grade.student_name}
+            </div>
+            {grade.remarks && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center mt-0.5">
+                <DocumentTextIcon className="w-3 h-3 mr-1" />
+                {grade.remarks}
+              </div>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'score',
+      header: 'Score',
+      sortable: true,
+      render: (grade) => (
+        <div className="text-sm font-medium text-gray-900 dark:text-white">
+          {grade.score} <span className="text-gray-400 font-normal">/ {grade.total_marks}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'grade',
+      header: 'Grade',
+      sortable: true,
+      render: (grade) => (
+        <span className={`text-sm font-bold ${getGradeColor(grade.grade)}`}>
+          {grade.grade || 'N/A'}
+        </span>
+      ),
+    },
+    {
+      key: 'percentage',
+      header: 'Percentage',
+      sortable: true,
+      render: (grade) => (
+        <div className="flex items-center">
+          <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mr-2">
+            <div
+              className={`h-1.5 rounded-full ${Number(grade.percentage) >= 70 ? 'bg-green-500' :
+                  Number(grade.percentage) >= 50 ? 'bg-blue-500' :
+                    Number(grade.percentage) >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+              style={{ width: `${Math.min(Number(grade.percentage), 100)}%` }}
+            ></div>
+          </div>
+          <span className="text-xs text-gray-600 dark:text-gray-400">
+            {Number(grade.percentage).toFixed(1)}%
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'result',
+      header: 'Result',
+      render: (grade) => (
+        Number(grade.score) >= exam.pass_marks ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            Pass
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+            Fail
+          </span>
+        )
+      ),
+    },
+    {
+      key: 'is_published',
+      header: 'Status',
+      render: (grade) => (
+        grade.is_published ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircleIcon className="w-3 h-3 mr-1" />
+            Published
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+            <XCircleIcon className="w-3 h-3 mr-1" />
+            Draft
+          </span>
+        )
+      ),
+    },
+  ];
+
   if (loading) {
     return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">Loading grades...</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Exam Info */}
-      <div className="card p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {exam.name}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {exam.subject_name} • {exam.class_name} • {exam.term_name}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Total Marks: {exam.total_marks} • Pass Marks: {exam.pass_marks}
+    <div className="space-y-6 animate-fade-in">
+      {/* Statistics Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card variant="glass" className="border-l-4 border-l-blue-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.averageScore}</p>
+              </div>
+              <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                <ChartBarIcon className="w-6 h-6" />
+              </div>
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Date: {new Date(exam.exam_date).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
+          </Card>
 
-        {/* Statistics */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats.totalStudents}
+          <Card variant="glass" className="border-l-4 border-l-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pass Rate</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.passRate}%</p>
               </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Total Students
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-green-600">
-                {stats.passedStudents}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Passed
+              <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                <CheckCircleIcon className="w-6 h-6" />
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-blue-600">
-                {stats.passRate}%
+          </Card>
+
+          <Card variant="glass" className="border-l-4 border-l-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Highest Score</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.highestScore}</p>
               </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Pass Rate
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                {stats.averageScore}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Average
+              <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                <ArrowTrendingUpIcon className="w-6 h-6" />
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-green-600">
-                {stats.highestScore}
+          </Card>
+
+          <Card variant="glass" className="border-l-4 border-l-red-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Lowest Score</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.lowestScore}</p>
               </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Highest
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-red-600">
-                {stats.lowestScore}
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400">
-                Lowest
+              <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                <ArrowTrendingDownIcon className="w-6 h-6" />
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          </Card>
+        </div>
+      )}
 
       {/* Grades Table */}
-      <div className="card">
-        {grades.length === 0 ? (
-          <div className="p-8 text-center">
-            <ChartBarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              No grades recorded
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              No grades have been recorded for this exam yet.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Student
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Score
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Grade
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Percentage
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Result
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Graded By
-                  </th>
-                  {canManageGrades() && (
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {grades.map((grade) => (
-                  <tr key={grade.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {grade.student_name}
-                      </div>
-                      {grade.remarks && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                          <DocumentTextIcon className="w-3 h-3 mr-1" />
-                          {grade.remarks}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {grade.score} / {grade.total_marks}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${getGradeColor(grade.grade)}`}>
-                        {grade.grade || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm ${getGradeColor(grade.grade)}`}>
-                        {Number(grade.percentage).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getPassFailBadge(grade)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(grade)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {grade.grader_name}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {new Date(grade.graded_date).toLocaleDateString()}
-                      </div>
-                    </td>
-                    {canManageGrades() && (
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => handleEditGrade(grade)}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                            title="Edit grade"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteGrade(grade.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete grade"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <DataTable
+        data={grades}
+        columns={columns}
+        loading={loading}
+        searchable={true}
+        searchPlaceholder="Search students..."
+        emptyMessage="No grades recorded yet"
+        actions={(grade) => canManageGrades() ? (
+          <>
+            <button
+              onClick={() => handleEditGrade(grade)}
+              className="p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              title="Edit grade"
+            >
+              <PencilIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => handleDeleteGrade(grade.id)}
+              className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              title="Delete grade"
+            >
+              <TrashIcon className="w-5 h-5" />
+            </button>
+          </>
+        ) : null}
+      />
 
       {/* Edit Grade Modal */}
       <Modal
@@ -412,18 +368,18 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
       >
         {selectedGrade && (
           <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                 {selectedGrade.student_name}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {exam.name} • {exam.subject_name}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Score (out of {exam.total_marks})
+                Score (Max: {exam.total_marks})
               </label>
               <input
                 type="number"
@@ -489,7 +445,7 @@ const GradeList: React.FC<GradeListProps> = ({ exam, onGradeUpdate }) => {
         title="Delete Grade"
         message="Are you sure you want to delete this grade? This action cannot be undone."
         confirmText="Delete"
-        confirmButtonClass="btn-danger"
+        type="danger"
       />
     </div>
   );

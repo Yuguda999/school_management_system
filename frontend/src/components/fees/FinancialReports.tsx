@@ -8,6 +8,8 @@ import {
   ClockIcon,
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
+import { FeeService } from '../../services/feeService';
+import { useToast } from '../../hooks/useToast';
 
 interface FinancialData {
   totalRevenue: number;
@@ -26,6 +28,7 @@ interface FinancialData {
 }
 
 const FinancialReports: React.FC = () => {
+  const { showError } = useToast();
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
@@ -37,18 +40,24 @@ const FinancialReports: React.FC = () => {
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
-      // TODO: Implement actual API call to fetch financial data
-      const data: FinancialData = {
-        totalRevenue: 0,
-        monthlyRevenue: [],
-        feeTypeBreakdown: [],
-        collectionRate: 0,
-        pendingAmount: 0,
-        overdueAmount: 0,
+      const data = await FeeService.getFeeCollectionReport();
+
+      // Transform API data to component format
+      // Note: The API currently returns a simpler structure (FeeReport)
+      // We'll map it to FinancialData and mock the breakdown parts until backend supports them
+      const reportData: FinancialData = {
+        totalRevenue: data.total_expected || 0,
+        monthlyRevenue: [], // TODO: Backend needs to provide this
+        feeTypeBreakdown: [], // TODO: Backend needs to provide this
+        collectionRate: data.collection_percentage || 0,
+        pendingAmount: data.total_outstanding || 0,
+        overdueAmount: data.overdue_amount || 0,
       };
-      setFinancialData(data);
+
+      setFinancialData(reportData);
     } catch (error) {
       console.error('Error fetching financial data:', error);
+      showError('Failed to load financial reports');
     } finally {
       setLoading(false);
     }
@@ -188,8 +197,8 @@ const FinancialReports: React.FC = () => {
                   <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${(month.amount / Math.max(...financialData.monthlyRevenue.map(m => m.amount))) * 100}%` 
+                      style={{
+                        width: `${(month.amount / Math.max(...financialData.monthlyRevenue.map(m => m.amount))) * 100}%`
                       }}
                     ></div>
                   </div>
@@ -248,7 +257,7 @@ const FinancialReports: React.FC = () => {
               ></div>
             </div>
           </div>
-          
+
           <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
             <p className="text-2xl font-semibold text-yellow-600">
               ₹{financialData.pendingAmount.toLocaleString()}
@@ -261,7 +270,7 @@ const FinancialReports: React.FC = () => {
               ></div>
             </div>
           </div>
-          
+
           <div className="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-2xl font-semibold text-red-600">
               ₹{financialData.overdueAmount.toLocaleString()}

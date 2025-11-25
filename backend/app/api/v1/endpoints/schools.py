@@ -55,11 +55,13 @@ async def register_school(
 @router.post("/register-additional", response_model=SchoolRegistrationResponse)
 async def register_additional_school(
     school_data: SchoolCreate,
-    current_user: User = Depends(require_school_owner()),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Register an additional school for an existing school owner"""
     try:
+        current_user = school_context.user
+        
         # Create the school
         school = await SchoolService.create_school_for_existing_owner(
             db, school_data, current_user.id
@@ -122,11 +124,19 @@ async def get_my_school(
 @router.put("/me", response_model=SchoolResponse)
 async def update_my_school(
     school_data: SchoolUpdate,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update current school information (School Owner only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Verify user owns this school
     ownership = await SchoolOwnershipService.get_user_school_ownership(
         db, current_user.id, current_school.id
@@ -163,11 +173,19 @@ async def get_my_school_stats(
 @router.put("/me/settings")
 async def update_school_settings(
     settings: SchoolSettings,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update school settings (School Owner only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Verify user owns this school
     ownership = await SchoolOwnershipService.get_user_school_ownership(
         db, current_user.id, current_school.id
@@ -202,12 +220,13 @@ async def update_school_settings(
 
 @router.get("/me/report-card-templates")
 async def get_school_report_card_templates(
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get report card templates for school owner (School Owner only)"""
     from app.services.report_card_template_service import ReportCardTemplateService
+    
+    current_user = school_context.user
     
     # Get templates for this school owner
     templates = await ReportCardTemplateService.get_templates(
@@ -233,13 +252,21 @@ async def get_school_report_card_templates(
 @router.post("/me/report-card-templates")
 async def create_school_report_card_template(
     template_data: dict,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new report card template for school owner (School Owner only)"""
     from app.services.report_card_template_service import ReportCardTemplateService
     from app.schemas.report_card_template import ReportCardTemplateCreate
+    
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
     
     # Convert dict to schema
     template_create = ReportCardTemplateCreate(**template_data)
@@ -266,13 +293,14 @@ async def create_school_report_card_template(
 async def update_school_report_card_template(
     template_id: str,
     template_data: dict,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update a report card template for school owner (School Owner only)"""
     from app.services.report_card_template_service import ReportCardTemplateService
     from app.schemas.report_card_template import ReportCardTemplateUpdate
+    
+    current_user = school_context.user
     
     # Convert dict to schema
     template_update = ReportCardTemplateUpdate(**template_data)
@@ -304,12 +332,13 @@ async def update_school_report_card_template(
 @router.delete("/me/report-card-templates/{template_id}")
 async def delete_school_report_card_template(
     template_id: str,
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete a report card template for school owner (School Owner only)"""
     from app.services.report_card_template_service import ReportCardTemplateService
+    
+    current_user = school_context.user
     
     # Delete template
     success = await ReportCardTemplateService.delete_template(
@@ -328,11 +357,19 @@ async def delete_school_report_card_template(
 @router.post("/me/logo")
 async def upload_school_logo(
     file: UploadFile = File(...),
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Upload school logo (School Owner only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Verify user owns this school
     ownership = await SchoolOwnershipService.get_user_school_ownership(
         db, current_user.id, current_school.id
@@ -369,11 +406,19 @@ async def upload_school_logo(
 
 @router.delete("/me/logo")
 async def delete_school_logo(
-    current_user: User = Depends(require_school_owner()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_owner()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete school logo (School Owner only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Verify user owns this school
     ownership = await SchoolOwnershipService.get_user_school_ownership(
         db, current_user.id, current_school.id

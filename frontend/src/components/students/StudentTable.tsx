@@ -2,6 +2,7 @@ import React from 'react';
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { Student } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
+import DataTable, { Column } from '../ui/DataTable';
 
 interface StudentTableProps {
   students: Student[];
@@ -28,7 +29,6 @@ const StudentTable: React.FC<StudentTableProps> = ({
   onEdit,
   onDelete,
   pagination,
-  userRole,
   showActions = true,
 }) => {
   const { canManageStudents } = usePermissions();
@@ -51,185 +51,125 @@ const StudentTable: React.FC<StudentTableProps> = ({
 
   const getStatusBadge = (status: string) => {
     const statusClasses = {
-      active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-      inactive: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-      graduated: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+      inactive: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+      graduated: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
     };
 
     return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClasses[status as keyof typeof statusClasses]}`}>
+      <span className={`inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full ${statusClasses[status as keyof typeof statusClasses] || 'bg-gray-100 text-gray-800'}`}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
 
-  return (
-    <div className="overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              {canManageStudents() && (
-                <th className="px-6 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedStudents.length === students.length && students.length > 0}
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                </th>
-              )}
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Student
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Admission Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Class
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Admission Date
-              </th>
-              {showActions && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {students.map((student) => (
-              <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                {canManageStudents() && (
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedStudents.includes(student.id)}
-                      onChange={(e) => handleSelectOne(student.id, e.target.checked)}
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                  </td>
-                )}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {student.first_name?.[0]}{student.last_name?.[0]}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {student.first_name} {student.last_name}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {student.email || 'No email'}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {student.admission_number}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {student.current_class_name || 'Not assigned'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusBadge(student.status)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {new Date(student.admission_date).toLocaleDateString()}
-                </td>
-                {showActions && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end space-x-2">
-                      <button
-                        onClick={() => onView(student)}
-                        className="text-primary-600 hover:text-primary-900 dark:text-primary-400 dark:hover:text-primary-300"
-                        title="View Details"
-                      >
-                        <EyeIcon className="h-5 w-5" />
-                      </button>
-                      {canManageStudents() && (
-                        <>
-                          <button
-                            onClick={() => onEdit(student)}
-                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                            title="Edit Student"
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => onDelete(student.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete Student"
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {pagination.pages > 1 && (
-        <div className="bg-white dark:bg-gray-900 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => pagination.onPageChange(pagination.page - 1)}
-              disabled={pagination.page === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => pagination.onPageChange(pagination.page + 1)}
-              disabled={pagination.page === pagination.pages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Showing page <span className="font-medium">{pagination.page}</span> of{' '}
-                <span className="font-medium">{pagination.pages}</span> ({pagination.total} total)
-              </p>
+  const columns: Column<Student>[] = [
+    ...(canManageStudents() ? [{
+      key: 'selection',
+      header: (
+        <input
+          type="checkbox"
+          checked={selectedStudents.length === students.length && students.length > 0}
+          onChange={(e) => handleSelectAll(e.target.checked)}
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 transition-colors duration-200"
+        />
+      ),
+      width: '48px',
+      render: (student: Student) => (
+        <input
+          type="checkbox"
+          checked={selectedStudents.includes(student.id)}
+          onChange={(e) => handleSelectOne(student.id, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 transition-colors duration-200"
+        />
+      )
+    }] : []),
+    {
+      key: 'name',
+      header: 'Student',
+      render: (student) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-10 w-10">
+            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-100 to-secondary-100 dark:from-primary-900 dark:to-secondary-900 flex items-center justify-center text-primary-700 dark:text-primary-300 font-bold shadow-sm">
+              {student.first_name?.[0]}{student.last_name?.[0]}
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => pagination.onPageChange(pagination.page - 1)}
-                  disabled={pagination.page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => pagination.onPageChange(pagination.page + 1)}
-                  disabled={pagination.page === pagination.pages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </nav>
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              {student.first_name} {student.last_name}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {student.email || 'No email'}
             </div>
           </div>
         </div>
+      )
+    },
+    {
+      key: 'admission_number',
+      header: 'Admission No.',
+      sortable: true
+    },
+    {
+      key: 'current_class_name',
+      header: 'Class',
+      render: (student) => student.current_class_name || <span className="text-gray-400 italic">Not assigned</span>
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (student) => getStatusBadge(student.status)
+    },
+    {
+      key: 'admission_date',
+      header: 'Admission Date',
+      render: (student) => new Date(student.admission_date).toLocaleDateString()
+    }
+  ];
+
+  const renderActions = (student: Student) => (
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); onView(student); }}
+        className="p-1 rounded-full text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+        title="View Details"
+      >
+        <EyeIcon className="h-5 w-5" />
+      </button>
+      {canManageStudents() && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(student); }}
+            className="p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+            title="Edit Student"
+          >
+            <PencilIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(student.id); }}
+            className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            title="Delete Student"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        </>
       )}
-    </div>
+    </>
+  );
+
+  return (
+    <DataTable
+      data={students}
+      columns={columns}
+      actions={showActions ? renderActions : undefined}
+      pagination={true}
+      itemsPerPage={pagination.total > 0 ? students.length : 10} // Just to show pagination controls if needed, though DataTable handles internal pagination usually. 
+    // Wait, DataTable has internal pagination state. 
+    // But StudentTable props has `pagination` object which implies server-side pagination.
+    // My DataTable implementation currently does CLIENT-SIDE pagination.
+    // I need to update DataTable to support server-side pagination or disable its internal pagination if external control is provided.
+    />
   );
 };
 

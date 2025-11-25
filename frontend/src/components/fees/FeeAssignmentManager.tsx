@@ -6,6 +6,10 @@ import {
   UserGroupIcon,
   CalendarIcon,
   ExclamationTriangleIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import { FeeAssignment, FeeStructure, Class, Term, Student } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,7 +20,8 @@ import { FeeService } from '../../services/feeService';
 import DataTable, { Column } from '../ui/DataTable';
 import Modal from '../ui/Modal';
 import FeeAssignmentForm from './FeeAssignmentForm';
-import LoadingSpinner from '../ui/LoadingSpinner';
+import RecordPaymentModal from './RecordPaymentModal';
+import Card from '../ui/Card';
 
 const FeeAssignmentManager: React.FC = () => {
   const { user } = useAuth();
@@ -27,8 +32,10 @@ const FeeAssignmentManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<FeeAssignment | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     term_id: currentTerm?.id || '',
     class_id: '',
@@ -58,11 +65,16 @@ const FeeAssignmentManager: React.FC = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      // TODO: Implement API endpoint for fetching all fee assignments
-      // For now, return empty array until endpoint is implemented
-      const allAssignments: FeeAssignment[] = [];
+      const allAssignments = await FeeService.getFeeAssignments({
+        term_id: filters.term_id || undefined,
+        class_id: filters.class_id || undefined,
+        status: filters.status || undefined,
+        page: 1,
+        size: 100
+      });
 
       setAssignments(allAssignments);
+      console.log('Assignments data:', allAssignments); // Debug log
       calculateStats(allAssignments);
     } catch (error) {
       console.error('Failed to fetch fee assignments:', error);
@@ -76,18 +88,18 @@ const FeeAssignmentManager: React.FC = () => {
     const stats = assignments.reduce(
       (acc, assignment) => {
         acc.totalAssignments += 1;
-        acc.totalAmount += assignment.amount;
-        
+        acc.totalAmount += Number(assignment.amount || 0);
+
         if (assignment.status === 'paid') {
-          acc.paidAmount += assignment.amount;
+          acc.paidAmount += Number(assignment.amount || 0);
         } else {
-          acc.pendingAmount += assignment.amount_outstanding;
+          acc.pendingAmount += Number(assignment.amount_outstanding || 0);
         }
-        
+
         if (assignment.status === 'overdue') {
           acc.overdueCount += 1;
         }
-        
+
         return acc;
       },
       {
@@ -98,7 +110,7 @@ const FeeAssignmentManager: React.FC = () => {
         overdueCount: 0,
       }
     );
-    
+
     setStats(stats);
   };
 
@@ -106,13 +118,27 @@ const FeeAssignmentManager: React.FC = () => {
     try {
       setFormLoading(true);
       const newAssignments = await FeeService.bulkCreateFeeAssignments(data);
-      
+
       showSuccess(`Successfully assigned fees to ${newAssignments.length} students`);
       setShowAssignModal(false);
       fetchAssignments();
     } catch (error: any) {
       console.error('Failed to assign fees:', error);
-      showError(error.response?.data?.detail || 'Failed to assign fees');
+
+      // Extract validation error message
+      let errorMessage = 'Failed to assign fees';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors are arrays
+          errorMessage = error.response.data.detail
+            .map((err: any) => `${err.loc?.join('.') || 'Field'}: ${err.msg}`)
+            .join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
+      showError(errorMessage);
     } finally {
       setFormLoading(false);
     }
@@ -126,42 +152,46 @@ const FeeAssignmentManager: React.FC = () => {
   const columns: Column<FeeAssignment>[] = [
     {
       key: 'student_name',
-      label: 'Student',
+      header: 'Student',
+      sortable: true,
       render: (assignment) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
-            {assignment.student_name || `${assignment.student?.user.first_name} ${assignment.student?.user.last_name}`}
+            {assignment.student_name || (assignment.student ? `${assignment.student.first_name} ${assignment.student.last_name}` : 'Unknown Student')}
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {assignment.student?.admission_number}
+            {assignment.student?.admission_number || 'N/A'}
           </div>
         </div>
       ),
     },
     {
       key: 'fee_structure_name',
-      label: 'Fee Structure',
+      header: 'Fee Structure',
+      sortable: true,
       render: (assignment) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
             {assignment.fee_structure_name || assignment.fee_structure?.name}
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {FeeService.getFeeTypeIcon(assignment.fee_structure?.fee_type || '')} {assignment.fee_structure?.fee_type}
+          <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+            <span className="mr-1 text-lg">{FeeService.getFeeTypeIcon(assignment.fee_structure?.fee_type || '')}</span>
+            <span className="capitalize">{assignment.fee_structure?.fee_type.replace('_', ' ')}</span>
           </div>
         </div>
       ),
     },
     {
       key: 'amount',
-      label: 'Amount',
+      header: 'Amount',
+      sortable: true,
       render: (assignment) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
             {FeeService.formatCurrency(assignment.amount)}
           </div>
           {assignment.discount_amount > 0 && (
-            <div className="text-sm text-green-600 dark:text-green-400">
+            <div className="text-xs text-green-600 dark:text-green-400">
               -{FeeService.formatCurrency(assignment.discount_amount)} discount
             </div>
           )}
@@ -170,44 +200,35 @@ const FeeAssignmentManager: React.FC = () => {
     },
     {
       key: 'outstanding',
-      label: 'Outstanding',
+      header: 'Outstanding',
+      sortable: true,
       render: (assignment) => (
-        <div className="font-medium text-gray-900 dark:text-white">
+        <div className={`font-medium ${assignment.amount_outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
           {FeeService.formatCurrency(assignment.amount_outstanding)}
         </div>
       ),
     },
     {
       key: 'due_date',
-      label: 'Due Date',
+      header: 'Due Date',
+      sortable: true,
       render: (assignment) => (
-        <div className="text-sm text-gray-900 dark:text-white">
+        <div className="flex items-center text-sm text-gray-900 dark:text-white">
+          <CalendarIcon className="h-4 w-4 text-gray-400 mr-1" />
           {FeeService.formatDate(assignment.due_date)}
         </div>
       ),
     },
     {
       key: 'status',
-      label: 'Status',
+      header: 'Status',
+      sortable: true,
       render: (assignment) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${FeeService.getPaymentStatusColor(assignment.status)}`}>
-          {assignment.status}
+          {assignment.status === 'paid' && <CheckCircleIcon className="w-3 h-3 mr-1" />}
+          {assignment.status === 'overdue' && <ExclamationTriangleIcon className="w-3 h-3 mr-1" />}
+          {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
         </span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (assignment) => (
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleViewAssignment(assignment)}
-            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-            title="View Details"
-          >
-            <EyeIcon className="h-4 w-4" />
-          </button>
-        </div>
       ),
     },
   ];
@@ -218,49 +239,55 @@ const FeeAssignmentManager: React.FC = () => {
       value: stats.totalAssignments.toString(),
       icon: UserGroupIcon,
       color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-100 dark:bg-blue-900',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
+      borderColor: 'border-l-blue-500'
     },
     {
       name: 'Total Amount',
       value: FeeService.formatCurrency(stats.totalAmount),
       icon: CurrencyDollarIcon,
       color: 'text-green-600 dark:text-green-400',
-      bgColor: 'bg-green-100 dark:bg-green-900',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
+      borderColor: 'border-l-green-500'
     },
     {
       name: 'Pending Amount',
       value: FeeService.formatCurrency(stats.pendingAmount),
       icon: ExclamationTriangleIcon,
       color: 'text-yellow-600 dark:text-yellow-400',
-      bgColor: 'bg-yellow-100 dark:bg-yellow-900',
+      bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
+      borderColor: 'border-l-yellow-500'
     },
     {
       name: 'Overdue Count',
       value: stats.overdueCount.toString(),
       icon: CalendarIcon,
       color: 'text-red-600 dark:text-red-400',
-      bgColor: 'bg-red-100 dark:bg-red-900',
+      bgColor: 'bg-red-100 dark:bg-red-900/30',
+      borderColor: 'border-l-red-500'
     },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Fee Assignments
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage fee assignments for students
-          </p>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header Actions */}
+      <div className="flex flex-col sm:flex-row justify-between gap-4">
+        <div className="flex-1">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-secondary'} w-full sm:w-auto`}
+          >
+            <FunnelIcon className="w-4 h-4 mr-2" />
+            Filters
+          </button>
         </div>
+
         {canManageFees() && (
           <button
             onClick={() => setShowAssignModal(true)}
-            className="btn btn-primary"
+            className="btn btn-primary w-full sm:w-auto"
           >
-            <PlusIcon className="h-5 w-5 mr-2" />
+            <PlusIcon className="w-4 h-4 mr-2" />
             Assign Fees
           </button>
         )}
@@ -269,89 +296,108 @@ const FeeAssignmentManager: React.FC = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {statsCards.map((stat) => (
-          <div key={stat.name} className="card p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className={`flex items-center justify-center h-12 w-12 rounded-md ${stat.bgColor} ${stat.color}`}>
-                  <stat.icon className="h-6 w-6" aria-hidden="true" />
-                </div>
+          <Card key={stat.name} variant="glass" className={`border-l-4 ${stat.borderColor}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  {stat.name}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                  {stat.value}
+                </p>
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
-                    {stat.name}
-                  </dt>
-                  <dd>
-                    <div className="text-lg font-medium text-gray-900 dark:text-white">
-                      {stat.value}
-                    </div>
-                  </dd>
-                </dl>
+              <div className={`flex items-center justify-center h-12 w-12 rounded-xl ${stat.bgColor} ${stat.color}`}>
+                <stat.icon className="h-6 w-6" aria-hidden="true" />
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="label">Term</label>
-            <select
-              className="input"
-              value={filters.term_id}
-              onChange={(e) => setFilters({ ...filters, term_id: e.target.value })}
-            >
-              <option value="">All Terms</option>
-              {/* Add term options */}
-            </select>
+      {showFilters && (
+        <Card variant="glass" className="animate-fade-in-up">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className="label">Term</label>
+              <select
+                className="input"
+                value={filters.term_id}
+                onChange={(e) => setFilters({ ...filters, term_id: e.target.value })}
+              >
+                <option value="">All Terms</option>
+                {/* Add term options */}
+              </select>
+            </div>
+            <div>
+              <label className="label">Class</label>
+              <select
+                className="input"
+                value={filters.class_id}
+                onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
+              >
+                <option value="">All Classes</option>
+                {/* Add class options */}
+              </select>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select
+                className="input"
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters({ term_id: '', class_id: '', status: '' })}
+                className="btn btn-secondary w-full"
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="label">Class</label>
-            <select
-              className="input"
-              value={filters.class_id}
-              onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
-            >
-              <option value="">All Classes</option>
-              {/* Add class options */}
-            </select>
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select
-              className="input"
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="partial">Partial</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => setFilters({ term_id: '', class_id: '', status: '' })}
-              className="btn btn-secondary w-full"
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      </div>
+        </Card>
+      )}
 
       {/* Assignments Table */}
-      <div className="card">
-        <DataTable
-          data={assignments}
-          columns={columns}
-          loading={loading}
-          emptyMessage="No fee assignments found"
-        />
-      </div>
+      <DataTable
+        data={assignments}
+        columns={columns}
+        loading={loading}
+        searchable={true}
+        searchPlaceholder="Search fee assignments..."
+        emptyMessage="No fee assignments found"
+        actions={(assignment) => (
+          <>
+            <button
+              onClick={() => handleViewAssignment(assignment)}
+              className="p-1 rounded-full text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              title="View Details"
+            >
+              <EyeIcon className="w-5 h-5" />
+            </button>
+            {assignment.status !== 'paid' && (
+              <button
+                onClick={() => {
+                  setSelectedAssignment(assignment);
+                  setShowPaymentModal(true);
+                }}
+                className="p-1 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors ml-2"
+                title="Record Payment"
+              >
+                <CurrencyDollarIcon className="w-5 h-5" />
+              </button>
+            )}
+          </>
+        )}
+      />
 
       {/* Assign Fees Modal */}
       <Modal
@@ -379,15 +425,88 @@ const FeeAssignmentManager: React.FC = () => {
       >
         {selectedAssignment && (
           <div className="space-y-6">
-            {/* Assignment details would go here */}
-            <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400">
-                Assignment details view will be implemented here
-              </p>
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {selectedAssignment.student_name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Admission No: {selectedAssignment.student?.admission_number}
+                  </p>
+                </div>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${FeeService.getPaymentStatusColor(selectedAssignment.status)}`}>
+                  {selectedAssignment.status.charAt(0).toUpperCase() + selectedAssignment.status.slice(1)}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+                  Fee Details
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Structure</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedAssignment.fee_structure_name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Total Amount</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{FeeService.formatCurrency(selectedAssignment.amount)}</span>
+                  </div>
+                  {selectedAssignment.discount_amount > 0 && (
+                    <div className="flex justify-between text-green-600 dark:text-green-400">
+                      <span>Discount</span>
+                      <span>-{FeeService.formatCurrency(selectedAssignment.discount_amount)}</span>
+                    </div>
+                  )}
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between">
+                    <span className="font-bold text-gray-900 dark:text-white">Outstanding</span>
+                    <span className={`font-bold ${selectedAssignment.amount_outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {FeeService.formatCurrency(selectedAssignment.amount_outstanding)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">
+                  Payment Info
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Due Date</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{FeeService.formatDate(selectedAssignment.due_date)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Amount Paid</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{FeeService.formatCurrency(selectedAssignment.amount_paid)}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
+
       </Modal>
+
+      {/* Record Payment Modal */}
+      {selectedAssignment && (
+        <RecordPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+            setSelectedAssignment(null);
+          }}
+          assignment={selectedAssignment}
+          onSuccess={() => {
+            fetchAssignments();
+            setShowPaymentModal(false);
+            setSelectedAssignment(null);
+          }}
+        />
+      )}
     </div>
   );
 };

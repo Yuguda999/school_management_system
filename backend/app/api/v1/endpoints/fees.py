@@ -1,15 +1,17 @@
 from typing import Any, Optional, List
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
-    get_current_school
+    get_current_school,
+    SchoolContext
 )
 from app.models.user import User, UserRole
 from app.models.school import School
-from app.models.fee import PaymentStatus
+from app.models.fee import PaymentStatus, PaymentMethod
 from app.schemas.fee import (
     FeeStructureCreate,
     FeeStructureUpdate,
@@ -27,17 +29,58 @@ from app.services.fee_service import FeeService
 router = APIRouter()
 
 
+# Fee Statistics
+@router.get("/stats", response_model=FeeReport)
+async def get_fee_stats(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get fee statistics (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    stats = await FeeService.get_fee_report(
+        db, current_school.id, term_id, class_id
+    )
+    
+    return FeeReport(**stats)
+
+
 # Fee Structure Management
 @router.post("/structures", response_model=FeeStructureResponse)
 async def create_fee_structure(
     fee_data: FeeStructureCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new fee structure (Admin/Super Admin only)"""
-    fee_structure = await FeeService.create_fee_structure(db, fee_data, current_school.id)
-    return FeeStructureResponse.from_orm(fee_structure)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Received fee structure creation request")
+    logger.info(f"Fee data: {fee_data.dict()}")
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    try:
+        fee_structure = await FeeService.create_fee_structure(db, fee_data, current_school.id)
+        return FeeStructureResponse.from_orm(fee_structure)
+    except Exception as e:
+        logger.error(f"Error creating fee structure: {str(e)}")
+        raise
 
 
 @router.get("/structures", response_model=List[FeeStructureResponse])
@@ -48,11 +91,18 @@ async def get_fee_structures(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get fee structures (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     skip = (page - 1) * size
     fee_structures = await FeeService.get_fee_structures(
         db, current_school.id, academic_session, class_level, fee_type, is_active, skip, size
@@ -65,11 +115,18 @@ async def get_fee_structures(
 async def update_fee_structure(
     structure_id: str,
     fee_data: FeeStructureUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update fee structure (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     updated_structure = await FeeService.update_fee_structure(
         db, structure_id, current_school.id, fee_data
     )
@@ -86,11 +143,18 @@ async def update_fee_structure(
 @router.delete("/structures/{structure_id}")
 async def delete_fee_structure(
     structure_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete fee structure (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     success = await FeeService.delete_fee_structure(
         db, structure_id, current_school.id
     )
@@ -108,11 +172,18 @@ async def delete_fee_structure(
 @router.post("/assignments", response_model=FeeAssignmentResponse)
 async def create_fee_assignment(
     assignment_data: FeeAssignmentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new fee assignment (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     assignment = await FeeService.create_fee_assignment(db, assignment_data, current_school.id)
     
     # Enhance response with related data
@@ -125,12 +196,87 @@ async def create_fee_assignment(
 @router.post("/assignments/bulk", response_model=List[FeeAssignmentResponse])
 async def bulk_create_fee_assignments(
     bulk_data: BulkFeeAssignmentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create fee assignments for multiple students (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     assignments = await FeeService.bulk_create_fee_assignments(db, bulk_data, current_school.id)
+    
+    # Enhance response with related data
+    return [FeeAssignmentResponse.from_orm(assignment) for assignment in assignments]
+
+
+@router.get("/assignments", response_model=List[FeeAssignmentResponse])
+async def get_fee_assignments(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    status: Optional[PaymentStatus] = Query(None, description="Filter by payment status"),
+    skip: int = Query(0, description="Skip N items"),
+    limit: int = Query(100, description="Limit results"),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get all fee assignments (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    assignments = await FeeService.get_fee_assignments(
+        db, current_school.id, term_id, class_id, status, skip, limit
+    )
+    
+    return [FeeAssignmentResponse.from_orm(assignment) for assignment in assignments]
+
+
+# Payment Management
+@router.get("/payments", response_model=List[FeePaymentResponse])
+async def get_payments(
+    start_date: Optional[date] = Query(None, description="Filter by start date"),
+    end_date: Optional[date] = Query(None, description="Filter by end date"),
+    payment_method: Optional[PaymentMethod] = Query(None, description="Filter by payment method"),
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    status: Optional[PaymentStatus] = Query(None, description="Filter by payment status"),
+    search: Optional[str] = Query(None, description="Search term"),
+    skip: int = Query(0, description="Skip results"),
+    limit: int = Query(100, description="Limit results"),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get all payments (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    payments = await FeeService.get_payments(
+        db=db,
+        school_id=current_school.id,
+        start_date=start_date,
+        end_date=end_date,
+        payment_method=payment_method,
+        class_id=class_id,
+        status=status,
+        search=search,
+        skip=skip,
+        limit=limit
+    )
+    
+    return [FeePaymentResponse.from_orm(payment) for payment in payments]
     
     return [FeeAssignmentResponse.from_orm(assignment) for assignment in assignments]
 
@@ -179,11 +325,19 @@ async def get_student_fee_assignments(
 @router.post("/payments", response_model=FeePaymentResponse)
 async def create_fee_payment(
     payment_data: FeePaymentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new fee payment (Admin/Super Admin only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     payment = await FeeService.create_payment(
         db, payment_data, current_user.id, current_school.id
     )
@@ -244,11 +398,18 @@ async def get_student_payments(
 async def get_fee_collection_report(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get fee collection report (Admin/Super Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     report_data = await FeeService.get_fee_report(
         db, current_school.id, term_id, class_id
     )

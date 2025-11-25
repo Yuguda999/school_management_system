@@ -14,8 +14,7 @@ router = APIRouter()
 @router.post("/", response_model=SubjectResponse)
 async def create_subject(
     subject_data: SubjectCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new subject (School Admin only)"""
@@ -33,6 +32,14 @@ async def get_subjects(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all subjects"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     current_user = school_context.user
     skip = (page - 1) * size
 
@@ -94,8 +101,7 @@ async def get_subject(
 async def update_subject(
     subject_id: str,
     subject_data: SubjectUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update subject information (School Admin only)"""
@@ -148,11 +154,18 @@ async def update_subject(
 @router.delete("/{subject_id}")
 async def delete_subject(
     subject_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete subject (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     from sqlalchemy import select
     from app.models.academic import Subject
     

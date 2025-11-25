@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
+from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
@@ -143,7 +144,7 @@ async def get_students(
     status: Optional[StudentStatus] = Query(None, description="Filter by status"),
     search: Optional[str] = Query(None, description="Search by name or admission number"),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    size: int = Query(20, ge=1, le=1000),
     school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -152,7 +153,9 @@ async def get_students(
     current_school = school_context.school
 
     # Build query
-    query = select(Student).where(
+    query = select(Student).options(
+        selectinload(Student.current_class)
+    ).where(
         Student.school_id == school_context.school_id,
         Student.is_deleted == False
     )

@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  UserGroupIcon, 
+import {
+  UserGroupIcon,
   ChartBarIcon,
   ArrowDownTrayIcon,
-  EyeIcon
+  EyeIcon,
+  AcademicCapIcon,
+  CurrencyDollarIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { reportsService, ClassReport } from '../../services/reportsService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
+import Card from '../ui/Card';
 
 const ClassReports: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
@@ -69,7 +73,7 @@ const ClassReports: React.FC = () => {
           pending_fees: 80000,
         },
       ];
-      
+
       setClasses(mockClasses);
     } catch (err) {
       setError('Failed to fetch class reports');
@@ -82,7 +86,7 @@ const ClassReports: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -90,7 +94,7 @@ const ClassReports: React.FC = () => {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
+        <p className="text-red-600 dark:text-red-400">{error}</p>
         <button
           onClick={fetchClassReports}
           className="mt-2 btn btn-primary"
@@ -102,35 +106,81 @@ const ClassReports: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Current Term Indicator */}
       <CurrentTermIndicator variant="banner" />
 
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Class Performance Reports</h3>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Class Performance Reports</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Overview of class-wise performance metrics for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
           </p>
         </div>
-        <button className="btn btn-primary flex items-center space-x-2">
+        <button className="btn btn-primary w-full sm:w-auto flex items-center justify-center space-x-2">
           <ArrowDownTrayIcon className="h-4 w-4" />
           <span>Export All</span>
         </button>
       </div>
 
+      {/* Summary Statistics */}
+      <Card variant="glass" className="border-l-4 border-l-primary-500">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+          <ChartBarIcon className="h-5 w-5 mr-2 text-primary-500" />
+          Overall Summary
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-gray-700">
+          <div className="text-center p-2">
+            <div className="flex items-center justify-center mb-2 text-blue-600 dark:text-blue-400">
+              <UserGroupIcon className="h-6 w-6" />
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {classes.reduce((sum, cls) => sum + cls.total_students, 0)}
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Total Students</p>
+          </div>
+          <div className="text-center p-2">
+            <div className="flex items-center justify-center mb-2 text-green-600 dark:text-green-400">
+              <CalendarDaysIcon className="h-6 w-6" />
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {(classes.reduce((sum, cls) => sum + cls.average_attendance, 0) / classes.length).toFixed(1)}%
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Avg Attendance</p>
+          </div>
+          <div className="text-center p-2">
+            <div className="flex items-center justify-center mb-2 text-purple-600 dark:text-purple-400">
+              <AcademicCapIcon className="h-6 w-6" />
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              {(classes.reduce((sum, cls) => sum + cls.average_grade, 0) / classes.length).toFixed(1)}%
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Avg Grade</p>
+          </div>
+          <div className="text-center p-2">
+            <div className="flex items-center justify-center mb-2 text-emerald-600 dark:text-emerald-400">
+              <CurrencyDollarIcon className="h-6 w-6" />
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">
+              ₹{(classes.reduce((sum, cls) => sum + cls.total_fees_collected, 0) / 100000).toFixed(1)}L
+            </p>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Total Collected</p>
+          </div>
+        </div>
+      </Card>
+
       {/* Class Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {classes.map((classReport) => (
-          <div key={classReport.class_id} className="card p-6">
-            <div className="flex items-center justify-between mb-4">
+          <Card key={classReport.class_id} variant="glass" className="hover:shadow-lg transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                  <UserGroupIcon className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl text-blue-600 dark:text-blue-400">
+                  <UserGroupIcon className="h-6 w-6" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-white">
                     {classReport.class_name}
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -139,29 +189,27 @@ const ClassReports: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center space-x-2">
-                <button className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded">
-                  <EyeIcon className="h-4 w-4" />
-                </button>
-                <button className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded">
-                  <ChartBarIcon className="h-4 w-4" />
+                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors">
+                  <EyeIcon className="h-5 w-5" />
                 </button>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Attendance */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Average Attendance
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+                    <CalendarDaysIcon className="h-4 w-4 mr-1.5" />
+                    Attendance
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
                     {classReport.average_attendance}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
-                    className="bg-blue-600 h-2 rounded-full"
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
                     style={{ width: `${classReport.average_attendance}%` }}
                   ></div>
                 </div>
@@ -169,17 +217,18 @@ const ClassReports: React.FC = () => {
 
               {/* Academic Performance */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Average Grade
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+                    <AcademicCapIcon className="h-4 w-4 mr-1.5" />
+                    Avg Grade
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
                     {classReport.average_grade}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
-                    className="bg-green-600 h-2 rounded-full"
+                    className="bg-green-600 h-2 rounded-full transition-all duration-1000 delay-100"
                     style={{ width: `${classReport.average_grade}%` }}
                   ></div>
                 </div>
@@ -187,73 +236,41 @@ const ClassReports: React.FC = () => {
 
               {/* Fee Collection */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+                    <CurrencyDollarIcon className="h-4 w-4 mr-1.5" />
                     Fee Collection
                   </span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
                     {classReport.fee_collection_rate}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
-                    className="bg-purple-600 h-2 rounded-full"
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-1000 delay-200"
                     style={{ width: `${classReport.fee_collection_rate}%` }}
                   ></div>
                 </div>
               </div>
 
               {/* Financial Summary */}
-              <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Collected:</span>
-                  <span className="font-medium text-green-600">
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Collected</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
                     ₹{classReport.total_fees_collected.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Pending:</span>
-                  <span className="font-medium text-red-600">
+                <div className="text-right">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Pending</span>
+                  <span className="font-bold text-red-600 dark:text-red-400">
                     ₹{classReport.pending_fees.toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
-      </div>
-
-      {/* Summary Statistics */}
-      <div className="card p-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          Overall Summary
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="text-center">
-            <p className="text-2xl font-semibold text-blue-600">
-              {classes.reduce((sum, cls) => sum + cls.total_students, 0)}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Students</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-semibold text-green-600">
-              {(classes.reduce((sum, cls) => sum + cls.average_attendance, 0) / classes.length).toFixed(1)}%
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Avg Attendance</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-semibold text-purple-600">
-              {(classes.reduce((sum, cls) => sum + cls.average_grade, 0) / classes.length).toFixed(1)}%
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Avg Grade</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-semibold text-emerald-600">
-              ₹{classes.reduce((sum, cls) => sum + cls.total_fees_collected, 0).toLocaleString()}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Collected</p>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  ChartBarIcon, 
-  DocumentChartBarIcon, 
+import {
+  ChartBarIcon,
+  DocumentChartBarIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
@@ -17,6 +17,8 @@ import ClassReports from '../../components/reports/ClassReports';
 import FinancialReports from '../../components/reports/FinancialReports';
 import AttendanceReports from '../../components/reports/AttendanceReports';
 import AcademicReports from '../../components/reports/AcademicReports';
+import Card from '../../components/ui/Card';
+import PageHeader from '../../components/Layout/PageHeader';
 
 type ReportType = 'overview' | 'students' | 'classes' | 'financial' | 'attendance' | 'academic';
 
@@ -31,7 +33,8 @@ const ReportsPage: React.FC = () => {
       name: 'Dashboard Overview',
       description: 'Key metrics and statistics',
       icon: ChartBarIcon,
-      color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/20',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-900/30',
       allowedRoles: ['ADMIN', 'TEACHER'],
     },
     {
@@ -39,7 +42,8 @@ const ReportsPage: React.FC = () => {
       name: 'Student Reports',
       description: 'Individual student performance and attendance',
       icon: AcademicCapIcon,
-      color: 'text-green-600 bg-green-100 dark:bg-green-900/20',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-100 dark:bg-green-900/30',
       allowedRoles: ['ADMIN', 'TEACHER'],
     },
     {
@@ -47,7 +51,8 @@ const ReportsPage: React.FC = () => {
       name: 'Class Reports',
       description: 'Class-wise performance and statistics',
       icon: UserGroupIcon,
-      color: 'text-purple-600 bg-purple-100 dark:bg-purple-900/20',
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-100 dark:bg-purple-900/30',
       allowedRoles: ['ADMIN', 'TEACHER'],
     },
     {
@@ -55,7 +60,8 @@ const ReportsPage: React.FC = () => {
       name: 'Financial Reports',
       description: 'Fee collection and revenue analysis',
       icon: CurrencyDollarIcon,
-      color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/20',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-100 dark:bg-emerald-900/30',
       allowedRoles: ['ADMIN'],
     },
     {
@@ -63,7 +69,8 @@ const ReportsPage: React.FC = () => {
       name: 'Attendance Reports',
       description: 'Attendance tracking and analysis',
       icon: CalendarDaysIcon,
-      color: 'text-orange-600 bg-orange-100 dark:bg-orange-900/20',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-100 dark:bg-orange-900/30',
       allowedRoles: ['ADMIN', 'TEACHER'],
     },
     {
@@ -71,12 +78,13 @@ const ReportsPage: React.FC = () => {
       name: 'Academic Reports',
       description: 'Grades and academic performance',
       icon: DocumentChartBarIcon,
-      color: 'text-red-600 bg-red-100 dark:bg-red-900/20',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-100 dark:bg-red-900/30',
       allowedRoles: ['ADMIN', 'TEACHER'],
     },
   ];
 
-  const availableReports = reportTypes.filter(report => 
+  const availableReports = reportTypes.filter(report =>
     report.allowedRoles.includes(user?.role || '')
   );
 
@@ -102,15 +110,13 @@ const ReportsPage: React.FC = () => {
   const activeReportInfo = reportTypes.find(report => report.id === activeReport);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reports & Analytics</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Comprehensive reporting and data analysis for {currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageHeader
+          title="Reports & Analytics"
+          description={`Comprehensive reporting and data analysis for ${currentTerm ? `${currentTerm.name} (${currentTerm.academic_session})` : 'current term'}`}
+        />
         <div className="flex items-center space-x-3">
           <button className="btn btn-secondary flex items-center space-x-2">
             <ArrowDownTrayIcon className="h-4 w-4" />
@@ -128,38 +134,42 @@ const ReportsPage: React.FC = () => {
           <button
             key={report.id}
             onClick={() => setActiveReport(report.id)}
-            className={`card p-6 text-left transition-all duration-200 hover:shadow-lg ${
-              activeReport === report.id
-                ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/10'
-                : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-            }`}
+            className="text-left focus:outline-none w-full"
           >
-            <div className="flex items-start space-x-4">
-              <div className={`p-3 rounded-lg ${report.color}`}>
-                <report.icon className="h-6 w-6" />
+            <Card
+              variant="glass"
+              className={`h-full transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${activeReport === report.id
+                  ? 'ring-2 ring-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
+                  : ''
+                }`}
+            >
+              <div className="flex items-start space-x-4">
+                <div className={`p-3 rounded-xl ${report.bgColor} ${report.color}`}>
+                  <report.icon className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                    {report.name}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    {report.description}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                  {report.name}
-                </h3>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                  {report.description}
-                </p>
-              </div>
-            </div>
+            </Card>
           </button>
         ))}
       </div>
 
       {/* Active Report Header */}
       {activeReportInfo && (
-        <div className="card p-4">
+        <Card variant="glass" className="animate-fade-in-up border-l-4 border-l-primary-500">
           <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-lg ${activeReportInfo.color}`}>
+            <div className={`p-2 rounded-lg ${activeReportInfo.bgColor} ${activeReportInfo.color}`}>
               <activeReportInfo.icon className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 {activeReportInfo.name}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -167,11 +177,11 @@ const ReportsPage: React.FC = () => {
               </p>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Report Content */}
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in-up">
         {renderReportContent()}
       </div>
     </div>

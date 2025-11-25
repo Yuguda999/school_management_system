@@ -2,7 +2,7 @@ from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_school_admin, get_current_school
+from app.core.deps import get_current_active_user, require_school_admin, get_current_school, SchoolContext
 from app.models.user import User
 from app.models.school import School
 from app.schemas.academic import (
@@ -25,11 +25,18 @@ router = APIRouter()
 async def assign_subject_to_teacher(
     teacher_id: str,
     assignment_data: TeacherSubjectAssignmentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Assign a subject to a teacher (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Override teacher_id from URL
     assignment_data.teacher_id = teacher_id
     
@@ -43,11 +50,26 @@ async def assign_subject_to_teacher(
 async def bulk_assign_subjects_to_teacher(
     teacher_id: str,
     assignment_data: BulkTeacherSubjectAssignment,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Assign multiple subjects to a teacher (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Override teacher_id from URL
     assignment_data.teacher_id = teacher_id
     
@@ -89,11 +111,18 @@ async def get_subject_teachers(
 async def update_teacher_subject_assignment(
     assignment_id: str,
     assignment_data: TeacherSubjectAssignmentUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update a teacher-subject assignment (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     assignment = await TeacherSubjectService.update_teacher_subject_assignment(
         db, assignment_id, assignment_data, current_school.id
     )
@@ -110,11 +139,26 @@ async def update_teacher_subject_assignment(
 @router.delete("/teacher-subjects/{assignment_id}")
 async def remove_teacher_subject_assignment(
     assignment_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Remove a teacher-subject assignment (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     success = await TeacherSubjectService.remove_teacher_subject_assignment(
         db, assignment_id, current_school.id
     )
@@ -133,11 +177,18 @@ async def remove_teacher_subject_assignment(
 async def assign_subject_to_class(
     class_id: str,
     assignment_data: ClassSubjectAssignmentCreate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Assign a subject to a class (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Override class_id from URL
     assignment_data.class_id = class_id
     
@@ -151,11 +202,26 @@ async def assign_subject_to_class(
 async def bulk_assign_subjects_to_class(
     class_id: str,
     assignment_data: BulkClassSubjectAssignment,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Assign multiple subjects to a class (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     # Override class_id from URL
     assignment_data.class_id = class_id
     
@@ -196,11 +262,18 @@ async def get_subject_classes(
 @router.delete("/class-subjects/{assignment_id}")
 async def remove_class_subject_assignment(
     assignment_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Remove a class-subject assignment (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     success = await ClassSubjectService.remove_class_subject_assignment(
         db, assignment_id, current_school.id
     )
@@ -219,11 +292,26 @@ async def update_class_subject_assignment(
     class_id: str,
     assignment_id: str,
     assignment_data: ClassSubjectAssignmentUpdate,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update a class-subject assignment (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     assignment = await ClassSubjectService.update_class_subject_assignment(
         db, assignment_id, assignment_data, current_school.id
     )
@@ -241,11 +329,18 @@ async def update_class_subject_assignment(
 async def remove_subject_from_class(
     class_id: str,
     assignment_id: str,
-    current_user: User = Depends(require_school_admin()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(require_school_admin()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Remove a subject from a class (School Admin only)"""
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
     success = await ClassSubjectService.remove_class_subject_assignment(
         db, assignment_id, current_school.id
     )
@@ -257,3 +352,12 @@ async def remove_subject_from_class(
         )
 
     return {"message": "Subject removed from class successfully"}
+
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
