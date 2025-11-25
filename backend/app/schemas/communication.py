@@ -15,7 +15,7 @@ class MessageBase(BaseModel):
     scheduled_at: Optional[datetime] = None
     is_urgent: bool = False
     requires_response: bool = False
-    metadata: Optional[Dict[str, Any]] = {}
+    additional_data: Optional[Dict[str, Any]] = {}
     
     @validator('recipient_id')
     def validate_individual_recipient(cls, v, values):
@@ -47,7 +47,7 @@ class MessageUpdate(BaseModel):
     scheduled_at: Optional[datetime] = None
     is_urgent: Optional[bool] = None
     requires_response: Optional[bool] = None
-    metadata: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None
 
 
 class MessageResponse(MessageBase):
@@ -101,7 +101,7 @@ class BulkMessageCreate(BaseModel):
     scheduled_at: Optional[datetime] = None
     is_urgent: bool = False
     requires_response: bool = False
-    metadata: Optional[Dict[str, Any]] = {}
+    additional_data: Optional[Dict[str, Any]] = {}
 
 
 class AnnouncementBase(BaseModel):
@@ -115,7 +115,7 @@ class AnnouncementBase(BaseModel):
     is_urgent: bool = False
     category: Optional[str] = Field(None, max_length=50)
     attachments: Optional[List[Dict[str, Any]]] = []
-    metadata: Optional[Dict[str, Any]] = {}
+    additional_data: Optional[Dict[str, Any]] = {}
     
     @validator('end_date')
     def validate_end_date(cls, v, values):
@@ -139,7 +139,7 @@ class AnnouncementUpdate(BaseModel):
     is_urgent: Optional[bool] = None
     category: Optional[str] = Field(None, max_length=50)
     attachments: Optional[List[Dict[str, Any]]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    additional_data: Optional[Dict[str, Any]] = None
     is_published: Optional[bool] = None
 
 

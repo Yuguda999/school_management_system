@@ -70,10 +70,18 @@ class CommunicationService:
         await db.commit()
         
         # Send message immediately if not scheduled
+        # Send message immediately if not scheduled
         if not message.is_scheduled:
             await CommunicationService.send_message(db, message.id, school_id)
         
-        return message
+        # Re-fetch message with relationships to avoid MissingGreenlet error
+        # The object becomes expired after commit, so we need to refresh it with eager loading
+        result = await db.execute(
+            select(Message).options(
+                selectinload(Message.message_recipients)
+            ).where(Message.id == message.id)
+        )
+        return result.scalar_one()
     
     @staticmethod
     async def _get_recipients(

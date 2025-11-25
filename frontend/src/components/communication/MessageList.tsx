@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  EnvelopeIcon, 
-  PhoneIcon, 
+import {
+  EnvelopeIcon,
+  PhoneIcon,
   BellIcon,
   ExclamationTriangleIcon,
   EyeIcon,
@@ -23,8 +23,8 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
-    message_type: '' as keyof MessageType | '',
-    status: '' as keyof MessageStatus | '',
+    message_type: '' as MessageType | '',
+    status: '' as MessageStatus | '',
     is_urgent: undefined as boolean | undefined,
   });
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,11 +37,13 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
       setLoading(true);
       const response = await communicationService.getMessages({
         ...filters,
+        message_type: filters.message_type || undefined,
+        status: filters.status || undefined,
         page: currentPage,
         size: 20,
       });
-      setMessages(response.items);
-      setTotalPages(response.pages);
+      setMessages(response?.items || []);
+      setTotalPages(response?.pages || 1);
     } catch (err) {
       setError('Failed to fetch messages');
       console.error('Error fetching messages:', err);
@@ -91,32 +93,32 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
     }
   };
 
-  const getMessageTypeIcon = (type: keyof MessageType) => {
+  const getMessageTypeIcon = (type: MessageType) => {
     switch (type) {
-      case 'EMAIL':
+      case MessageType.EMAIL:
         return <EnvelopeIcon className="h-5 w-5" />;
-      case 'SMS':
+      case MessageType.SMS:
         return <PhoneIcon className="h-5 w-5" />;
-      case 'NOTIFICATION':
+      case MessageType.NOTIFICATION:
         return <BellIcon className="h-5 w-5" />;
       default:
         return <EnvelopeIcon className="h-5 w-5" />;
     }
   };
 
-  const getStatusColor = (status: keyof MessageStatus) => {
+  const getStatusColor = (status: MessageStatus) => {
     switch (status) {
-      case 'DRAFT':
+      case MessageStatus.DRAFT:
         return 'text-gray-500 bg-gray-100';
-      case 'SCHEDULED':
+      case MessageStatus.SCHEDULED:
         return 'text-blue-500 bg-blue-100';
-      case 'SENT':
+      case MessageStatus.SENT:
         return 'text-green-500 bg-green-100';
-      case 'DELIVERED':
+      case MessageStatus.DELIVERED:
         return 'text-green-600 bg-green-200';
-      case 'READ':
+      case MessageStatus.READ:
         return 'text-green-700 bg-green-300';
-      case 'FAILED':
+      case MessageStatus.FAILED:
         return 'text-red-500 bg-red-100';
       default:
         return 'text-gray-500 bg-gray-100';
@@ -156,13 +158,13 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
             </label>
             <select
               value={filters.message_type}
-              onChange={(e) => setFilters({ ...filters, message_type: e.target.value as keyof MessageType | '' })}
+              onChange={(e) => setFilters({ ...filters, message_type: e.target.value as MessageType | '' })}
               className="input"
             >
               <option value="">All Types</option>
-              <option value="EMAIL">Email</option>
-              <option value="SMS">SMS</option>
-              <option value="NOTIFICATION">Notification</option>
+              <option value={MessageType.EMAIL}>Email</option>
+              <option value={MessageType.SMS}>SMS</option>
+              <option value={MessageType.NOTIFICATION}>Notification</option>
             </select>
           </div>
           <div>
@@ -171,16 +173,16 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
             </label>
             <select
               value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value as keyof MessageStatus | '' })}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value as MessageStatus | '' })}
               className="input"
             >
               <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SCHEDULED">Scheduled</option>
-              <option value="SENT">Sent</option>
-              <option value="DELIVERED">Delivered</option>
-              <option value="READ">Read</option>
-              <option value="FAILED">Failed</option>
+              <option value={MessageStatus.DRAFT}>Draft</option>
+              <option value={MessageStatus.SCHEDULED}>Scheduled</option>
+              <option value={MessageStatus.SENT}>Sent</option>
+              <option value={MessageStatus.DELIVERED}>Delivered</option>
+              <option value={MessageStatus.READ}>Read</option>
+              <option value={MessageStatus.FAILED}>Failed</option>
             </select>
           </div>
           <div>
@@ -189,9 +191,9 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
             </label>
             <select
               value={filters.is_urgent === undefined ? '' : filters.is_urgent.toString()}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                is_urgent: e.target.value === '' ? undefined : e.target.value === 'true' 
+              onChange={(e) => setFilters({
+                ...filters,
+                is_urgent: e.target.value === '' ? undefined : e.target.value === 'true'
               })}
               className="input"
             >
@@ -224,7 +226,7 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">Messages</h3>
         </div>
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {messages.length === 0 ? (
+          {messages?.length === 0 ? (
             <div className="p-8 text-center">
               <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No messages</h3>
@@ -236,9 +238,8 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
             messages.map((message) => (
               <div
                 key={message.id}
-                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors ${
-                  selectedMessageId === message.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                }`}
+                className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors ${selectedMessageId === message.id ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
                 onClick={() => onMessageSelect?.(message)}
               >
                 <div className="flex items-start justify-between">
@@ -271,7 +272,7 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
                     </div>
                   </div>
                   <div className="flex items-center space-x-2 ml-4">
-                    {message.status === 'DRAFT' && user?.role !== 'STUDENT' && user?.role !== 'PARENT' && (
+                    {message.status === MessageStatus.DRAFT && user?.role !== 'student' && user?.role !== 'parent' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -283,7 +284,7 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
                         <PaperAirplaneIcon className="h-4 w-4" />
                       </button>
                     )}
-                    {message.status === 'SENT' && (
+                    {message.status === MessageStatus.SENT && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -295,7 +296,7 @@ const MessageList: React.FC<MessageListProps> = ({ onMessageSelect, selectedMess
                         <EyeIcon className="h-4 w-4" />
                       </button>
                     )}
-                    {user?.role !== 'STUDENT' && user?.role !== 'PARENT' && (
+                    {user?.role !== 'student' && user?.role !== 'parent' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

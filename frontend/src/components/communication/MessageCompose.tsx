@@ -14,8 +14,8 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
   const [formData, setFormData] = useState<MessageCreate>({
     subject: '',
     content: '',
-    message_type: 'EMAIL',
-    recipient_type: 'ALL',
+    message_type: MessageType.EMAIL,
+    recipient_type: RecipientType.ALL,
     is_urgent: false,
   });
   const [classes, setClasses] = useState<Class[]>([]);
@@ -42,7 +42,7 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
   const fetchClasses = async () => {
     try {
       const response = await academicService.getClasses();
-      setClasses(response.items);
+      setClasses(response);
     } catch (err) {
       console.error('Error fetching classes:', err);
     }
@@ -65,7 +65,11 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
       onMessageSent();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to send message');
+      setError(
+        Array.isArray(err.response?.data?.detail)
+          ? err.response.data.detail.map((e: any) => e.msg).join(', ')
+          : err.response?.data?.detail || 'Failed to send message'
+      );
     } finally {
       setLoading(false);
     }
@@ -104,13 +108,13 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
             </label>
             <select
               value={formData.message_type}
-              onChange={(e) => handleInputChange('message_type', e.target.value as keyof MessageType)}
+              onChange={(e) => handleInputChange('message_type', e.target.value as MessageType)}
               className="input"
               required
             >
-              <option value="EMAIL">Email</option>
-              <option value="SMS">SMS</option>
-              <option value="NOTIFICATION">Notification</option>
+              <option value={MessageType.EMAIL}>Email</option>
+              <option value={MessageType.SMS}>SMS</option>
+              <option value={MessageType.NOTIFICATION}>Notification</option>
             </select>
           </div>
 
@@ -121,18 +125,18 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
             </label>
             <select
               value={formData.recipient_type}
-              onChange={(e) => handleInputChange('recipient_type', e.target.value as keyof RecipientType)}
+              onChange={(e) => handleInputChange('recipient_type', e.target.value as RecipientType)}
               className="input"
               required
             >
-              <option value="ALL">All Users</option>
-              <option value="ROLE">By Role</option>
-              <option value="CLASS">By Class</option>
+              <option value={RecipientType.ALL}>All Users</option>
+              <option value={RecipientType.ROLE}>By Role</option>
+              <option value={RecipientType.CLASS}>By Class</option>
             </select>
           </div>
 
           {/* Role Selection */}
-          {formData.recipient_type === 'ROLE' && (
+          {formData.recipient_type === RecipientType.ROLE && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Role
@@ -152,7 +156,7 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
           )}
 
           {/* Class Selection */}
-          {formData.recipient_type === 'CLASS' && (
+          {formData.recipient_type === RecipientType.CLASS && (
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Class

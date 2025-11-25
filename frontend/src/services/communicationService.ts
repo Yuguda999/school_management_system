@@ -1,38 +1,38 @@
 import { apiService } from './api';
 import { PaginatedResponse } from '../types';
 
-export interface MessageType {
-  EMAIL: 'email';
-  SMS: 'sms';
-  NOTIFICATION: 'notification';
+export enum MessageType {
+  EMAIL = 'email',
+  SMS = 'sms',
+  NOTIFICATION = 'notification',
 }
 
-export interface MessageStatus {
-  DRAFT: 'draft';
-  SCHEDULED: 'scheduled';
-  SENT: 'sent';
-  DELIVERED: 'delivered';
-  READ: 'read';
-  FAILED: 'failed';
+export enum MessageStatus {
+  DRAFT = 'draft',
+  SCHEDULED = 'scheduled',
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read',
+  FAILED = 'failed',
 }
 
-export interface RecipientType {
-  INDIVIDUAL: 'individual';
-  CLASS: 'class';
-  ROLE: 'role';
-  ALL: 'all';
+export enum RecipientType {
+  INDIVIDUAL = 'individual',
+  CLASS = 'class',
+  ROLE = 'role',
+  ALL = 'all',
 }
 
 export interface Message {
   id: string;
   subject: string;
   content: string;
-  message_type: keyof MessageType;
-  status: keyof MessageStatus;
+  message_type: MessageType;
+  status: MessageStatus;
   is_urgent: boolean;
   sender_id: string;
   sender_name: string;
-  recipient_type: keyof RecipientType;
+  recipient_type: RecipientType;
   recipient_class_id?: string;
   recipient_role?: string;
   scheduled_at?: string;
@@ -48,8 +48,8 @@ export interface Message {
 export interface MessageCreate {
   subject: string;
   content: string;
-  message_type: keyof MessageType;
-  recipient_type: keyof RecipientType;
+  message_type: MessageType;
+  recipient_type: RecipientType;
   recipient_class_id?: string;
   recipient_role?: string;
   is_urgent?: boolean;
@@ -101,15 +101,15 @@ export interface MessageStatistics {
 class CommunicationService {
   // Message Management
   async getMessages(params?: {
-    message_type?: keyof MessageType;
-    status?: keyof MessageStatus;
+    message_type?: MessageType;
+    status?: MessageStatus;
     is_urgent?: boolean;
     sender_id?: string;
     page?: number;
     size?: number;
   }): Promise<PaginatedResponse<Message>> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.message_type) queryParams.append('message_type', params.message_type);
     if (params?.status) queryParams.append('status', params.status);
     if (params?.is_urgent !== undefined) queryParams.append('is_urgent', params.is_urgent.toString());
@@ -154,7 +154,7 @@ class CommunicationService {
     size?: number;
   }): Promise<PaginatedResponse<Announcement>> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.is_published !== undefined) queryParams.append('is_published', params.is_published.toString());
     if (params?.is_public !== undefined) queryParams.append('is_public', params.is_public.toString());
     if (params?.category) queryParams.append('category', params.category);

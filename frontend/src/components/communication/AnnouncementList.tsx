@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  SpeakerWaveIcon, 
-  PlusIcon, 
-  PencilIcon, 
+import {
+  SpeakerWaveIcon,
+  PlusIcon,
+  PencilIcon,
   TrashIcon,
   EyeIcon,
   EyeSlashIcon
@@ -37,8 +37,8 @@ const AnnouncementList: React.FC = () => {
         page: currentPage,
         size: 20,
       });
-      setAnnouncements(response.items);
-      setTotalPages(response.pages);
+      setAnnouncements(response?.items || []);
+      setTotalPages(response?.pages || 1);
     } catch (err) {
       setError('Failed to fetch announcements');
       console.error('Error fetching announcements:', err);
@@ -155,9 +155,9 @@ const AnnouncementList: React.FC = () => {
             </label>
             <select
               value={filters.is_published === undefined ? '' : filters.is_published.toString()}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                is_published: e.target.value === '' ? undefined : e.target.value === 'true' 
+              onChange={(e) => setFilters({
+                ...filters,
+                is_published: e.target.value === '' ? undefined : e.target.value === 'true'
               })}
               className="input"
             >
@@ -172,9 +172,9 @@ const AnnouncementList: React.FC = () => {
             </label>
             <select
               value={filters.is_public === undefined ? '' : filters.is_public.toString()}
-              onChange={(e) => setFilters({ 
-                ...filters, 
-                is_public: e.target.value === '' ? undefined : e.target.value === 'true' 
+              onChange={(e) => setFilters({
+                ...filters,
+                is_public: e.target.value === '' ? undefined : e.target.value === 'true'
               })}
               className="input"
             >
@@ -220,7 +220,7 @@ const AnnouncementList: React.FC = () => {
 
       {/* Announcements List */}
       <div className="space-y-4">
-        {announcements.length === 0 ? (
+        {announcements?.length === 0 ? (
           <div className="card p-8 text-center">
             <SpeakerWaveIcon className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No announcements</h3>

@@ -76,7 +76,7 @@ async def create_bulk_messages(
             scheduled_at=bulk_data.scheduled_at,
             is_urgent=bulk_data.is_urgent,
             requires_response=bulk_data.requires_response,
-            metadata=bulk_data.metadata
+            additional_data=bulk_data.additional_data
         )
         
         message = await CommunicationService.create_message(
