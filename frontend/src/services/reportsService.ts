@@ -130,7 +130,7 @@ class ReportsService {
     pages: number;
   }> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -158,7 +158,7 @@ class ReportsService {
     pages: number;
   }> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
@@ -177,12 +177,18 @@ class ReportsService {
     start_date?: string;
     end_date?: string;
     term_id?: string;
+    class_id?: string;
+    fee_type?: string;
+    payment_status?: string;
   }): Promise<FinancialReport> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.term_id) queryParams.append('term_id', params.term_id);
+    if (params?.class_id) queryParams.append('class_id', params.class_id);
+    if (params?.fee_type) queryParams.append('fee_type', params.fee_type);
+    if (params?.payment_status) queryParams.append('payment_status', params.payment_status);
 
     const url = `/api/v1/reports/financial${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiService.get<FinancialReport>(url);
@@ -196,7 +202,7 @@ class ReportsService {
     term_id?: string;
   }): Promise<AttendanceReport> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.start_date) queryParams.append('start_date', params.start_date);
     if (params?.end_date) queryParams.append('end_date', params.end_date);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
@@ -213,7 +219,7 @@ class ReportsService {
     subject_id?: string;
   }): Promise<AcademicReport> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.subject_id) queryParams.append('subject_id', params.subject_id);
@@ -233,7 +239,7 @@ class ReportsService {
     class_id?: string;
   }) {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
 
@@ -247,7 +253,7 @@ class ReportsService {
     class_id?: string;
   }) {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
 

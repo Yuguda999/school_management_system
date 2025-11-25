@@ -219,6 +219,8 @@ async def get_fee_assignments(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
     status: Optional[PaymentStatus] = Query(None, description="Filter by payment status"),
+    fee_type: Optional[str] = Query(None, description="Filter by fee type"),
+    search: Optional[str] = Query(None, description="Search by student name or admission number"),
     skip: int = Query(0, description="Skip N items"),
     limit: int = Query(100, description="Limit results"),
     school_context: SchoolContext = Depends(require_school_admin()),
@@ -234,7 +236,7 @@ async def get_fee_assignments(
         )
     
     assignments = await FeeService.get_fee_assignments(
-        db, current_school.id, term_id, class_id, status, skip, limit
+        db, current_school.id, term_id, class_id, status, fee_type, search, skip, limit
     )
     
     return [FeeAssignmentResponse.from_orm(assignment) for assignment in assignments]
@@ -417,7 +419,6 @@ async def get_fee_collection_report(
     return FeeReport(**report_data)
 
 
-# Helper function
 async def _is_parent_of_student(db: AsyncSession, parent_id: str, student_id: str) -> bool:
     """Check if user is parent of the student"""
     from sqlalchemy import select
@@ -431,3 +432,135 @@ async def _is_parent_of_student(db: AsyncSession, parent_id: str, student_id: st
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+# Payment Export
+@router.post("/payments/export")
+async def export_payments(
+    export_options: dict,
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Export payment data as CSV with filters"""
+    from fastapi.responses import Response
+    from datetime import datetime
+    import csv
+    import io
+    
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    # Extract filters
+    filters = export_options.get('filters', {})
+    status_filter = filters.get('status')
+    class_id = filters.get('class_id')
+    search = filters.get('search')
+    start_date = filters.get('start_date')
+    end_date = filters.get('end_date')
+    
+    # Convert date strings if present
+    if start_date:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    if end_date:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Fetch payments with filters
+    from sqlalchemy import select, and_, or_
+    from app.models.fee import FeePayment, FeeAssignment, FeeStructure
+    from app.models.student import Student
+    from app.models.academic import Class
+    
+    query = select(
+        FeePayment,
+        FeeAssignment,
+        FeeStructure,
+        Student,
+        Class
+    ).join(
+        FeeAssignment, FeePayment.fee_assignment_id == FeeAssignment.id
+    ).join(
+        FeeStructure, FeeAssignment.fee_structure_id == FeeStructure.id
+    ).join(
+        Student, FeePayment.student_id == Student.id
+    ).outerjoin(
+        Class, Student.current_class_id == Class.id
+    ).where(
+        FeePayment.school_id == current_school.id,
+        FeePayment.is_deleted == False
+    )
+    
+    # Apply filters
+    if status_filter:
+        query = query.where(FeeAssignment.status == status_filter)
+    
+    if class_id:
+        query = query.where(Student.current_class_id == class_id)
+    
+    if search:
+        query = query.where(
+            or_(
+                Student.first_name.ilike(f"%{search}%"),
+                Student.last_name.ilike(f"%{search}%"),
+                Student.admission_number.ilike(f"%{search}%")
+            )
+        )
+    
+    if start_date:
+        query = query.where(FeePayment.payment_date >= start_date)
+    
+    if end_date:
+        query = query.where(FeePayment.payment_date <= end_date)
+    
+    result = await db.execute(query)
+    records = result.all()
+    
+    # Generate CSV
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Payment Date',
+        'Receipt Number',
+        'Student Name',
+        'Admission Number',
+        'Class',
+        'Fee Type',
+        'Fee Structure',
+        'Amount',
+        'Payment Method',
+        'Status',
+        'Collected By'
+    ])
+    
+    # Write data
+    for payment, assignment, structure, student, student_class in records:
+        writer.writerow([
+            payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '',
+            payment.receipt_number,
+            f"{student.first_name} {student.last_name}",
+            student.admission_number,
+            student_class.name if student_class else 'N/A',
+            structure.fee_type.value if structure.fee_type else 'N/A',
+            structure.name,
+            float(payment.amount),
+            payment.payment_method.value if payment.payment_method else 'N/A',
+            assignment.status.value if assignment.status else 'N/A',
+            'Admin'  # You might want to join with User table to get actual collector name
+        ])
+    
+    csv_content = output.getvalue()
+    output.close()
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=payment_report_{datetime.now().strftime('%Y%m%d')}.csv"
+        }
+    )

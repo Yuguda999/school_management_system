@@ -147,6 +147,25 @@ async def update_my_school(
             detail="You don't have permission to edit this school"
         )
 
+    # Handle settings merge if settings are provided
+    if school_data.settings:
+        current_settings = current_school.settings or {}
+        new_settings = school_data.settings
+        
+        # Deep merge logic could be complex, but for now we'll do a shallow merge of top-level keys
+        # If specific sub-dictionaries need merging (like general_settings), we might need a recursive merge
+        # For now, let's assume we want to preserve keys not present in the update
+        
+        merged_settings = current_settings.copy()
+        for key, value in new_settings.items():
+            if isinstance(value, dict) and isinstance(merged_settings.get(key), dict):
+                # Recursive merge for one level deep (e.g. general_settings)
+                merged_settings[key].update(value)
+            else:
+                merged_settings[key] = value
+                
+        school_data.settings = merged_settings
+
     updated_school = await SchoolService.update_school(
         db, current_school.id, school_data
     )

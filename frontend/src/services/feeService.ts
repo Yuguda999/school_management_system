@@ -64,6 +64,8 @@ export class FeeService {
     term_id?: string;
     class_id?: string;
     status?: string;
+    fee_type?: string;
+    search?: string;
     page?: number;
     size?: number;
   }): Promise<FeeAssignment[]> {
@@ -72,6 +74,8 @@ export class FeeService {
     if (params?.term_id) queryParams.append('term_id', params.term_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.fee_type) queryParams.append('fee_type', params.fee_type);
+    if (params?.search) queryParams.append('search', params.search);
     if (params?.page) queryParams.append('skip', ((params.page - 1) * (params.size || 100)).toString());
     if (params?.size) queryParams.append('limit', params.size.toString());
 
@@ -277,6 +281,22 @@ export class FeeService {
       default:
         return 'text-gray-600 bg-gray-100 dark:text-gray-400 dark:bg-gray-900';
     }
+  }
+
+  // Export payments as CSV
+  static async exportPayments(options: {
+    filters?: {
+      status?: string;
+      class_id?: string;
+      search?: string;
+      start_date?: string;
+      end_date?: string;
+    };
+  }): Promise<Blob> {
+    const response = await apiService.api.post('/api/v1/fees/payments/export', options, {
+      responseType: 'blob',
+    });
+    return response.data;
   }
 
   static getFeeTypeIcon(feeType: string): string {

@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Theme } from '../types';
+import { apiService } from '../services/api';
 
 interface ThemeContextType {
   theme: Theme;
-  toggleDarkMode: () => void;
-  updateThemeColors: (primaryColor: string, secondaryColor: string) => void;
+  toggleDarkMode: () => Promise<void>;
+  updateThemeColors: (primaryColor: string, secondaryColor: string) => Promise<void>;
   setSchoolTheme: (schoolTheme: { primary_color?: string; secondary_color?: string; dark_mode_enabled?: boolean }) => void;
   clearSchoolTheme: () => void;
   isSchoolThemeActive: boolean;
@@ -117,19 +118,43 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     localStorage.setItem('theme', JSON.stringify(theme));
   }, [theme, isSchoolThemeActive]);
 
-  const toggleDarkMode = () => {
+  const toggleDarkMode = async () => {
+    const newMode = theme.mode === 'light' ? 'dark' : 'light';
     setTheme(prev => ({
       ...prev,
-      mode: prev.mode === 'light' ? 'dark' : 'light',
+      mode: newMode,
     }));
+
+    // Check if user is logged in by checking for token
+    if (localStorage.getItem('access_token')) {
+      try {
+        await apiService.put('/api/v1/schools/me/settings', {
+          dark_mode_enabled: newMode === 'dark'
+        });
+      } catch (error) {
+        console.error('Failed to save dark mode setting:', error);
+      }
+    }
   };
 
-  const updateThemeColors = (primaryColor: string, secondaryColor: string) => {
+  const updateThemeColors = async (primaryColor: string, secondaryColor: string) => {
     setTheme(prev => ({
       ...prev,
       primaryColor,
       secondaryColor,
     }));
+
+    // Check if user is logged in by checking for token
+    if (localStorage.getItem('access_token')) {
+      try {
+        await apiService.put('/api/v1/schools/me/settings', {
+          primary_color: primaryColor,
+          secondary_color: secondaryColor
+        });
+      } catch (error) {
+        console.error('Failed to save theme colors:', error);
+      }
+    }
   };
 
   const setSchoolTheme = (schoolTheme: { primary_color?: string; secondary_color?: string; dark_mode_enabled?: boolean }) => {

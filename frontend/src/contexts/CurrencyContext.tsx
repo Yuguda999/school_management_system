@@ -6,7 +6,7 @@ interface CurrencyContextType {
     currency: string;
     currencySymbol: string;
     setCurrency: (currency: string) => Promise<void>;
-    formatAmount: (amount: number) => string;
+    formatCurrency: (amount: number) => string;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -66,10 +66,8 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
 
     const setCurrency = async (newCurrency: string) => {
         try {
-            await apiService.put('/api/v1/schools/me', {
-                settings: {
-                    currency: newCurrency
-                }
+            await apiService.put('/api/v1/schools/me/settings', {
+                currency: newCurrency
             });
             setCurrencyState(newCurrency);
             setCurrencySymbol(CURRENCY_SYMBOLS[newCurrency] || newCurrency);
@@ -79,7 +77,7 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
         }
     };
 
-    const formatAmount = (amount: number): string => {
+    const formatCurrency = (amount: number): string => {
         const formatted = amount.toLocaleString('en-US', {
             minimumFractionDigits: 0,
             maximumFractionDigits: 2,
@@ -93,7 +91,7 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
                 currency,
                 currencySymbol,
                 setCurrency,
-                formatAmount,
+                formatCurrency,
             }}
         >
             {children}

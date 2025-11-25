@@ -23,7 +23,7 @@ import { useToast } from '../../hooks/useToast';
 
 const FeesPage: React.FC = () => {
   const { user } = useAuth();
-  const { formatAmount } = useCurrency();
+  const { formatCurrency } = useCurrency();
   const [activeTab, setActiveTab] = useState('structures');
   const [feeStats, setFeeStats] = useState({
     totalRevenue: 0,
@@ -64,7 +64,7 @@ const FeesPage: React.FC = () => {
   const statsCards = [
     {
       name: 'Total Revenue',
-      value: formatAmount(feeStats.totalRevenue),
+      value: formatCurrency(feeStats.totalRevenue),
       icon: CurrencyDollarIcon,
       change: '+8%',
       changeType: 'increase' as const,
@@ -74,7 +74,7 @@ const FeesPage: React.FC = () => {
     },
     {
       name: 'Pending Fees',
-      value: formatAmount(feeStats.pendingFees),
+      value: formatCurrency(feeStats.pendingFees),
       icon: ExclamationTriangleIcon,
       change: '-5%',
       changeType: 'decrease' as const,
@@ -84,7 +84,7 @@ const FeesPage: React.FC = () => {
     },
     {
       name: 'Paid Fees',
-      value: formatAmount(feeStats.paidFees),
+      value: formatCurrency(feeStats.paidFees),
       icon: CheckCircleIcon,
       change: '+12%',
       changeType: 'increase' as const,
@@ -94,7 +94,7 @@ const FeesPage: React.FC = () => {
     },
     {
       name: 'Overdue Payments',
-      value: formatAmount(feeStats.overduePayments),
+      value: formatCurrency(feeStats.overduePayments),
       icon: CalendarIcon,
       change: '-15%',
       changeType: 'decrease' as const,

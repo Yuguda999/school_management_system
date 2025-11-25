@@ -11,6 +11,11 @@ from app.schemas.school import SchoolCreate, SchoolUpdate, SchoolRegistration, F
 from app.core.security import get_password_hash
 import uuid
 
+# Avoid circular import by importing inside methods or using string forward references if needed
+# But here we need it for logic. Let's check if we can import it at top level.
+# SchoolOwnershipService does not import SchoolService, so it should be safe.
+from app.services.school_ownership_service import SchoolOwnershipService
+
 
 class SchoolService:
     """Service class for school operations"""
@@ -87,6 +92,15 @@ class SchoolService:
         db.add(admin_user)
         await db.commit()
         await db.refresh(admin_user)
+        
+        # Create ownership record
+        await SchoolOwnershipService.add_school_ownership(
+            db=db,
+            user_id=admin_user.id,
+            school_id=school.id,
+            is_primary_owner=True,
+            granted_by=admin_user.id  # Self-granted for initial owner
+        )
         
         return school, admin_user
 
@@ -178,6 +192,15 @@ class SchoolService:
         await db.commit()
         await db.refresh(school)
         await db.refresh(admin_user)
+
+        # Create ownership record
+        await SchoolOwnershipService.add_school_ownership(
+            db=db,
+            user_id=admin_user.id,
+            school_id=school.id,
+            is_primary_owner=True,
+            granted_by=admin_user.id  # Self-granted for initial owner
+        )
 
         # Send welcome email with trial information
         await SchoolService._send_trial_welcome_email(school, admin_user)

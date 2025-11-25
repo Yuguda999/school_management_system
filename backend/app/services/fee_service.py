@@ -315,6 +315,8 @@ class FeeService:
         term_id: Optional[str] = None,
         class_id: Optional[str] = None,
         status: Optional[PaymentStatus] = None,
+        fee_type: Optional[str] = None,
+        search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[FeeAssignment]:
@@ -337,6 +339,23 @@ class FeeService:
             
         if status:
             query = query.where(FeeAssignment.status == status)
+
+        if fee_type:
+            query = query.join(FeeStructure).where(FeeStructure.fee_type == fee_type)
+
+        if search:
+            search_term = f"%{search}%"
+            if not class_id:
+                query = query.join(Student)
+            
+            query = query.where(
+                or_(
+                    Student.first_name.ilike(search_term),
+                    Student.last_name.ilike(search_term),
+                    Student.middle_name.ilike(search_term),
+                    Student.admission_number.ilike(search_term)
+                )
+            )
             
         query = query.offset(skip).limit(limit).order_by(FeeAssignment.created_at.desc())
         
@@ -363,7 +382,7 @@ class FeeService:
         ).where(
             FeePayment.school_id == school_id,
             FeePayment.is_deleted == False
-        ).join(FeePayment.student).options(
+        ).join(FeePayment.student).join(FeePayment.fee_assignment).options(
             selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.student).selectinload(Student.user),
             selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.student).selectinload(Student.current_class),
             selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure)

@@ -15,6 +15,8 @@ interface PaymentDetailsModalProps {
     payment: FeePayment | null;
 }
 
+import { useCurrency } from '../../contexts/CurrencyContext';
+
 const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
     isOpen,
     onClose,
@@ -22,6 +24,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
 }) => {
     const receiptRef = useRef<HTMLDivElement>(null);
     const { showSuccess, showError } = useToast();
+    const { formatCurrency } = useCurrency();
     const [school, setSchool] = useState<SchoolInfo | null>(null);
 
     useEffect(() => {
@@ -191,7 +194,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
                                             </p>
                                             <p className="text-sm text-gray-500">
                                                 Status: <span className={`capitalize font-medium ${payment.fee_assignment?.status === 'paid' ? 'text-green-600' :
-                                                        payment.fee_assignment?.status === 'partial' ? 'text-yellow-600' : 'text-gray-600'
+                                                    payment.fee_assignment?.status === 'partial' ? 'text-yellow-600' : 'text-gray-600'
                                                     }`}>{payment.fee_assignment?.status || 'Completed'}</span>
                                             </p>
                                         </div>
@@ -214,7 +217,7 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
                                                     </div>
                                                 </td>
                                                 <td className="py-4 text-right text-sm text-gray-900">
-                                                    {FeeService.formatCurrency(payment.amount)}
+                                                    {formatCurrency(payment.amount)}
                                                 </td>
                                             </tr>
                                         </tbody>
@@ -222,14 +225,14 @@ const PaymentDetailsModal: React.FC<PaymentDetailsModalProps> = ({
                                             <tr>
                                                 <td className="pt-4 text-right text-sm font-medium text-gray-900">Total Paid:</td>
                                                 <td className="pt-4 text-right text-lg font-bold text-gray-900">
-                                                    {FeeService.formatCurrency(payment.amount)}
+                                                    {formatCurrency(payment.amount)}
                                                 </td>
                                             </tr>
                                             {payment.fee_assignment && (
                                                 <tr>
                                                     <td className="pt-2 text-right text-xs text-gray-500">Outstanding Balance:</td>
                                                     <td className="pt-2 text-right text-xs text-gray-500">
-                                                        {FeeService.formatCurrency(payment.fee_assignment.amount_outstanding)}
+                                                        {formatCurrency(payment.fee_assignment.amount_outstanding)}
                                                     </td>
                                                 </tr>
                                             )}

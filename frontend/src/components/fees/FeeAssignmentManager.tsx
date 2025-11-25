@@ -9,14 +9,14 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
   CheckCircleIcon,
-  XCircleIcon
 } from '@heroicons/react/24/outline';
-import { FeeAssignment, FeeStructure, Class, Term, Student } from '../../types';
+import { FeeAssignment, Class, Term } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { FeeService } from '../../services/feeService';
+import { academicService } from '../../services/academicService';
 import DataTable, { Column } from '../ui/DataTable';
 import Modal from '../ui/Modal';
 import FeeAssignmentForm from './FeeAssignmentForm';
@@ -29,6 +29,8 @@ const FeeAssignmentManager: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { currentTerm } = useCurrentTerm();
   const [assignments, setAssignments] = useState<FeeAssignment[]>([]);
+  const [terms, setTerms] = useState<Term[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -40,6 +42,8 @@ const FeeAssignmentManager: React.FC = () => {
     term_id: currentTerm?.id || '',
     class_id: '',
     status: '',
+    fee_type: '',
+    search: '',
   });
 
   // Update term filter when current term changes
@@ -59,8 +63,29 @@ const FeeAssignmentManager: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchAssignments();
+    fetchInitialData();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAssignments();
+    }, 500);
+    return () => clearTimeout(timer);
   }, [filters]);
+
+  const fetchInitialData = async () => {
+    try {
+      const [termsData, classesData] = await Promise.all([
+        academicService.getTerms(),
+        academicService.getClasses({ is_active: true })
+      ]);
+      setTerms(termsData);
+      setClasses(classesData);
+    } catch (error) {
+      console.error('Failed to fetch initial data:', error);
+      showError('Failed to load filter options');
+    }
+  };
 
   const fetchAssignments = async () => {
     try {
@@ -69,6 +94,8 @@ const FeeAssignmentManager: React.FC = () => {
         term_id: filters.term_id || undefined,
         class_id: filters.class_id || undefined,
         status: filters.status || undefined,
+        fee_type: filters.fee_type || undefined,
+        search: filters.search || undefined,
         page: 1,
         size: 100
       });
@@ -319,6 +346,19 @@ const FeeAssignmentManager: React.FC = () => {
         <Card variant="glass" className="animate-fade-in-up">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
+              <label className="label">Search</label>
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  className="input pl-10"
+                  placeholder="Student name or admission no..."
+                />
+              </div>
+            </div>
+            <div>
               <label className="label">Term</label>
               <select
                 className="input"
@@ -326,7 +366,33 @@ const FeeAssignmentManager: React.FC = () => {
                 onChange={(e) => setFilters({ ...filters, term_id: e.target.value })}
               >
                 <option value="">All Terms</option>
-                {/* Add term options */}
+                {terms.map((term) => (
+                  <option key={term.id} value={term.id}>
+                    {term.name} ({new Date(term.start_date).getFullYear()})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Fee Type</label>
+              <select
+                className="input"
+                value={filters.fee_type}
+                onChange={(e) => setFilters({ ...filters, fee_type: e.target.value })}
+              >
+                <option value="">All Types</option>
+                <option value="tuition">Tuition</option>
+                <option value="registration">Registration</option>
+                <option value="examination">Examination</option>
+                <option value="library">Library</option>
+                <option value="laboratory">Laboratory</option>
+                <option value="sports">Sports</option>
+                <option value="transport">Transport</option>
+                <option value="uniform">Uniform</option>
+                <option value="books">Books</option>
+                <option value="feeding">Feeding</option>
+                <option value="development">Development</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>
@@ -337,7 +403,11 @@ const FeeAssignmentManager: React.FC = () => {
                 onChange={(e) => setFilters({ ...filters, class_id: e.target.value })}
               >
                 <option value="">All Classes</option>
-                {/* Add class options */}
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -354,10 +424,10 @@ const FeeAssignmentManager: React.FC = () => {
                 <option value="overdue">Overdue</option>
               </select>
             </div>
-            <div className="flex items-end">
+            <div className="md:col-span-4 flex justify-end">
               <button
-                onClick={() => setFilters({ term_id: '', class_id: '', status: '' })}
-                className="btn btn-secondary w-full"
+                onClick={() => setFilters({ term_id: '', class_id: '', status: '', fee_type: '', search: '' })}
+                className="btn btn-secondary"
               >
                 Clear Filters
               </button>

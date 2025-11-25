@@ -6,6 +6,8 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   CurrencyDollarIcon,
+  ArrowDownTrayIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 
 import { FeePayment, Class } from '../../types';
@@ -14,8 +16,11 @@ import { academicService } from '../../services/academicService';
 import { useToast } from '../../hooks/useToast';
 import PaymentDetailsModal from './PaymentDetailsModal';
 
+import { useCurrency } from '../../contexts/CurrencyContext';
+
 const PaymentTracker: React.FC = () => {
   const { showError } = useToast();
+  const { formatCurrency } = useCurrency();
   const [payments, setPayments] = useState<FeePayment[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,8 @@ const PaymentTracker: React.FC = () => {
     status: '',
     class_id: '',
     search: '',
+    start_date: '',
+    end_date: '',
   });
   const [selectedPayment, setSelectedPayment] = useState<FeePayment | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -66,6 +73,32 @@ const PaymentTracker: React.FC = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const blob = await FeeService.exportPayments({
+        filters: {
+          status: filters.status || undefined,
+          class_id: filters.class_id || undefined,
+          search: filters.search || undefined,
+          start_date: filters.start_date || undefined,
+          end_date: filters.end_date || undefined,
+        }
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payment_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      showError('Failed to export payment data');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid':
@@ -104,9 +137,21 @@ const PaymentTracker: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header with Export */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Payment Tracking</h3>
+        <button
+          onClick={handleExport}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <ArrowDownTrayIcon className="h-4 w-4" />
+          <span>Export CSV</span>
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Search
@@ -134,6 +179,7 @@ const PaymentTracker: React.FC = () => {
             >
               <option value="">All Status</option>
               <option value="paid">Paid</option>
+              <option value="partial">Partial</option>
               <option value="pending">Pending</option>
               <option value="overdue">Overdue</option>
             </select>
@@ -159,12 +205,42 @@ const PaymentTracker: React.FC = () => {
 
           <div className="flex items-end">
             <button
-              onClick={() => setFilters({ status: '', class_id: '', search: '' })}
+              onClick={() => setFilters({ status: '', class_id: '', search: '', start_date: '', end_date: '' })}
               className="btn btn-secondary w-full flex items-center justify-center space-x-2"
             >
               <FunnelIcon className="h-4 w-4" />
               <span>Clear</span>
             </button>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Start Date
+            </label>
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="date"
+                value={filters.start_date}
+                onChange={(e) => setFilters({ ...filters, start_date: e.target.value })}
+                className="input pl-10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              End Date
+            </label>
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="date"
+                value={filters.end_date}
+                onChange={(e) => setFilters({ ...filters, end_date: e.target.value })}
+                className="input pl-10"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -281,7 +357,7 @@ const PaymentTracker: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {FeeService.formatCurrency(payment.amount)}
+                      {formatCurrency(payment.amount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {payment.payment_date ? FeeService.formatDate(payment.payment_date) : 'N/A'}
