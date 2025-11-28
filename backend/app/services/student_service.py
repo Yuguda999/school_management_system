@@ -9,11 +9,16 @@ from app.models.student import Student, StudentClassHistory, ClassHistoryStatus
 from app.models.user import User, UserRole
 from app.models.academic import Class, Term
 from app.models.grade import Grade
-from app.schemas.student import StudentCreate, StudentUpdate, StudentProfileResponse, PerformanceTrendsResponse
+from app.schemas.student import StudentCreate, StudentUpdate, StudentProfileResponse, PerformanceTrendsResponse, BulkStudentUpdate
 from app.services.enrollment_service import EnrollmentService
 from app.utils.enum_converter import convert_gender_enum, convert_student_status_enum
 from datetime import datetime
 from decimal import Decimal
+from app.services.audit_service import AuditService
+from app.schemas.audit_log import AuditLogCreate
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 def convert_date_string(date_str):
@@ -50,7 +55,8 @@ class StudentService:
     async def create_student(
         db: AsyncSession,
         student_data: StudentCreate,
-        school_id: str
+        school_id: str,
+        current_user_id: Optional[str] = None
     ) -> Student:
         """Create a new student"""
         # Check if admission number already exists
@@ -101,6 +107,33 @@ class StudentService:
                 # Log the error but don't fail student creation
                 print(f"Warning: Could not auto-enroll student in class subjects: {e.detail}")
 
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school_id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="CREATE",
+                    entity_type="student",
+                    entity_id=student.id,
+                    details={"admission_number": student.admission_number, "name": f"{student.first_name} {student.last_name}"}
+                )
+            )
+
+            # Notification for the creator (Confirmation)
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=current_user_id,
+                    title="Student Created",
+                    message=f"Student {student.first_name} {student.last_name} ({student.admission_number}) has been successfully admitted.",
+                    type=NotificationType.SUCCESS,
+                    link=f"/students/{student.id}"
+                )
+            )
+
         return student
     
     @staticmethod
@@ -115,7 +148,7 @@ class StudentService:
     ) -> List[Student]:
         """Get students with filtering"""
         query = select(Student).options(
-            selectinload(Student.class_),
+            selectinload(Student.current_class),
             selectinload(Student.parent),
             selectinload(Student.user)
         ).where(
@@ -124,7 +157,7 @@ class StudentService:
         )
         
         if class_id:
-            query = query.where(Student.class_id == class_id)
+            query = query.where(Student.current_class_id == class_id)
         if is_active is not None:
             query = query.where(Student.is_active == is_active)
         if search:
@@ -150,7 +183,7 @@ class StudentService:
         """Get student by ID"""
         result = await db.execute(
             select(Student).options(
-                selectinload(Student.class_),
+                selectinload(Student.current_class),
                 selectinload(Student.parent),
                 selectinload(Student.user),
                 selectinload(Student.grades),
@@ -188,7 +221,8 @@ class StudentService:
         db: AsyncSession,
         student_id: str,
         student_data: StudentUpdate,
-        school_id: str
+        school_id: str,
+        current_user_id: Optional[str] = None
     ) -> Optional[Student]:
         """Update student"""
         student = await StudentService.get_student_by_id(db, student_id, school_id)
@@ -196,10 +230,11 @@ class StudentService:
             return None
         
         # Check if new admission number conflicts
-        if student_data.admission_number and student_data.admission_number != student.admission_number:
+        new_admission_number = getattr(student_data, 'admission_number', None)
+        if new_admission_number and new_admission_number != student.admission_number:
             result = await db.execute(
                 select(Student).where(
-                    Student.admission_number == student_data.admission_number,
+                    Student.admission_number == new_admission_number,
                     Student.school_id == school_id,
                     Student.id != student_id,
                     Student.is_deleted == False
@@ -212,10 +247,11 @@ class StudentService:
                 )
         
         # Verify new class exists if provided
-        if student_data.class_id:
+        new_class_id = getattr(student_data, 'current_class_id', None)
+        if new_class_id:
             class_result = await db.execute(
                 select(Class).where(
-                    Class.id == student_data.class_id,
+                    Class.id == new_class_id,
                     Class.school_id == school_id,
                     Class.is_deleted == False
                 )
@@ -228,11 +264,12 @@ class StudentService:
         
         # Check if class is changing
         old_class_id = student.current_class_id
-        new_class_id = student_data.class_id if hasattr(student_data, 'class_id') and student_data.class_id is not None else old_class_id
 
         # Update fields
         update_data = student_data.dict(exclude_unset=True)
         for field, value in update_data.items():
+            if field == 'id':
+                continue
             setattr(student, field, value)
 
         await db.commit()
@@ -248,13 +285,42 @@ class StudentService:
                 # Log the error but don't fail student update
                 print(f"Warning: Could not auto-enroll student in new class subjects: {e.detail}")
 
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school_id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="UPDATE",
+                    entity_type="student",
+                    entity_id=student.id,
+                    details={"updated_fields": list(update_data.keys())}
+                )
+            )
+            
+            # Notify Student if updated by someone else
+            if student.user_id and current_user_id != student.user_id:
+                 await NotificationService.create_notification(
+                    db=db,
+                    school_id=school_id,
+                    notification_data=NotificationCreate(
+                        user_id=student.user_id,
+                        title="Profile Updated",
+                        message="Your student profile information has been updated by an administrator.",
+                        type=NotificationType.INFO,
+                        link="/profile"
+                    )
+                )
+
         return student
     
     @staticmethod
     async def delete_student(
         db: AsyncSession,
         student_id: str,
-        school_id: str
+        school_id: str,
+        current_user_id: Optional[str] = None
     ) -> bool:
         """Soft delete student"""
         student = await StudentService.get_student_by_id(db, student_id, school_id)
@@ -264,7 +330,44 @@ class StudentService:
         student.is_deleted = True
         await db.commit()
         
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school_id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="DELETE",
+                    entity_type="student",
+                    entity_id=student_id,
+                    details={"name": f"{student.first_name} {student.last_name}"}
+                )
+            )
+
         return True
+    
+    @staticmethod
+    async def bulk_update_students(
+        db: AsyncSession,
+        bulk_data: BulkStudentUpdate,
+        school_id: str,
+        current_user_id: str
+    ) -> List[Student]:
+        """Bulk update students"""
+        updated_students = []
+        
+        for student_update in bulk_data.students:
+            student = await StudentService.update_student(
+                db, 
+                student_update.id, 
+                student_update, 
+                school_id, 
+                current_user_id
+            )
+            if student:
+                updated_students.append(student)
+                
+        return updated_students
     
     @staticmethod
     async def get_students_count(
@@ -444,9 +547,11 @@ class StudentService:
                    s.phone, s.email, s.address_line1, s.address_line2, s.city, s.state, s.postal_code,
                    s.guardian_name, s.guardian_phone, s.guardian_email, s.guardian_relationship,
                    s.emergency_contact_name, s.emergency_contact_phone, s.emergency_contact_relationship,
-                   s.medical_conditions, s.allergies, s.blood_group, s.profile_picture_url, s.notes
+                   s.medical_conditions, s.allergies, s.blood_group, s.profile_picture_url, s.notes,
+                   c.name as class_name
             FROM students s
             JOIN enrollments e ON s.id = e.student_id
+            LEFT JOIN classes c ON s.current_class_id = c.id
             WHERE e.subject_id = :subject_id
             AND s.school_id = :school_id
             AND s.is_deleted = false
@@ -511,6 +616,11 @@ class StudentService:
                 profile_picture_url=row.profile_picture_url,
                 notes=row.notes
             )
+            
+            # Manually populate current_class relationship for class name
+            if row.current_class_id and row.class_name:
+                student.current_class = Class(id=row.current_class_id, name=row.class_name)
+                
             students.append(student)
 
         return students
@@ -571,9 +681,11 @@ class StudentService:
                    s.phone, s.email, s.address_line1, s.address_line2, s.city, s.state, s.postal_code,
                    s.guardian_name, s.guardian_phone, s.guardian_email, s.guardian_relationship,
                    s.emergency_contact_name, s.emergency_contact_phone, s.emergency_contact_relationship,
-                   s.medical_conditions, s.allergies, s.blood_group, s.profile_picture_url, s.notes
+                   s.medical_conditions, s.allergies, s.blood_group, s.profile_picture_url, s.notes,
+                   c.name as class_name
             FROM students s
             JOIN enrollments e ON s.id = e.student_id
+            LEFT JOIN classes c ON s.current_class_id = c.id
             WHERE e.subject_id = :subject_id
             AND s.school_id = :school_id
             AND s.is_deleted = false
@@ -661,6 +773,11 @@ class StudentService:
                 profile_picture_url=row.profile_picture_url,
                 notes=row.notes
             )
+            
+            # Manually populate current_class relationship for class name
+            if row.current_class_id and row.class_name:
+                student.current_class = Class(id=row.current_class_id, name=row.class_name)
+                
             students.append(student)
 
         return students
@@ -916,6 +1033,29 @@ class StudentService:
 
         await db.commit()
         await db.refresh(history)
+
+        # Notify Student on Promotion
+        if promoted_to_class_id:
+            # Get user_id
+            student_res = await db.execute(select(Student.user_id).where(Student.id == history.student_id))
+            user_id = student_res.scalar_one_or_none()
+            
+            if user_id:
+                # Get class name
+                class_res = await db.execute(select(Class.name).where(Class.id == promoted_to_class_id))
+                class_name = class_res.scalar_one_or_none()
+                
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=school_id,
+                    notification_data=NotificationCreate(
+                        user_id=user_id,
+                        title="Promotion",
+                        message=f"Congratulations! You have been promoted to {class_name}.",
+                        type=NotificationType.SUCCESS,
+                        link="/academics/classes"
+                    )
+                )
 
         return history
 

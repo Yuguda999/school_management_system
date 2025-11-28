@@ -13,5 +13,8 @@ from .communication import *  # noqa
 from .teacher_invitation import *  # noqa
 from .document import *  # noqa
 from .report_card_template import *  # noqa
-from .teacher_material import *  # noqa
+
 from .cbt import *  # noqa
+from .notification import *  # noqa
+from .audit_log import *  # noqa
+from .asset import *  # noqa

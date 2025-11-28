@@ -2,6 +2,7 @@ from typing import Any, Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
 from app.core.database import get_db
@@ -25,7 +26,8 @@ from app.schemas.student import (
     StudentListResponse,
     StudentStatusUpdate,
     StudentClassUpdate,
-    StudentImportResult
+    StudentImportResult,
+    BulkStudentUpdate
 )
 from app.services.csv_import_service import CSVImportService
 from app.services.student_service import StudentService
@@ -39,69 +41,71 @@ async def enhance_student_response(
     db: AsyncSession
 ) -> StudentResponse:
     """Helper function to enhance student response with related data"""
-    response = StudentResponse.from_orm(student)
-
-    # Compute full_name manually
-    if student.middle_name:
-        response.full_name = f"{student.first_name} {student.middle_name} {student.last_name}"
-    else:
-        response.full_name = f"{student.first_name} {student.last_name}"
-
-    # Compute age manually
-    from datetime import date, datetime
+    from sqlalchemy import inspect as sqlalchemy_inspect
+    from datetime import date
+    
+    # Compute age
     today = date.today()
+    age = today.year - student.date_of_birth.year - ((today.month, today.day) < (student.date_of_birth.month, student.date_of_birth.day))
+    
+    # Compute full name
+    full_name = f"{student.first_name} {student.middle_name} {student.last_name}" if student.middle_name else f"{student.first_name} {student.last_name}"
+    
+    # Safely get class name - check if relationship is loaded
+    current_class_name = None
+    insp = sqlalchemy_inspect(student)
+    if 'current_class' not in insp.unloaded:
+        # Relationship is loaded, safe to access
+        current_class_name = student.current_class.name if student.current_class else None
+    
+    # Safely get parent name - check if relationship is loaded
+    parent_name = None
+    if 'parent' not in insp.unloaded:
+        # Relationship is loaded, safe to access
+        parent_name = student.parent.full_name if student.parent else None
+    
+    # Build the response dict manually to avoid property access issues
+    response_data = {
+        'id': student.id,
+        'admission_number': student.admission_number,
+        'first_name': student.first_name,
+        'last_name': student.last_name,
+        'middle_name': student.middle_name,
+        'date_of_birth': student.date_of_birth,
+        'gender': student.gender,
+        'phone': student.phone,
+        'email': student.email,
+        'address_line1': student.address_line1,
+        'address_line2': student.address_line2,
+        'city': student.city,
+        'state': student.state,
+        'postal_code': student.postal_code,
+        'admission_date': student.admission_date,
+        'current_class_id': student.current_class_id,
+        'status': student.status,
+        'parent_id': student.parent_id,
+        'parent_name': parent_name,
+        'guardian_name': student.guardian_name,
+        'guardian_phone': student.guardian_phone,
+        'guardian_email': student.guardian_email,
+        'guardian_relationship': student.guardian_relationship,
+        'emergency_contact_name': student.emergency_contact_name,
+        'emergency_contact_phone': student.emergency_contact_phone,
+        'emergency_contact_relationship': student.emergency_contact_relationship,
+        'medical_conditions': student.medical_conditions,
+        'allergies': student.allergies,
+        'blood_group': student.blood_group,
+        'profile_picture_url': student.profile_picture_url,
+        'notes': student.notes,
+        'current_class_name': current_class_name,
+        'age': age,
+        'full_name': full_name,
+        'created_at': student.created_at,
+        'updated_at': student.updated_at,
+    }
+    
+    return StudentResponse(**response_data)
 
-    # Handle date_of_birth conversion if it's a string
-    if isinstance(student.date_of_birth, str):
-        try:
-            # Try parsing different date formats
-            if 'T' in student.date_of_birth:
-                # ISO format with time
-                birth_date = datetime.fromisoformat(student.date_of_birth.replace('Z', '+00:00')).date()
-            else:
-                # Try common date formats
-                for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
-                    try:
-                        birth_date = datetime.strptime(student.date_of_birth, fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    # If no format works, set age to None
-                    response.age = None
-                    birth_date = None
-        except (ValueError, AttributeError):
-            response.age = None
-            birth_date = None
-    else:
-        birth_date = student.date_of_birth
-
-    # Calculate age if we have a valid birth date
-    if birth_date:
-        response.age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
-    else:
-        response.age = None
-
-    # Load parent name if exists
-    if student.parent_id:
-        parent_result = await db.execute(
-            select(User).where(User.id == student.parent_id)
-        )
-        parent = parent_result.scalar_one_or_none()
-        if parent:
-            response.parent_name = parent.full_name
-
-    # Load class name if exists
-    if student.current_class_id:
-        from app.models.academic import Class
-        class_result = await db.execute(
-            select(Class).where(Class.id == student.current_class_id)
-        )
-        current_class = class_result.scalar_one_or_none()
-        if current_class:
-            response.current_class_name = current_class.name
-
-    return response
 
 
 @router.post("/", response_model=StudentResponse)
@@ -126,16 +130,33 @@ async def create_student(
         )
 
     # Create student
-    student_dict = student_data.dict()
-    student_dict['school_id'] = school_context.school_id
-    
-    student = Student(**student_dict)
-    db.add(student)
-    await db.commit()
-    await db.refresh(student)
+    student = await StudentService.create_student(
+        db, student_data, school_context.school_id, current_user.id
+    )
     
     # Enhance response with related data
     return await enhance_student_response(student, db)
+
+
+@router.post("/bulk-update", response_model=List[StudentResponse])
+async def bulk_update_students(
+    bulk_data: BulkStudentUpdate,
+    current_user: User = Depends(require_school_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Bulk update students (Admin/Super Admin only)"""
+    students = await StudentService.bulk_update_students(
+        db, bulk_data, current_school.id, current_user.id
+    )
+    
+    # Enhance response
+    response_students = []
+    for student in students:
+        student_response = await enhance_student_response(student, db)
+        response_students.append(student_response)
+        
+    return response_students
 
 
 @router.get("/", response_model=StudentListResponse)
@@ -233,6 +254,31 @@ async def get_students(
         page=page,
         size=size,
         pages=pages
+    )
+
+
+@router.get("/export")
+async def export_students(
+    class_id: Optional[str] = Query(None, description="Filter by class"),
+    status: Optional[StudentStatus] = Query(None, description="Filter by status"),
+    search: Optional[str] = Query(None, description="Search by name or admission number"),
+    current_user: User = Depends(require_school_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Response:
+    """Export students to CSV with filters (School Admin only)"""
+    from app.services.export_service import ExportService
+    
+    csv_content = await ExportService.export_students_csv(
+        db, current_school.id, class_id, status, search
+    )
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=students_export_{datetime.now().strftime('%Y%m%d')}.csv"
+        }
     )
 
 
@@ -341,28 +387,10 @@ async def update_student(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update student information (Admin/Super Admin only)"""
-    result = await db.execute(
-        select(Student).where(
-            Student.id == student_id,
-            Student.school_id == current_school.id,
-            Student.is_deleted == False
-        )
+    # Update student
+    student = await StudentService.update_student(
+        db, student_id, student_data, current_school.id, current_user.id
     )
-    student = result.scalar_one_or_none()
-    
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-    
-    # Update fields
-    update_data = student_data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(student, field, value)
-    
-    await db.commit()
-    await db.refresh(student)
     
     # Enhance response
     return await enhance_student_response(student, db)
@@ -444,24 +472,16 @@ async def delete_student(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete student (Admin/Super Admin only)"""
-    result = await db.execute(
-        select(Student).where(
-            Student.id == student_id,
-            Student.school_id == current_school.id,
-            Student.is_deleted == False
-        )
+    # Delete student
+    success = await StudentService.delete_student(
+        db, student_id, current_school.id, current_user.id
     )
-    student = result.scalar_one_or_none()
     
-    if not student:
+    if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
-    
-    # Soft delete
-    student.is_deleted = True
-    await db.commit()
     
     return {"message": "Student deleted successfully"}
 

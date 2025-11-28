@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   BarChart,
   Bar,
@@ -10,33 +10,15 @@ import {
 } from 'recharts';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
-const RevenueChart: React.FC = () => {
-  const { currentTerm } = useCurrentTerm();
-  const [data, setData] = useState([
-    { month: 'Jan', revenue: 18000 },
-    { month: 'Feb', revenue: 19500 },
-    { month: 'Mar', revenue: 21000 },
-    { month: 'Apr', revenue: 20500 },
-    { month: 'May', revenue: 22000 },
-    { month: 'Jun', revenue: 23500 },
-  ]);
+import { RevenueData } from '../../services/reportsService';
 
-  useEffect(() => {
-    // In a real implementation, you would fetch revenue data based on currentTerm
-    // For now, we'll use mock data that could vary by term
-    if (currentTerm) {
-      // Mock different data for different terms
-      const termBasedData = [
-        { month: 'Jan', revenue: 18000 + (currentTerm.name.includes('First') ? 0 : 3000) },
-        { month: 'Feb', revenue: 19500 + (currentTerm.name.includes('First') ? 0 : 3000) },
-        { month: 'Mar', revenue: 21000 + (currentTerm.name.includes('First') ? 0 : 3000) },
-        { month: 'Apr', revenue: 20500 + (currentTerm.name.includes('First') ? 0 : 3000) },
-        { month: 'May', revenue: 22000 + (currentTerm.name.includes('First') ? 0 : 3000) },
-        { month: 'Jun', revenue: 23500 + (currentTerm.name.includes('First') ? 0 : 3000) },
-      ];
-      setData(termBasedData);
-    }
-  }, [currentTerm]);
+interface RevenueChartProps {
+  data: RevenueData[];
+  currency?: string;
+}
+
+const RevenueChart: React.FC<RevenueChartProps> = ({ data, currency = '$' }) => {
+  const { currentTerm } = useCurrentTerm();
   return (
     <div className="card p-6">
       <div className="mb-4">
@@ -54,8 +36,8 @@ const RevenueChart: React.FC = () => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="month" 
+            <XAxis
+              dataKey="month"
               className="text-gray-600 dark:text-gray-400"
             />
             <YAxis className="text-gray-600 dark:text-gray-400" />
@@ -66,7 +48,7 @@ const RevenueChart: React.FC = () => {
                 borderRadius: '0.5rem',
               }}
               labelStyle={{ color: 'var(--tw-color-gray-900)' }}
-              formatter={(value) => [`$${value.toLocaleString()}`, 'Revenue']}
+              formatter={(value) => [`${currency}${value.toLocaleString()}`, 'Revenue']}
             />
             <Bar
               dataKey="revenue"

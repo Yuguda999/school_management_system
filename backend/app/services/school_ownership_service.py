@@ -218,3 +218,21 @@ class SchoolOwnershipService:
     async def get_user_school_ownership(db: AsyncSession, user_id: str, school_id: str) -> Optional[SchoolOwnership]:
         """Get ownership record for a specific user-school relationship (alias for get_ownership_details)"""
         return await SchoolOwnershipService.get_ownership_details(db, user_id, school_id)
+
+    @staticmethod
+    async def get_school_primary_owner(db: AsyncSession, school_id: str) -> Optional[User]:
+        """Get the primary owner of a school"""
+        result = await db.execute(
+            select(User)
+            .join(SchoolOwnership)
+            .where(
+                and_(
+                    SchoolOwnership.school_id == school_id,
+                    SchoolOwnership.is_primary_owner == True,
+                    SchoolOwnership.is_active == True,
+                    SchoolOwnership.is_deleted == False,
+                    User.is_deleted == False
+                )
+            )
+        )
+        return result.scalar_one_or_none()

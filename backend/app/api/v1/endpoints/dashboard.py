@@ -29,7 +29,7 @@ async def get_dashboard_stats(
 ) -> Any:
     """Get dashboard statistics"""
     stats = await DashboardService.get_dashboard_stats(
-        db, current_school.id, term_id
+        db, current_school.id, term_id, current_user
     )
     return stats
 
@@ -49,6 +49,6 @@ async def get_dashboard_data(
     )
     
     dashboard_data = await DashboardService.get_dashboard_data(
-        db, current_school.id, filters
+        db, current_school.id, filters, current_user
     )
     return dashboard_data

@@ -16,6 +16,9 @@ from app.schemas.academic import (
     BulkClassSubjectAssignment
 )
 from app.services.enrollment_service import EnrollmentService
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class TeacherSubjectService:
@@ -113,6 +116,32 @@ class TeacherSubjectService:
         )
         
         await db.commit()
+        
+        # Notify Teacher
+        await NotificationService.create_notification(
+            db=db,
+            school_id=school_id,
+            notification_data=NotificationCreate(
+                user_id=assignment_data.teacher_id,
+                title="Subject Assignment",
+                message=f"You have been assigned to teach {subject.name} ({subject.code}).",
+                type=NotificationType.INFO,
+                link="/academics/subjects"
+            )
+        )
+        
+        # Notify Teacher
+        await NotificationService.create_notification(
+            db=db,
+            school_id=school_id,
+            notification_data=NotificationCreate(
+                user_id=assignment_data.teacher_id,
+                title="Subject Assignment",
+                message=f"You have been assigned to teach {subject.name} ({subject.code}).",
+                type=NotificationType.INFO,
+                link="/academics/subjects"
+            )
+        )
         
         # Return response
         return TeacherSubjectAssignmentResponse(
@@ -626,21 +655,21 @@ class ClassSubjectService:
                 detail="Class not found"
             )
 
-        # Remove existing assignments for this class
-        await db.execute(
-            text("""
-                UPDATE class_subjects
-                SET is_deleted = true, updated_at = :updated_at
-                WHERE class_id = :class_id
-                AND school_id = :school_id
-                AND is_deleted = false
-            """),
-            {
-                "class_id": assignment_data.class_id,
-                "school_id": school_id,
-                "updated_at": __import__('datetime').datetime.utcnow().isoformat()
-            }
-        )
+        # Remove existing assignments for this class - REMOVED to allow appending
+        # await db.execute(
+        #     text("""
+        #         UPDATE class_subjects
+        #         SET is_deleted = true, updated_at = :updated_at
+        #         WHERE class_id = :class_id
+        #         AND school_id = :school_id
+        #         AND is_deleted = false
+        #     """),
+        #     {
+        #         "class_id": assignment_data.class_id,
+        #         "school_id": school_id,
+        #         "updated_at": __import__('datetime').datetime.utcnow().isoformat()
+        #     }
+        # )
 
         # Create new assignments
         assignments = []

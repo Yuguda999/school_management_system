@@ -6,74 +6,42 @@ import {
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useNavigate } from 'react-router-dom';
+import { buildSchoolRouteUrl, getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
-interface Activity {
-  id: string;
-  type: 'enrollment' | 'payment' | 'grade' | 'message';
-  title: string;
-  description: string;
-  time: string;
-  icon: React.ElementType;
-  iconColor: string;
+import { RecentActivity as RecentActivityType } from '../../services/reportsService';
+import { formatDistanceToNow } from 'date-fns';
+
+interface RecentActivityProps {
+  activities?: RecentActivityType[];
 }
 
-const RecentActivity: React.FC = () => {
+const RecentActivity: React.FC<RecentActivityProps> = ({ activities = [] }) => {
   const { currentTerm } = useCurrentTerm();
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    // In a real implementation, you would fetch activities based on currentTerm
-    // For now, we'll use mock data that could vary by term
-    const baseActivities: Activity[] = [
-      {
-        id: '1',
-        type: 'enrollment',
-        title: 'New Student Enrolled',
-        description: 'Sarah Johnson joined Grade 10-A',
-        time: '2 hours ago',
-        icon: UserPlusIcon,
-        iconColor: 'text-green-600',
-      },
-  {
-    id: '2',
-    type: 'payment',
-    title: 'Fee Payment Received',
-    description: 'John Smith paid $500 for tuition fees',
-    time: '4 hours ago',
-    icon: CurrencyDollarIcon,
-    iconColor: 'text-primary-600',
-  },
-  {
-    id: '3',
-    type: 'grade',
-    title: 'Grades Updated',
-    description: 'Math test results published for Grade 9-B',
-    time: '6 hours ago',
-    icon: AcademicCapIcon,
-    iconColor: 'text-secondary-600',
-  },
-  {
-    id: '4',
-    type: 'message',
-    title: 'New Announcement',
-    description: 'Parent-teacher meeting scheduled for next week',
-    time: '1 day ago',
-    icon: ChatBubbleLeftRightIcon,
-    iconColor: 'text-orange-600',
-  },
-];
-
-    // Modify activities based on current term
-    if (currentTerm) {
-      const termSpecificActivities = baseActivities.map(activity => ({
-        ...activity,
-        description: `${activity.description} (${currentTerm.name})`
-      }));
-      setActivities(termSpecificActivities);
-    } else {
-      setActivities(baseActivities);
+  const getIconConfig = (type: string) => {
+    switch (type) {
+      case 'enrollment':
+        return { icon: UserPlusIcon, color: 'text-green-600' };
+      case 'payment':
+        return { icon: CurrencyDollarIcon, color: 'text-primary-600' };
+      case 'grade':
+        return { icon: AcademicCapIcon, color: 'text-secondary-600' };
+      case 'message':
+      case 'announcement':
+        return { icon: ChatBubbleLeftRightIcon, color: 'text-orange-600' };
+      default:
+        return { icon: UserPlusIcon, color: 'text-gray-600' };
     }
-  }, [currentTerm]);
+  };
+
+  const handleViewAll = () => {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (schoolCode) {
+      navigate(buildSchoolRouteUrl(schoolCode, 'audit-logs'));
+    }
+  };
 
   return (
     <div className="card">
@@ -91,29 +59,35 @@ const RecentActivity: React.FC = () => {
         </p>
       </div>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        {activities.map((activity) => (
-          <div key={activity.id} className="px-6 py-4">
-            <div className="flex items-start space-x-3">
-              <div className={`flex-shrink-0 ${activity.iconColor}`}>
-                <activity.icon className="h-6 w-6" aria-hidden="true" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {activity.title}
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {activity.description}
-                </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  {activity.time}
-                </p>
+        {activities.map((activity) => {
+          const { icon: Icon, color } = getIconConfig(activity.type);
+          return (
+            <div key={activity.id} className="px-6 py-4">
+              <div className="flex items-start space-x-3">
+                <div className={`flex-shrink-0 ${color}`}>
+                  <Icon className="h-6 w-6" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {activity.title}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {activity.description}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="px-6 py-3 bg-gray-50 dark:bg-gray-700 text-center">
-        <button className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-500 font-medium">
+        <button
+          className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-500 font-medium transition-colors"
+          onClick={handleViewAll}
+        >
           View all activity
         </button>
       </div>

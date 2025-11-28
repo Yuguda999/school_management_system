@@ -1,15 +1,8 @@
 import { apiService } from './api';
-
-export interface DashboardStats {
-  total_students: number;
-  total_teachers: number;
-  total_classes: number;
-  total_subjects: number;
-  active_terms: number;
-  pending_fees: number;
-  recent_enrollments: number;
-  attendance_rate: number;
-}
+import type {
+  DashboardStats,
+  DashboardData,
+} from '../types/dashboard';
 
 export interface StudentReport {
   student_id: string;
@@ -114,6 +107,11 @@ class ReportsService {
   async getDashboardStats(termId?: string): Promise<DashboardStats> {
     const url = `/api/v1/dashboard/stats${termId ? `?term_id=${termId}` : ''}`;
     return apiService.get<DashboardStats>(url);
+  }
+
+  async getDashboardData(termId?: string): Promise<DashboardData> {
+    const url = `/api/v1/dashboard/${termId ? `?term_id=${termId}` : ''}`;
+    return apiService.get<DashboardData>(url);
   }
 
   // Student Reports

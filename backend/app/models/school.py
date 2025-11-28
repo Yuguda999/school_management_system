@@ -67,6 +67,7 @@ class School(BaseModel):
     subjects = relationship("Subject", back_populates="school", cascade="all, delete-orphan")
     terms = relationship("Term", back_populates="school", cascade="all, delete-orphan")
     fee_structures = relationship("FeeStructure", back_populates="school", cascade="all, delete-orphan")
+    assets = relationship("Asset", back_populates="school", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<School(id={self.id}, name={self.name}, code={self.code})>"

@@ -12,7 +12,8 @@ import {
   PaperAirplaneIcon,
   UsersIcon,
   BriefcaseIcon,
-  IdentificationIcon
+  IdentificationIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { Teacher, User, TeacherSubjectAssignment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,6 +28,7 @@ import TeacherInvitationModal from '../../components/teachers/TeacherInvitationM
 import TeacherInvitationsPage from './TeacherInvitationsPage';
 import { apiService } from '../../services/api';
 import { academicService } from '../../services/academicService';
+import { userService } from '../../services/userService';
 import { useToast } from '../../hooks/useToast';
 import Card from '../../components/ui/Card';
 
@@ -152,6 +154,34 @@ const TeachersPage: React.FC = () => {
     } finally {
       setShowDeleteModal(false);
       setTeacherToDelete(null);
+    }
+  };
+
+  const handleExportTeachers = async () => {
+    try {
+      showSuccess('Generating export...', 'Please wait');
+      const blob = await userService.exportTeachers({
+        // Note: TeachersPage doesn't have filters currently, but we can add them later
+        // For now, export all teachers
+      });
+
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `teachers_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showSuccess('Teachers exported successfully!', 'Export Complete');
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to export teachers. Please try again.';
+      showError(errorMessage, 'Export Failed');
     }
   };
 
@@ -325,6 +355,13 @@ const TeachersPage: React.FC = () => {
             <div className="flex space-x-3">
               {activeTab === 'teachers' && (
                 <>
+                  <button
+                    onClick={handleExportTeachers}
+                    className="btn btn-outline"
+                  >
+                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                    Export CSV
+                  </button>
                   <button
                     onClick={() => setShowInviteModal(true)}
                     className="btn btn-secondary"

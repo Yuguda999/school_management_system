@@ -246,3 +246,29 @@ async def delete_user(
         )
     
     return {"message": "User deleted successfully"}
+
+
+@router.get("/teachers/export")
+async def export_teachers(
+    department: Optional[str] = Query(None, description="Filter by department"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    current_user: User = Depends(require_school_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Export teachers to CSV with filters (School Admin only)"""
+    from app.services.export_service import ExportService
+    from fastapi.responses import Response
+    from datetime import datetime
+    
+    csv_content = await ExportService.export_teachers_csv(
+        db, current_school.id, department, is_active
+    )
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=teachers_export_{datetime.now().strftime('%Y%m%d')}.csv"
+        }
+    )

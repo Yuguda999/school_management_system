@@ -125,16 +125,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       mode: newMode,
     }));
 
-    // Check if user is logged in by checking for token
-    if (localStorage.getItem('access_token')) {
-      try {
-        await apiService.put('/api/v1/schools/me/settings', {
-          dark_mode_enabled: newMode === 'dark'
-        });
-      } catch (error) {
-        console.error('Failed to save dark mode setting:', error);
-      }
-    }
+    // Mark that the user has manually set their preference
+    localStorage.setItem('theme_preference_manually_set', 'true');
   };
 
   const updateThemeColors = async (primaryColor: string, secondaryColor: string) => {
@@ -160,13 +152,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const setSchoolTheme = (schoolTheme: { primary_color?: string; secondary_color?: string; dark_mode_enabled?: boolean }) => {
     setIsSchoolThemeActive(true);
 
+    // Check if user has manually set their theme preference
+    const hasManualPreference = localStorage.getItem('theme_preference_manually_set') === 'true';
+
     // Update theme state to reflect school theme
-    // Only update dark mode if explicitly provided in school theme
+    // Only update dark mode if explicitly provided in school theme AND user hasn't manually set a preference
     setTheme(prev => ({
       ...prev,
       primaryColor: schoolTheme.primary_color || prev.primaryColor,
       secondaryColor: schoolTheme.secondary_color || prev.secondaryColor,
-      mode: schoolTheme.dark_mode_enabled !== undefined ? (schoolTheme.dark_mode_enabled ? 'dark' : 'light') : prev.mode,
+      mode: hasManualPreference
+        ? prev.mode
+        : (schoolTheme.dark_mode_enabled !== undefined
+          ? (schoolTheme.dark_mode_enabled ? 'dark' : 'light')
+          : prev.mode),
     }));
   };
 

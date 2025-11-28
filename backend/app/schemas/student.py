@@ -144,6 +144,15 @@ class BulkStudentCreate(BaseModel):
     students: List[StudentCreate]
 
 
+class StudentBulkUpdateItem(StudentUpdate):
+    id: str
+
+
+class BulkStudentUpdate(BaseModel):
+    """Schema for bulk student update"""
+    students: List[StudentBulkUpdateItem]
+
+
 class StudentImportError(BaseModel):
     """Schema for student import error"""
     row: int

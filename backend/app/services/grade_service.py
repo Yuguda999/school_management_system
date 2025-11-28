@@ -14,6 +14,9 @@ from app.schemas.grade import (
     ReportCardCreate, StudentGradesSummary, ClassGradesSummary,
     GradeStatistics, GradeResponse
 )
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class GradeService:
@@ -136,6 +139,32 @@ class GradeService:
         )
         exam = result.scalar_one()
         
+        # Notify Teacher (if assigned to class/subject)
+        # We can find the teacher from the class or subject
+        teacher_id_to_notify = None
+        if exam.class_ and exam.class_.teacher_id:
+             teacher_id_to_notify = exam.class_.teacher_id
+        
+        if teacher_id_to_notify:
+             # Get user_id for teacher
+             teacher_user_res = await db.execute(select(User.id).where(User.id == teacher_id_to_notify)) # Assuming teacher_id is user_id
+             # Wait, teacher_id in Class model usually refers to the teacher profile, which is linked to User.
+             # Let's check Class model or just assume we need to find the User.
+             # In this system, it seems teacher_id in Class refers to User ID (based on other services).
+             
+             if teacher_id_to_notify != created_by: # Don't notify if they created it
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=school_id,
+                    notification_data=NotificationCreate(
+                        user_id=teacher_id_to_notify,
+                        title="New Exam Created",
+                        message=f"A new exam '{exam.name}' has been created for your class {exam.class_.name}.",
+                        type=NotificationType.INFO,
+                        link=f"/grades/exams/{exam.id}"
+                    )
+                )
+
         return exam
     
     @staticmethod
@@ -382,6 +411,20 @@ class GradeService:
         )
         grade = result.scalar_one()
 
+        # Send Notification to Student
+        if grade.student and grade.student.user_id:
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=grade.student.user_id,
+                    title="New Grade Posted",
+                    message=f"A new grade has been posted for {grade.subject.name} ({grade.exam.name}). Score: {grade.score}/{grade.total_marks}",
+                    type=NotificationType.INFO,
+                    link=f"/grades"
+                )
+            )
+
         return grade
 
     @staticmethod
@@ -516,6 +559,21 @@ class GradeService:
             )
             created_grades = result.scalars().all()
 
+            # Send Notifications for bulk grades
+            for grade in created_grades:
+                if grade.student and grade.student.user_id:
+                    await NotificationService.create_notification(
+                        db=db,
+                        school_id=school_id,
+                        notification_data=NotificationCreate(
+                            user_id=grade.student.user_id,
+                            title="New Grade Posted",
+                            message=f"A new grade has been posted for {grade.subject.name} ({grade.exam.name}). Score: {grade.score}/{grade.total_marks}",
+                            type=NotificationType.INFO,
+                            link=f"/grades"
+                        )
+                    )
+
         return created_grades
 
     @staticmethod
@@ -556,7 +614,7 @@ class GradeService:
 
         # Filter by class if provided
         if class_id:
-            query = query.join(Student).where(Student.class_id == class_id)
+            query = query.join(Student).where(Student.current_class_id == class_id)
 
         query = query.order_by(desc(Grade.graded_date)).offset(skip).limit(limit)
         result = await db.execute(query)
@@ -926,7 +984,7 @@ class GradeService:
                 selectinload(Grade.student)
             ).join(Student).where(
                 Grade.exam_id == exam_id,
-                Student.class_id == class_id,
+                Student.current_class_id == class_id,
                 Grade.school_id == school_id,
                 Grade.is_deleted == False
             )
@@ -936,7 +994,7 @@ class GradeService:
         # Get total students in class
         total_students_result = await db.execute(
             select(func.count(Student.id)).where(
-                Student.class_id == class_id,
+                Student.current_class_id == class_id,
                 Student.school_id == school_id,
                 Student.is_deleted == False
             )
@@ -1062,6 +1120,25 @@ class GradeService:
         db.add(report_card)
         await db.commit()
         await db.refresh(report_card)
+
+        # Notify Student
+        if summary.student_id:
+             # Get user_id for the student
+            student_res = await db.execute(select(Student.user_id).where(Student.id == summary.student_id))
+            user_id = student_res.scalar_one_or_none()
+            
+            if user_id:
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=school_id,
+                    notification_data=NotificationCreate(
+                        user_id=user_id,
+                        title="Report Card Generated",
+                        message=f"Your report card for {summary.term_name} has been generated.",
+                        type=NotificationType.INFO,
+                        link=f"/academics/reports/{report_card.id}"
+                    )
+                )
 
         return report_card
 

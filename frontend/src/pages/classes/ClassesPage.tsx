@@ -10,7 +10,8 @@ import {
   BuildingOfficeIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 import { Class, CreateClassForm, UpdateClassForm, ClassLevel } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,11 +27,16 @@ import ClassForm from '../../components/classes/ClassForm';
 import ClassDetails from '../../components/classes/ClassDetails';
 import ClassSubjectManagement from '../../components/classes/ClassSubjectManagement';
 import Card from '../../components/ui/Card';
+import { useNavigate } from 'react-router-dom';
+import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 const ClassesPage: React.FC = () => {
   const { user } = useAuth();
   const { canManageClasses } = usePermissions();
   const { showSuccess, showError, showInfo } = useToast();
+  const navigate = useNavigate();
+  const schoolCode = getSchoolCodeFromUrl();
+
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -241,8 +247,8 @@ const ClassesPage: React.FC = () => {
       header: 'Status',
       render: (classItem) => (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${classItem.is_active
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+          ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+          : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
           }`}>
           {classItem.is_active ? 'Active' : 'Inactive'}
         </span>
@@ -321,15 +327,26 @@ const ClassesPage: React.FC = () => {
               />
             </div>
           </div>
-          {canManageClasses() && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn btn-primary"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Create Class
-            </button>
-          )}
+          <div className="flex gap-3">
+            {user?.role === 'teacher' && (
+              <button
+                onClick={() => navigate(`/${schoolCode}/teacher/attendance/class`)}
+                className="btn btn-secondary"
+              >
+                <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+                Take Attendance
+              </button>
+            )}
+            {canManageClasses() && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn btn-primary"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Class
+              </button>
+            )}
+          </div>
         </div>
       </Card>
 

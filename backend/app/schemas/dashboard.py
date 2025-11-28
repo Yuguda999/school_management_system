@@ -15,6 +15,12 @@ class DashboardStats(BaseModel):
     attendance_rate: float
     total_revenue: float
     
+    # Teacher specific stats
+    my_students_count: Optional[int] = None
+    my_classes_count: Optional[int] = None
+    assignments_due: Optional[int] = None
+    average_grade: Optional[float] = None
+    
     class Config:
         from_attributes = True
 

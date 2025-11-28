@@ -22,7 +22,7 @@ import PageHeader from '../../components/Layout/PageHeader';
 import { useToast } from '../../hooks/useToast';
 import assignmentGeneratorService, { AssignmentRequest } from '../../services/assignmentGeneratorService';
 import { exportAsPDF, exportAsDOCX, exportAsTXT } from '../../utils/exportUtils';
-import materialsService, { MaterialFolder } from '../../services/materialsService';
+
 
 interface AssignmentFormData {
   subject: string;
@@ -46,11 +46,7 @@ const AssignmentGeneratorPage: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [formCollapsed, setFormCollapsed] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [folders, setFolders] = useState<MaterialFolder[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<string>('');
-  const [saveTitle, setSaveTitle] = useState('');
-  const [saving, setSaving] = useState(false);
+
   const [lastFormData, setLastFormData] = useState<AssignmentFormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -77,72 +73,9 @@ const AssignmentGeneratorPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDownloadMenu]);
 
-  // Load folders when save modal opens
-  useEffect(() => {
-    if (showSaveModal) {
-      loadFolders();
-    }
-  }, [showSaveModal]);
 
-  const loadFolders = async () => {
-    try {
-      const foldersList = await materialsService.getFolders();
-      setFolders(foldersList || []);
-    } catch (error) {
-      console.error('Error loading folders:', error);
-      showError('Failed to load folders');
-      setFolders([]);
-    }
-  };
 
-  const handleOpenSaveModal = () => {
-    if (!generatedAssignment && !streamingText) {
-      showError('No assignment to save');
-      return;
-    }
-    
-    if (lastFormData) {
-      setSaveTitle(`${lastFormData.assignment_type} - ${lastFormData.subject}: ${lastFormData.topic}`);
-    }
-    
-    setShowSaveModal(true);
-  };
 
-  const handleSaveAssignment = async () => {
-    if (!saveTitle.trim()) {
-      showError('Please enter a title');
-      return;
-    }
-
-    if (!lastFormData) {
-      showError('No assignment data available');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const content = generatedAssignment || streamingText;
-      await assignmentGeneratorService.saveAssignment({
-        title: saveTitle,
-        content: content,
-        subject: lastFormData.subject,
-        grade_level: lastFormData.grade_level,
-        topic: lastFormData.topic,
-        assignment_type: lastFormData.assignment_type,
-        folder_id: selectedFolderId || undefined,
-      });
-
-      showSuccess('Assignment saved to materials!');
-      setShowSaveModal(false);
-      setSaveTitle('');
-      setSelectedFolderId('');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-      showError('Failed to save assignment');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -190,7 +123,7 @@ const AssignmentGeneratorPage: React.FC = () => {
   const handleDownload = async (format: 'pdf' | 'docx' | 'txt') => {
     const text = generatedAssignment || streamingText;
     if (!text) return;
-    
+
     try {
       switch (format) {
         case 'pdf':
@@ -554,14 +487,7 @@ const AssignmentGeneratorPage: React.FC = () => {
                   <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
 
-                <button
-                  onClick={handleOpenSaveModal}
-                  className="btn btn-sm btn-primary flex items-center space-x-1"
-                  title="Save to materials"
-                >
-                  <FolderPlusIcon className="h-4 w-4" />
-                  <span className="text-xs">Save</span>
-                </button>
+
 
                 <div className="relative download-dropdown">
                   <button
@@ -630,92 +556,7 @@ const AssignmentGeneratorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Save Assignment to Materials
-                </h3>
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={saveTitle}
-                    onChange={(e) => setSaveTitle(e.target.value)}
-                    className="input w-full"
-                    placeholder="Enter assignment title"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Folder (Optional)
-                  </label>
-                  <select
-                    value={selectedFolderId}
-                    onChange={(e) => setSelectedFolderId(e.target.value)}
-                    className="input w-full"
-                  >
-                    <option value="">No folder (Root)</option>
-                    {folders && folders.map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-300">
-                    This assignment will be saved as a markdown document in your materials library.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="btn btn-outline"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveAssignment}
-                  className="btn btn-primary"
-                  disabled={saving || !saveTitle.trim()}
-                >
-                  {saving ? (
-                    <>
-                      <ArrowPathIcon className="h-4 w-4 animate-spin mr-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <FolderPlusIcon className="h-4 w-4 mr-2" />
-                      Save to Materials
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

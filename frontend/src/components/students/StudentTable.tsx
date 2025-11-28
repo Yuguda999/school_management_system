@@ -164,6 +164,7 @@ const StudentTable: React.FC<StudentTableProps> = ({
       columns={columns}
       actions={showActions ? renderActions : undefined}
       pagination={true}
+      searchable={false}
       itemsPerPage={pagination.total > 0 ? students.length : 10} // Just to show pagination controls if needed, though DataTable handles internal pagination usually. 
     // Wait, DataTable has internal pagination state. 
     // But StudentTable props has `pagination` object which implies server-side pagination.

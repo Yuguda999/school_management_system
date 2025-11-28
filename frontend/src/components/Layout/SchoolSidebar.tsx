@@ -10,7 +10,6 @@ import {
   CurrencyDollarIcon,
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
-  DocumentChartBarIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
   ChevronDownIcon,
@@ -19,7 +18,8 @@ import {
   WrenchScrewdriverIcon,
   ClipboardDocumentCheckIcon,
   ArrowLeftOnRectangleIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -118,13 +118,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       roles: ['student'],
       description: 'Online tests'
     },
-    {
-      name: 'Materials',
-      href: `/${schoolCode}/teacher/materials`,
-      icon: FolderIcon,
-      roles: ['teacher'],
-      description: 'Resources'
-    },
+
     {
       name: 'Teacher Tools',
       href: `/${schoolCode}/teacher/tools`,
@@ -142,6 +136,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       roles: ['school_owner', 'school_admin'],
       description: 'Fee management'
     },
+    {
+      name: 'My Fees',
+      href: `/${schoolCode}/student/fees`,
+      icon: CurrencyDollarIcon,
+      roles: ['student'],
+      description: 'My fees'
+    },
   ];
 
   const managementItems: NavigationItem[] = [
@@ -153,11 +154,11 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       description: 'Messages'
     },
     {
-      name: 'Reports',
-      href: `/${schoolCode}/reports`,
-      icon: DocumentChartBarIcon,
+      name: 'Assets',
+      href: `/${schoolCode}/assets`,
+      icon: CubeIcon,
       roles: ['school_owner', 'school_admin'],
-      description: 'Analytics'
+      description: 'Physical resources'
     },
     {
       name: 'Settings',

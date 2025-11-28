@@ -124,7 +124,7 @@ class Subject(TenantBaseModel):
     grades = relationship("Grade", back_populates="subject")
     teachers = relationship("User", secondary=teacher_subject_association, back_populates="subjects")
     classes = relationship("Class", secondary=class_subject_association, back_populates="subjects")
-    materials = relationship("TeacherMaterial", back_populates="subject")
+
     
     def __repr__(self):
         return f"<Subject(id={self.id}, name={self.name}, code={self.code})>"
@@ -218,7 +218,7 @@ class TimetableEntry(TenantBaseModel):
 
 
 class Attendance(TenantBaseModel):
-    """Student attendance tracking"""
+    """Student attendance tracking - supports both class and subject attendance"""
     
     __tablename__ = "attendances"
     
@@ -229,6 +229,7 @@ class Attendance(TenantBaseModel):
     # Foreign Keys
     student_id = Column(String(36), ForeignKey("students.id"), nullable=False)
     class_id = Column(String(36), ForeignKey("classes.id"), nullable=False)
+    subject_id = Column(String(36), ForeignKey("subjects.id"), nullable=True)  # NULL for class attendance, set for subject attendance
     term_id = Column(String(36), ForeignKey("terms.id"), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
     
@@ -239,8 +240,10 @@ class Attendance(TenantBaseModel):
     # Relationships
     student = relationship("Student", back_populates="attendances")
     class_ = relationship("Class", back_populates="attendances")
+    subject = relationship("Subject")
     term = relationship("Term", back_populates="attendances")
     marker = relationship("User")
     
     def __repr__(self):
-        return f"<Attendance(student_id={self.student_id}, date={self.date}, status={self.status})>"
+        attendance_type = "subject" if self.subject_id else "class"
+        return f"<Attendance({attendance_type}, student_id={self.student_id}, date={self.date}, status={self.status})>"

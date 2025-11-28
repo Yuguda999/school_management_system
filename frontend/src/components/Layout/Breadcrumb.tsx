@@ -58,8 +58,8 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ items }) => {
             </Link>
           </div>
         </li>
-        {breadcrumbItems.slice(1).map((item) => (
-          <li key={item.name}>
+        {breadcrumbItems.slice(1).map((item, index) => (
+          <li key={`${index}-${item.href || item.name}`}>
             <div className="flex items-center">
               <ChevronRightIcon
                 className="flex-shrink-0 h-4 w-4 text-gray-300 dark:text-gray-600"

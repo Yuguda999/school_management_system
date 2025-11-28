@@ -14,6 +14,9 @@ from app.schemas.fee import (
     FeePaymentCreate, BulkFeeAssignmentCreate
 )
 import uuid
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class FeeService:
@@ -115,6 +118,10 @@ class FeeService:
         await db.commit()
         await db.refresh(fee_structure)
         
+        # Notify Students (Optional - depends on business logic)
+        # If fee structure is updated, we might want to notify students in that class level.
+        # For now, we will skip this as it might be spammy or irrelevant if no assignments exist.
+        
         return fee_structure
 
     @staticmethod
@@ -196,6 +203,29 @@ class FeeService:
         await db.commit()
         await db.refresh(assignment)
         
+        # Notify Student
+        # We need to fetch student user_id
+        student_res = await db.execute(select(Student).where(Student.id == assignment_data.student_id))
+        student = student_res.scalar_one_or_none()
+        
+        if student and student.user_id:
+             # Fetch fee structure name
+             fee_structure_res = await db.execute(select(FeeStructure).where(FeeStructure.id == assignment_data.fee_structure_id))
+             fee_structure = fee_structure_res.scalar_one_or_none()
+             fee_name = fee_structure.name if fee_structure else "Fee"
+             
+             await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=student.user_id,
+                    title="New Fee Assigned",
+                    message=f"A new fee '{fee_name}' of {assignment.amount} has been assigned to you.",
+                    type=NotificationType.WARNING, # Warning because it's a debt
+                    link="/fees"
+                )
+            )
+
         return assignment
     
     @staticmethod
@@ -278,7 +308,24 @@ class FeeService:
         )
         
         result = await db.execute(query)
-        return result.scalars().all()
+        assignments = result.scalars().all()
+        
+        # Notify Students
+        for assignment in assignments:
+            if assignment.student and assignment.student.user_id:
+                 await NotificationService.create_notification(
+                    db=db,
+                    school_id=school_id,
+                    notification_data=NotificationCreate(
+                        user_id=assignment.student.user_id,
+                        title="New Fee Assigned",
+                        message=f"A new fee '{assignment.fee_structure.name}' of {assignment.amount} has been assigned to you.",
+                        type=NotificationType.WARNING,
+                        link="/fees"
+                    )
+                )
+
+        return assignments
     
     @staticmethod
     async def get_student_fee_assignments(
@@ -296,7 +343,7 @@ class FeeService:
         ).options(
             selectinload(FeeAssignment.fee_structure),
             selectinload(FeeAssignment.term),
-            selectinload(FeeAssignment.student)
+            selectinload(FeeAssignment.student).selectinload(Student.current_class)
         )
         
         if term_id:
@@ -494,6 +541,20 @@ class FeeService:
         )
         payment = result.scalar_one()
         
+        # Send Notification to Student/Parent
+        if payment.student and payment.student.user_id:
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=payment.student.user_id,
+                    title="Payment Received",
+                    message=f"We have received your payment of {payment.amount} for {payment.fee_assignment.fee_structure.name}. Receipt: {payment.receipt_number}",
+                    type=NotificationType.SUCCESS,
+                    link=f"/fees/payments"
+                )
+            )
+
         return payment
     
     @staticmethod
@@ -511,8 +572,10 @@ class FeeService:
                 FeePayment.school_id == school_id,
                 FeePayment.is_deleted == False
             ).options(
-                selectinload(FeePayment.fee_assignment),
-                selectinload(FeePayment.collector)
+                selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure),
+                selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.term),
+                selectinload(FeePayment.collector),
+                selectinload(FeePayment.student).selectinload(Student.current_class)
             ).offset(skip).limit(limit)
         )
         return list(result.scalars().all())

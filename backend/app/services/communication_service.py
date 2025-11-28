@@ -20,6 +20,9 @@ from app.schemas.communication import (
     NotificationTemplateCreate, NotificationTemplateUpdate,
     MessageStatistics, CommunicationDashboard
 )
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +119,7 @@ class CommunicationService:
                 select(Student).options(
                     selectinload(Student.user)
                 ).where(
-                    Student.class_id == message_data.recipient_class_id,
+                    Student.current_class_id == message_data.recipient_class_id,
                     Student.school_id == school_id,
                     Student.is_deleted == False
                 )
@@ -259,6 +262,24 @@ class CommunicationService:
                 recipient.error_message = str(e)
                 recipient.retry_count += 1
         
+        # Create System Notifications for recipients
+        for recipient in message.message_recipients:
+             # Find user_id from recipient_id (which is User.id)
+             # In _get_recipients, we stored recipient_id as User.id or Student.user.id
+             # So recipient.recipient_id IS the user_id we need.
+             
+             await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=recipient.recipient_id,
+                    title=f"New Message from {message.sender_name}",
+                    message=f"{message.subject}",
+                    type=NotificationType.INFO,
+                    link=f"/communication/messages/{message.id}"
+                )
+            )
+
         await db.commit()
         return True
     

@@ -414,7 +414,7 @@ export interface Student {
   postal_code: string;
   admission_date: string;
   current_class_id?: string;
-  status: 'active' | 'graduated' | 'transferred' | 'suspended' | 'expelled';
+  status: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended' | 'expelled';
 
   // Parent/Guardian Information
   parent_id?: string;
@@ -1013,6 +1013,7 @@ export interface CreateStudentForm {
 
   // Additional Information
   notes?: string;
+  status?: 'active' | 'inactive' | 'graduated' | 'transferred' | 'suspended' | 'expelled';
 }
 
 // Multistep form step types
@@ -1187,15 +1188,7 @@ export type DocumentType =
 
 export type DocumentStatus = 'pending' | 'approved' | 'rejected' | 'expired';
 
-// Dashboard Types
-export interface DashboardStats {
-  total_students: number;
-  total_teachers: number;
-  total_classes: number;
-  total_revenue: number;
-  pending_fees: number;
-  recent_enrollments: number;
-}
+export * from './dashboard';
 
 // Theme Types
 export interface Theme {
@@ -1432,3 +1425,113 @@ export interface MaterialListParams extends MaterialFilters {
   skip?: number;
   limit?: number;
 }
+
+// Notification Types
+export enum NotificationType {
+  INFO = 'info',
+  WARNING = 'warning',
+  ERROR = 'error',
+  SUCCESS = 'success',
+}
+
+export interface Notification {
+  id: string;
+  school_id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  is_read: boolean;
+  link?: string;
+  created_at: string;
+}
+
+// Audit Log Types
+export interface AuditLog {
+  id: string;
+  school_id: string;
+  user_id: string;
+  action: string;
+  entity_type: string;
+  entity_id?: string;
+  details?: Record<string, any>;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+// Asset Management Types
+export enum AssetCategory {
+  FURNITURE = 'furniture',
+  BUILDING = 'building',
+  EQUIPMENT = 'equipment',
+  ELECTRONICS = 'electronics',
+  VEHICLES = 'vehicles',
+  SPORTS = 'sports',
+  LABORATORY = 'laboratory',
+  OTHER = 'other'
+}
+
+export enum AssetCondition {
+  EXCELLENT = 'excellent',
+  GOOD = 'good',
+  FAIR = 'fair',
+  POOR = 'poor',
+  DAMAGED = 'damaged'
+}
+
+export interface Asset {
+  id: string;
+  school_id: string;
+  name: string;
+  category: AssetCategory;
+  description?: string;
+  quantity: number;
+  condition: AssetCondition;
+  location?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  serial_number?: string;
+  warranty_expiry?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssetCreate {
+  name: string;
+  category: AssetCategory;
+  description?: string;
+  quantity: number;
+  condition: AssetCondition;
+  location?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  serial_number?: string;
+  warranty_expiry?: string;
+  is_active?: boolean;
+}
+
+export interface AssetUpdate {
+  name?: string;
+  category?: AssetCategory;
+  description?: string;
+  quantity?: number;
+  condition?: AssetCondition;
+  location?: string;
+  purchase_date?: string;
+  purchase_price?: number;
+  serial_number?: string;
+  warranty_expiry?: string;
+  is_active?: boolean;
+}
+
+export interface AssetStats {
+  total_assets: number;
+  total_value: number;
+  by_category: Record<string, number>;
+  by_condition: Record<string, number>;
+  active_assets: number;
+  inactive_assets: number;
+}
+

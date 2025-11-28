@@ -17,7 +17,9 @@ from app.schemas.student import (
 )
 from app.schemas.grade import GradeResponse
 from app.schemas.academic import TermResponse
+from app.schemas.fee import FeeAssignmentResponse, FeePaymentResponse
 from app.services.student_service import StudentService
+from app.services.fee_service import FeeService
 
 router = APIRouter()
 
@@ -259,4 +261,65 @@ async def get_my_terms(
         terms = result.scalars().all()
     
     return [TermResponse.from_orm(term) for term in terms]
+
+
+@router.get("/fees", response_model=List[FeeAssignmentResponse])
+async def get_my_fees(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    student: Student = Depends(get_current_student),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get authenticated student's fee assignments"""
+    assignments = await FeeService.get_student_fee_assignments(
+        db, student.id, current_school.id, term_id, status
+    )
+    
+    # Enhance response with related data
+    response_assignments = []
+    for assignment in assignments:
+        assignment_response = FeeAssignmentResponse.from_orm(assignment)
+        
+        # Add related names
+        if hasattr(assignment, 'student') and assignment.student:
+            assignment_response.student_name = assignment.student.full_name
+        if hasattr(assignment, 'fee_structure') and assignment.fee_structure:
+            assignment_response.fee_structure_name = assignment.fee_structure.name
+        if hasattr(assignment, 'term') and assignment.term:
+            assignment_response.term_name = assignment.term.name
+        
+        response_assignments.append(assignment_response)
+    
+    return response_assignments
+
+
+@router.get("/payments", response_model=List[FeePaymentResponse])
+async def get_my_payments(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    student: Student = Depends(get_current_student),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get authenticated student's payments"""
+    skip = (page - 1) * size
+    payments = await FeeService.get_student_payments(
+        db, student.id, current_school.id, skip, size
+    )
+    
+    # Enhance response with related data
+    response_payments = []
+    for payment in payments:
+        payment_response = FeePaymentResponse.from_orm(payment)
+        
+        # Add related names
+        if hasattr(payment, 'student') and payment.student:
+            payment_response.student_name = payment.student.full_name
+        if hasattr(payment, 'collector') and payment.collector:
+            payment_response.collector_name = payment.collector.full_name
+        
+        response_payments.append(payment_response)
+    
+    return response_payments
 

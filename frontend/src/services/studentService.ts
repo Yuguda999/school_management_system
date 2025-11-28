@@ -143,9 +143,15 @@ class StudentService {
     }
 
     const endpoint = buildSchoolApiUrl(schoolCode, 'students/bulk-update');
+
+    // Transform data to match backend schema: { students: [{ id: "...", ...updates }, ...] }
+    const students = studentIds.map(id => ({
+      id,
+      ...updates
+    }));
+
     return apiService.post<Student[]>(endpoint, {
-      student_ids: studentIds,
-      updates,
+      students
     });
   }
 
@@ -209,6 +215,7 @@ class StudentService {
   async exportStudents(params?: {
     class_id?: string;
     status?: string;
+    search?: string;
     format?: 'csv' | 'xlsx';
   }): Promise<Blob> {
     const schoolCode = getSchoolCodeFromUrl();
@@ -219,12 +226,14 @@ class StudentService {
     const queryParams = new URLSearchParams();
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
     if (params?.format) queryParams.append('format', params.format);
 
     const endpoint = buildSchoolApiUrl(schoolCode, `students/export?${queryParams.toString()}`);
-    return apiService.get(endpoint, {
+    const response = await apiService.api.get(endpoint, {
       responseType: 'blob',
     });
+    return response.data;
   }
 
   // Student Portal Methods (for authenticated students)
@@ -275,6 +284,30 @@ class StudentService {
       throw new Error('School code not found in URL');
     }
     return apiService.get(buildSchoolApiUrl(schoolCode, 'students/me/terms'));
+  }
+
+  async getMyFees(termId?: string, status?: string): Promise<any[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    const queryParams = new URLSearchParams();
+    if (termId) queryParams.append('term_id', termId);
+    if (status) queryParams.append('status', status);
+
+    return apiService.get(buildSchoolApiUrl(schoolCode, `students/me/fees?${queryParams.toString()}`));
+  }
+
+  async getMyPayments(page: number = 1, size: number = 20): Promise<any[]> {
+    const schoolCode = getSchoolCodeFromUrl();
+    if (!schoolCode) {
+      throw new Error('School code not found in URL');
+    }
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('size', size.toString());
+
+    return apiService.get(buildSchoolApiUrl(schoolCode, `students/me/payments?${queryParams.toString()}`));
   }
 }
 

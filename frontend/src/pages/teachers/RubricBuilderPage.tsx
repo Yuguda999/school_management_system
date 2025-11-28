@@ -20,7 +20,7 @@ import PageHeader from '../../components/Layout/PageHeader';
 import { useToast } from '../../hooks/useToast';
 import rubricBuilderService, { RubricRequest } from '../../services/rubricBuilderService';
 import { exportAsPDF, exportAsDOCX, exportAsTXT } from '../../utils/exportUtils';
-import materialsService, { MaterialFolder } from '../../services/materialsService';
+
 
 interface RubricFormData {
   assignment_title: string;
@@ -48,11 +48,7 @@ const RubricBuilderPage: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [formCollapsed, setFormCollapsed] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [folders, setFolders] = useState<MaterialFolder[]>([]);
-  const [selectedFolderId, setSelectedFolderId] = useState<string>('');
-  const [saveTitle, setSaveTitle] = useState('');
-  const [saving, setSaving] = useState(false);
+
   const [lastFormData, setLastFormData] = useState<RubricFormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -82,72 +78,9 @@ const RubricBuilderPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDownloadMenu]);
 
-  // Load folders when save modal opens
-  useEffect(() => {
-    if (showSaveModal) {
-      loadFolders();
-    }
-  }, [showSaveModal]);
 
-  const loadFolders = async () => {
-    try {
-      const foldersList = await materialsService.getFolders();
-      setFolders(foldersList || []);
-    } catch (error) {
-      console.error('Error loading folders:', error);
-      showError('Failed to load folders');
-      setFolders([]);
-    }
-  };
 
-  const handleOpenSaveModal = () => {
-    if (!generatedRubric && !streamingText) {
-      showError('No rubric to save');
-      return;
-    }
-    
-    if (lastFormData) {
-      setSaveTitle(`${lastFormData.rubric_type} Rubric - ${lastFormData.assignment_title}`);
-    }
-    
-    setShowSaveModal(true);
-  };
 
-  const handleSaveRubric = async () => {
-    if (!saveTitle.trim()) {
-      showError('Please enter a title');
-      return;
-    }
-
-    if (!lastFormData) {
-      showError('No rubric data available');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const content = generatedRubric || streamingText;
-      await rubricBuilderService.saveRubric({
-        title: saveTitle,
-        content: content,
-        assignment_title: lastFormData.assignment_title,
-        subject: lastFormData.subject,
-        grade_level: lastFormData.grade_level,
-        rubric_type: lastFormData.rubric_type,
-        folder_id: selectedFolderId || undefined,
-      });
-
-      showSuccess('Rubric saved to materials!');
-      setShowSaveModal(false);
-      setSaveTitle('');
-      setSelectedFolderId('');
-    } catch (error) {
-      console.error('Error saving rubric:', error);
-      showError('Failed to save rubric');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -195,7 +128,7 @@ const RubricBuilderPage: React.FC = () => {
   const handleDownload = async (format: 'pdf' | 'docx' | 'txt') => {
     const text = generatedRubric || streamingText;
     if (!text) return;
-    
+
     try {
       switch (format) {
         case 'pdf':
@@ -347,7 +280,7 @@ const RubricBuilderPage: React.FC = () => {
                   Number of Criteria: {criteriaCount}
                 </label>
                 <input
-                  {...register('criteria_count', { 
+                  {...register('criteria_count', {
                     required: 'Criteria count is required',
                     min: { value: 3, message: 'Minimum 3 criteria' },
                     max: { value: 10, message: 'Maximum 10 criteria' }
@@ -372,7 +305,7 @@ const RubricBuilderPage: React.FC = () => {
                   Performance Levels: {performanceLevels}
                 </label>
                 <input
-                  {...register('performance_levels', { 
+                  {...register('performance_levels', {
                     required: 'Performance levels is required',
                     min: { value: 3, message: 'Minimum 3 levels' },
                     max: { value: 5, message: 'Maximum 5 levels' }
@@ -528,14 +461,7 @@ const RubricBuilderPage: React.FC = () => {
                   <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
 
-                <button
-                  onClick={handleOpenSaveModal}
-                  className="btn btn-sm btn-primary flex items-center space-x-1"
-                  title="Save to materials"
-                >
-                  <FolderPlusIcon className="h-4 w-4" />
-                  <span className="text-xs">Save</span>
-                </button>
+
 
                 <div className="relative download-dropdown">
                   <button
@@ -604,92 +530,7 @@ const RubricBuilderPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Save Modal */}
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Save Rubric to Materials
-                </h3>
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={saveTitle}
-                    onChange={(e) => setSaveTitle(e.target.value)}
-                    className="input w-full"
-                    placeholder="Enter rubric title"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Folder (Optional)
-                  </label>
-                  <select
-                    value={selectedFolderId}
-                    onChange={(e) => setSelectedFolderId(e.target.value)}
-                    className="input w-full"
-                  >
-                    <option value="">No folder (Root)</option>
-                    {folders && folders.map((folder) => (
-                      <option key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                  <p className="text-sm text-purple-800 dark:text-purple-300">
-                    This rubric will be saved as a markdown document in your materials library.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowSaveModal(false)}
-                  className="btn btn-outline"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveRubric}
-                  className="btn btn-primary"
-                  disabled={saving || !saveTitle.trim()}
-                >
-                  {saving ? (
-                    <>
-                      <ArrowPathIcon className="h-4 w-4 animate-spin mr-2" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <FolderPlusIcon className="h-4 w-4 mr-2" />
-                      Save to Materials
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

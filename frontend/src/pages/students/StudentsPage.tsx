@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, DocumentArrowUpIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, DocumentArrowUpIcon, UserGroupIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 import { Student, PaginatedResponse } from '../../types';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
+import { getSchoolCodeFromUrl, buildSchoolRouteUrl } from '../../utils/schoolCode';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StudentTable from '../../components/students/StudentTable';
 import MultiStepStudentModal from '../../components/students/MultiStepStudentModal';
@@ -50,15 +51,46 @@ const StudentsPage: React.FC = () => {
       const response = await studentService.getStudents({
         ...filters,
         search: searchTerm || undefined,
-        school_id: user?.school_id,
+        school_id: user?.school_id || undefined,
       });
       setStudents(response);
     } catch (error: any) {
       console.error('Failed to fetch students:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to load students. Please try again.';
+      const errorMessage = typeof error.response?.data?.detail === 'string'
+        ? error.response.data.detail
+        : 'Failed to load students. Please try again.';
       showError(errorMessage, 'Loading Failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      showInfo('Generating export...', 'Please wait');
+      const blob = await studentService.exportStudents({
+        class_id: filters.class_id || undefined,
+        status: filters.status || undefined,
+        search: searchTerm || undefined,
+      });
+
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `students_export_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      showSuccess('Students exported successfully!', 'Export Complete');
+    } catch (error: any) {
+      console.error('Export failed:', error);
+      const errorMessage = error.response?.data?.detail || 'Failed to export students. Please try again.';
+      showError(errorMessage, 'Export Failed');
     }
   };
 
@@ -68,7 +100,10 @@ const StudentsPage: React.FC = () => {
   };
 
   const handleViewStudent = (student: Student) => {
-    navigate(`/students/${student.id}`);
+    const schoolCode = getSchoolCodeFromUrl();
+    if (schoolCode) {
+      navigate(buildSchoolRouteUrl(schoolCode, `students/${student.id}`));
+    }
   };
 
   const handleEditStudent = (student: Student) => {
@@ -152,7 +187,9 @@ const StudentsPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Bulk action failed:', error);
-      const errorMessage = error.response?.data?.detail || `Failed to ${action} students. Please try again.`;
+      const errorMessage = typeof error.response?.data?.detail === 'string'
+        ? error.response.data.detail
+        : `Failed to ${action} students. Please try again.`;
       showError(errorMessage, 'Bulk Action Failed');
     }
   };
@@ -184,14 +221,24 @@ const StudentsPage: React.FC = () => {
         {canManageStudents() && (
           <div className="flex space-x-3">
             {(user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin') && (
-              <button
-                type="button"
-                onClick={() => setShowCSVImportModal(true)}
-                className="btn btn-secondary"
-              >
-                <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
-                Import CSV
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowCSVImportModal(true)}
+                  className="btn btn-secondary"
+                >
+                  <DocumentArrowUpIcon className="h-5 w-5 mr-2" />
+                  Import CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  className="btn btn-outline"
+                >
+                  <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                  Export CSV
+                </button>
+              </>
             )}
             <button
               type="button"

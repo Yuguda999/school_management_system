@@ -9,6 +9,9 @@ import uuid
 from app.models.academic import Enrollment, Subject, Class, Term
 from app.models.student import Student, StudentClassHistory, ClassHistoryStatus
 from app.schemas.academic import EnrollmentCreate, EnrollmentResponse
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class EnrollmentService:
@@ -59,6 +62,28 @@ class EnrollmentService:
         await db.commit()
         await db.refresh(enrollment)
         
+        # Notify Student
+        # Fetch student and subject details for notification
+        stmt = select(Enrollment).options(
+            selectinload(Enrollment.student),
+            selectinload(Enrollment.subject)
+        ).where(Enrollment.id == enrollment.id)
+        result = await db.execute(stmt)
+        enrollment_details = result.scalar_one_or_none()
+        
+        if enrollment_details and enrollment_details.student and enrollment_details.student.user_id:
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=enrollment_details.student.user_id,
+                    title="Subject Enrollment",
+                    message=f"You have been enrolled in {enrollment_details.subject.name}.",
+                    type=NotificationType.INFO,
+                    link="/academics/subjects"
+                )
+            )
+
         return enrollment
 
     @staticmethod
@@ -155,6 +180,13 @@ class EnrollmentService:
         if not subject_ids_to_enroll:
             return []
 
+        # Fetch subject names for notifications
+        subject_names = {}
+        if subject_ids_to_enroll:
+            subjects_query = select(Subject.id, Subject.name).where(Subject.id.in_(subject_ids_to_enroll))
+            subjects_res = await db.execute(subjects_query)
+            subject_names = {row.id: row.name for row in subjects_res.fetchall()}
+
         # Create enrollments for each student-subject combination
         enrollments = []
         enrollment_date = date.today()
@@ -185,6 +217,21 @@ class EnrollmentService:
                     )
                     db.add(enrollment)
                     enrollments.append(enrollment)
+                    
+                    # Notify Student
+                    if student.user_id:
+                        subject_name = subject_names.get(subject_id, "a subject")
+                        await NotificationService.create_notification(
+                            db=db,
+                            school_id=school_id,
+                            notification_data=NotificationCreate(
+                                user_id=student.user_id,
+                                title="Subject Enrollment",
+                                message=f"You have been enrolled in {subject_name}.",
+                                type=NotificationType.INFO,
+                                link="/academics/subjects"
+                            )
+                        )
 
         if enrollments:
             await db.commit()
@@ -374,6 +421,29 @@ class EnrollmentService:
         
         enrollment.is_deleted = True
         await db.commit()
+        
+        # Notify Student
+        # Fetch student and subject details for notification
+        stmt = select(Enrollment).options(
+            selectinload(Enrollment.student),
+            selectinload(Enrollment.subject)
+        ).where(Enrollment.id == enrollment_id)
+        result = await db.execute(stmt)
+        enrollment_details = result.scalar_one_or_none()
+        
+        if enrollment_details and enrollment_details.student and enrollment_details.student.user_id:
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=enrollment_details.student.user_id,
+                    title="Subject Withdrawal",
+                    message=f"You have been withdrawn from {enrollment_details.subject.name}.",
+                    type=NotificationType.WARNING,
+                    link="/academics/subjects"
+                )
+            )
+            
         return True
 
     @staticmethod

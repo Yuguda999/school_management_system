@@ -10,42 +10,14 @@ import {
 } from 'recharts';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 
-const data = [
-  { month: 'Jan', students: 1100 },
-  { month: 'Feb', students: 1150 },
-  { month: 'Mar', students: 1180 },
-  { month: 'Apr', students: 1200 },
-  { month: 'May', students: 1220 },
-  { month: 'Jun', students: 1250 },
-];
+import { EnrollmentTrend } from '../../services/reportsService';
 
-const EnrollmentChart: React.FC = () => {
+interface EnrollmentChartProps {
+  data: EnrollmentTrend[];
+}
+
+const EnrollmentChart: React.FC<EnrollmentChartProps> = ({ data }) => {
   const { currentTerm } = useCurrentTerm();
-  const [data, setData] = useState([
-    { month: 'Jan', students: 1200 },
-    { month: 'Feb', students: 1220 },
-    { month: 'Mar', students: 1250 },
-    { month: 'Apr', students: 1280 },
-    { month: 'May', students: 1300 },
-    { month: 'Jun', students: 1320 },
-  ]);
-
-  useEffect(() => {
-    // In a real implementation, you would fetch enrollment data based on currentTerm
-    // For now, we'll use mock data that could vary by term
-    if (currentTerm) {
-      // Mock different data for different terms
-      const termBasedData = [
-        { month: 'Jan', students: 1200 + (currentTerm.name.includes('First') ? 0 : 50) },
-        { month: 'Feb', students: 1220 + (currentTerm.name.includes('First') ? 0 : 50) },
-        { month: 'Mar', students: 1250 + (currentTerm.name.includes('First') ? 0 : 50) },
-        { month: 'Apr', students: 1280 + (currentTerm.name.includes('First') ? 0 : 50) },
-        { month: 'May', students: 1300 + (currentTerm.name.includes('First') ? 0 : 50) },
-        { month: 'Jun', students: 1320 + (currentTerm.name.includes('First') ? 0 : 50) },
-      ];
-      setData(termBasedData);
-    }
-  }, [currentTerm]);
 
   return (
     <div className="card p-6">
@@ -64,8 +36,8 @@ const EnrollmentChart: React.FC = () => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="month" 
+            <XAxis
+              dataKey="month"
               className="text-gray-600 dark:text-gray-400"
             />
             <YAxis className="text-gray-600 dark:text-gray-400" />

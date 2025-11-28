@@ -69,11 +69,6 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
       return;
     }
 
-    // Skip for students
-    if (user.role === 'student') {
-      return;
-    }
-
     try {
       setError(null);
       const term = await academicService.getCurrentTerm();
@@ -97,11 +92,6 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
 
     // Skip term loading for platform admins
     if (user.role === 'platform_super_admin') {
-      return;
-    }
-
-    // Skip for students
-    if (user.role === 'student') {
       return;
     }
 
@@ -153,12 +143,6 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
 
       // Skip term loading for platform admins
       if (user.role === 'platform_super_admin') {
-        setLoading(false);
-        return;
-      }
-
-      // Skip loading entirely for students
-      if (user.role === 'student') {
         setLoading(false);
         return;
       }

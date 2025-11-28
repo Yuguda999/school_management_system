@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { academicService } from '../../services/academicService';
+import { Class } from '../../types';
 
 interface FilterPanelProps {
   filters: {
@@ -13,6 +15,25 @@ interface FilterPanelProps {
 }
 
 const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onFilterChange, onClose }) => {
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
+  const fetchClasses = async () => {
+    try {
+      setLoadingClasses(true);
+      const response = await academicService.getClasses({ is_active: true, size: 100 });
+      setClasses(response);
+    } catch (error) {
+      console.error('Failed to fetch classes:', error);
+    } finally {
+      setLoadingClasses(false);
+    }
+  };
+
   const handleFilterChange = (key: string, value: string) => {
     onFilterChange({ [key]: value });
   };
@@ -27,71 +48,65 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ filters, onFilterChange, onCl
   };
 
   return (
-    <div className="card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Filters</h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-500"
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Class
+        </label>
+        <select
+          value={filters.class_id}
+          onChange={(e) => handleFilterChange('class_id', e.target.value)}
+          className="input"
+          disabled={loadingClasses}
         >
-          <XMarkIcon className="h-5 w-5" />
-        </button>
+          <option value="">All Classes</option>
+          {loadingClasses ? (
+            <option disabled>Loading classes...</option>
+          ) : classes.length === 0 ? (
+            <option disabled>No classes available</option>
+          ) : (
+            classes.map((classItem) => (
+              <option key={classItem.id} value={classItem.id}>
+                {classItem.name}
+              </option>
+            ))
+          )}
+        </select>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Class
-          </label>
-          <select
-            value={filters.class_id}
-            onChange={(e) => handleFilterChange('class_id', e.target.value)}
-            className="input"
-          >
-            <option value="">All Classes</option>
-            <option value="class1">Grade 9-A</option>
-            <option value="class2">Grade 9-B</option>
-            <option value="class3">Grade 10-A</option>
-            <option value="class4">Grade 10-B</option>
-            {/* Add more class options */}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Status
-          </label>
-          <select
-            value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="input"
-          >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="graduated">Graduated</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Items per page
-          </label>
-          <select
-            value={filters.size}
-            onChange={(e) => handleFilterChange('size', e.target.value)}
-            className="input"
-          >
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Status
+        </label>
+        <select
+          value={filters.status}
+          onChange={(e) => handleFilterChange('status', e.target.value)}
+          className="input"
+        >
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="graduated">Graduated</option>
+        </select>
       </div>
 
-      <div className="flex justify-end mt-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Items per page
+        </label>
+        <select
+          value={filters.size}
+          onChange={(e) => handleFilterChange('size', e.target.value)}
+          className="input"
+        >
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+
+      <div className="sm:col-span-3 flex justify-end">
         <button
           type="button"
           onClick={clearFilters}

@@ -33,6 +33,9 @@ from app.services.school_ownership_service import SchoolOwnershipService
 from app.services.email_service import EmailService
 from app.models.student import Student, StudentStatus
 from app.schemas.auth import StudentLoginRequest
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 router = APIRouter()
 
@@ -379,24 +382,56 @@ async def refresh_token(
                 detail="Invalid token"
             )
         
-        # Get user from database
+        # Try to get user from database
         result = await db.execute(select(User).where(User.id == user_id, User.is_deleted == False))
         user = result.scalar_one_or_none()
         
-        if not user or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found or inactive"
+        if user:
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User account is inactive"
+                )
+            
+            # Create new access token for user
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={"sub": user.id, "email": user.email, "role": user.role, "school_id": user.school_id},
+                expires_delta=access_token_expires
             )
+            
+            return RefreshTokenResponse(access_token=access_token)
+            
+        # If not user, try to get student
+        result = await db.execute(select(Student).where(Student.id == user_id, Student.is_deleted == False))
+        student = result.scalar_one_or_none()
         
-        # Create new access token
-        access_token_expires = timedelta(minutes=30)
-        access_token = create_access_token(
-            data={"sub": user.id, "email": user.email, "role": user.role, "school_id": user.school_id},
-            expires_delta=access_token_expires
+        if student:
+            if student.status != StudentStatus.ACTIVE:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Student account is inactive"
+                )
+                
+            # Create new access token for student
+            access_token_expires = timedelta(minutes=30)
+            access_token = create_access_token(
+                data={
+                    "sub": student.id, 
+                    "email": student.email or "", 
+                    "role": UserRole.STUDENT, 
+                    "school_id": student.school_id
+                },
+                expires_delta=access_token_expires
+            )
+            
+            return RefreshTokenResponse(access_token=access_token)
+        
+        # Neither user nor student found
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive"
         )
-        
-        return RefreshTokenResponse(access_token=access_token)
         
     except Exception:
         raise HTTPException(
@@ -524,6 +559,19 @@ async def confirm_password_reset(
     user.password_hash = get_password_hash(reset_data.new_password)
     await db.commit()
     
+    # Notify User
+    await NotificationService.create_notification(
+        db=db,
+        school_id=user.school_id,
+        notification_data=NotificationCreate(
+            user_id=user.id,
+            title="Password Reset Successful",
+            message="Your password has been successfully reset.",
+            type=NotificationType.SUCCESS,
+            link="/profile"
+        )
+    )
+    
     return {"message": "Password has been reset successfully"}
 
 
@@ -544,6 +592,19 @@ async def change_password(
     # Update password
     current_user.password_hash = get_password_hash(password_data.new_password)
     await db.commit()
+    
+    # Notify User
+    await NotificationService.create_notification(
+        db=db,
+        school_id=current_user.school_id,
+        notification_data=NotificationCreate(
+            user_id=current_user.id,
+            title="Password Changed",
+            message="Your password has been changed successfully.",
+            type=NotificationType.SUCCESS,
+            link="/profile"
+        )
+    )
     
     return {"message": "Password changed successfully"}
 

@@ -31,45 +31,55 @@ const StudentTestTakingPage: React.FC = () => {
   const [visitedQuestions, setVisitedQuestions] = useState<Set<number>>(new Set([0]));
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
-  const [showQuestionPalette, setShowQuestionPalette] = useState(true);
+  const [isMobilePaletteOpen, setIsMobilePaletteOpen] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
+  // Initialize test and restore state
   useEffect(() => {
     if (submissionId) {
       startTest();
     }
   }, [submissionId]);
 
-  // Auto-save answers every 30 seconds
+  // Save state to localStorage whenever it changes
   useEffect(() => {
-    if (!test || Object.keys(answers).length === 0) return;
-
-    // Clear existing timer
-    if (autoSaveTimer) {
-      clearTimeout(autoSaveTimer);
+    if (submissionId && test && !submitting && !loading) {
+      const stateToSave = {
+        answers,
+        timeRemaining,
+        visitedQuestions: Array.from(visitedQuestions),
+        markedForReview: Array.from(markedForReview),
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem(`cbt_state_${submissionId}`, JSON.stringify(stateToSave));
+      setLastSaved(new Date());
     }
+  }, [answers, timeRemaining, visitedQuestions, markedForReview, submissionId, test, submitting, loading]);
 
-    // Set new timer for 30 seconds
-    const timer = setTimeout(() => {
-      autoSaveAnswers();
-    }, 30000);
-
-    setAutoSaveTimer(timer);
-
-    return () => {
-      if (timer) clearTimeout(timer);
+  // Navigation guard - prevent accidental tab close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!submitting && test) {
+        e.preventDefault();
+        e.returnValue = ''; // Chrome requires returnValue to be set
+        return '';
+      }
     };
-  }, [answers]);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [submitting, test]);
 
   // Timer countdown
   useEffect(() => {
-    if (timeRemaining <= 0) return;
+    if (timeRemaining <= 0 || submitting || !test) return;
 
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
+          clearInterval(timer);
           handleAutoSubmit();
           return 0;
         }
@@ -78,15 +88,12 @@ const StudentTestTakingPage: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining]);
+  }, [timeRemaining, submitting, test]);
 
   // Warning when time is running out
   useEffect(() => {
-    if (timeRemaining === 300) { // 5 minutes
-      showWarning('5 minutes remaining!');
-    } else if (timeRemaining === 60) { // 1 minute
-      showWarning('1 minute remaining!');
-    }
+    if (timeRemaining === 300) showWarning('5 minutes remaining!');
+    if (timeRemaining === 60) showWarning('1 minute remaining!');
   }, [timeRemaining]);
 
   const startTest = async () => {
@@ -94,18 +101,28 @@ const StudentTestTakingPage: React.FC = () => {
       setLoading(true);
       const testData = await cbtService.startTest(submissionId!);
       setTest(testData);
-      setTimeRemaining(testData.duration_minutes * 60);
 
-      // Load saved answers from localStorage if available
-      const savedAnswers = localStorage.getItem(`cbt_answers_${submissionId}`);
-      if (savedAnswers) {
+      // Restore state from localStorage
+      const savedState = localStorage.getItem(`cbt_state_${submissionId}`);
+      if (savedState) {
         try {
-          const parsed = JSON.parse(savedAnswers);
-          setAnswers(parsed);
-          showSuccess('Previous answers restored');
+          const parsed = JSON.parse(savedState);
+          setAnswers(parsed.answers || {});
+          // Only restore time if it's valid and less than duration
+          if (parsed.timeRemaining && parsed.timeRemaining > 0) {
+            setTimeRemaining(parsed.timeRemaining);
+          } else {
+            setTimeRemaining(testData.duration_minutes * 60);
+          }
+          setVisitedQuestions(new Set(parsed.visitedQuestions || [0]));
+          setMarkedForReview(new Set(parsed.markedForReview || []));
+          showSuccess('Resumed previous session');
         } catch (e) {
-          console.error('Failed to parse saved answers:', e);
+          console.error('Failed to parse saved state:', e);
+          setTimeRemaining(testData.duration_minutes * 60);
         }
+      } else {
+        setTimeRemaining(testData.duration_minutes * 60);
       }
     } catch (error: any) {
       showError(error.response?.data?.detail || 'Failed to start test');
@@ -116,10 +133,7 @@ const StudentTestTakingPage: React.FC = () => {
   };
 
   const handleAnswerSelect = (questionId: string, optionId: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionId,
-    }));
+    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
   };
 
   const handleClearResponse = () => {
@@ -149,6 +163,7 @@ const StudentTestTakingPage: React.FC = () => {
   const navigateToQuestion = (index: number) => {
     setCurrentQuestionIndex(index);
     setVisitedQuestions((prev) => new Set(prev).add(index));
+    setIsMobilePaletteOpen(false); // Close mobile palette on selection
   };
 
   const getQuestionStatus = (questionIndex: number): QuestionStatus => {
@@ -163,21 +178,6 @@ const StudentTestTakingPage: React.FC = () => {
     if (isAnswered) return 'answered';
     if (isVisited) return 'not_answered';
     return 'not_visited';
-  };
-
-  const autoSaveAnswers = async () => {
-    if (!test || !submissionId) return;
-
-    try {
-      // Save to localStorage as backup
-      localStorage.setItem(`cbt_answers_${submissionId}`, JSON.stringify(answers));
-      setLastSaved(new Date());
-
-      // Note: Backend auto-save endpoint would be called here if implemented
-      // await cbtService.autoSaveAnswers(submissionId, answers);
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-    }
   };
 
   const handleAutoSubmit = async () => {
@@ -198,272 +198,266 @@ const StudentTestTakingPage: React.FC = () => {
       };
 
       await cbtService.submitTest(submissionId, submissionData);
-
-      // Clear saved answers from localStorage
-      localStorage.removeItem(`cbt_answers_${submissionId}`);
-
+      localStorage.removeItem(`cbt_state_${submissionId}`); // Clear saved state
       showSuccess('Test submitted successfully!');
       navigate(`/${schoolCode}/cbt/student/results/${submissionId}`);
     } catch (error: any) {
       showError(error.response?.data?.detail || 'Failed to submit test');
-    } finally {
       setSubmitting(false);
+    } finally {
       setShowSubmitDialog(false);
     }
-  };
-
-  const handleSubmitClick = () => {
-    setShowSubmitDialog(true);
   };
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
+    if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   const getTimeColor = () => {
-    if (timeRemaining <= 60) return 'text-red-600';
-    if (timeRemaining <= 300) return 'text-yellow-600';
-    return 'text-green-600';
+    if (timeRemaining <= 60) return 'text-red-600 dark:text-red-400';
+    if (timeRemaining <= 300) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-green-600 dark:text-green-400';
   };
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  if (!test) {
-    return null;
-  }
+  if (loading) return <LoadingSpinner />;
+  if (!test) return null;
 
   const currentQuestion = test.questions[currentQuestionIndex];
   const answeredCount = Object.keys(answers).length;
   const notAnsweredCount = visitedQuestions.size - answeredCount;
-  const notVisitedCount = test.questions.length - visitedQuestions.size;
   const markedCount = markedForReview.size;
   const currentQuestionId = currentQuestion.id!;
   const isCurrentMarked = markedForReview.has(currentQuestionId);
   const isCurrentAnswered = !!answers[currentQuestionId];
 
   return (
-    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 flex flex-col overflow-hidden">
-      {/* Top Header - Fixed */}
-      <div className="bg-white dark:bg-gray-800 border-b-2 border-gray-300 dark:border-gray-700 shadow-sm">
-        <div className="px-6 py-3">
-          <div className="flex justify-between items-center">
-            {/* Test Title */}
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">{test.title}</h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+    <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden font-sans">
+      {/* Header */}
+      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4 overflow-hidden">
+            <div className="flex-shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-600/20">
+                {test.title.charAt(0)}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white truncate">{test.title}</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate hidden sm:block">
                 {test.description || 'Computer Based Test'}
               </p>
             </div>
+          </div>
 
-            {/* Timer - Prominent */}
-            <div className="flex items-center gap-6">
-              {lastSaved && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Auto-saved at {lastSaved.toLocaleTimeString()}
-                </div>
-              )}
-              <div className={`flex items-center gap-3 px-6 py-3 rounded-lg border-2 ${
-                timeRemaining <= 60
-                  ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                  : timeRemaining <= 300
-                  ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-                  : 'border-green-500 bg-green-50 dark:bg-green-900/20'
+          <div className="flex items-center gap-4">
+            {/* Timer */}
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${timeRemaining <= 60 ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800' :
+                timeRemaining <= 300 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800' :
+                  'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
               }`}>
-                <ClockIcon className={`h-7 w-7 ${getTimeColor()}`} />
-                <div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">Time Remaining</div>
-                  <div className={`text-2xl font-bold font-mono ${getTimeColor()}`}>
-                    {formatTime(timeRemaining)}
-                  </div>
-                </div>
-              </div>
+              <ClockIcon className={`h-5 w-5 ${getTimeColor()}`} />
+              <span className={`font-mono font-bold text-lg ${getTimeColor()}`}>
+                {formatTime(timeRemaining)}
+              </span>
             </div>
+
+            {/* Mobile Palette Toggle */}
+            <button
+              onClick={() => setIsMobilePaletteOpen(true)}
+              className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <div className="grid grid-cols-3 gap-0.5 w-6 h-6">
+                {[...Array(9)].map((_, i) => (
+                  <div key={i} className={`rounded-sm ${i < answeredCount ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                    }`} />
+                ))}
+              </div>
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Question Area - Left Side */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-8">
-            {/* Question Header */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+        {/* Progress Bar */}
+        <div className="h-1 w-full bg-gray-200 dark:bg-gray-700">
+          <div
+            className="h-full bg-blue-600 transition-all duration-500 ease-out"
+            style={{ width: `${(answeredCount / test.questions.length) * 100}%` }}
+          />
+        </div>
+      </header>
+
+      <main className="flex-1 flex overflow-hidden relative">
+        {/* Question Area */}
+        <div className="flex-1 overflow-y-auto scroll-smooth">
+          <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 pb-24">
+            {/* Question Card */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all duration-300">
+              <div className="p-6 sm:p-8">
+                <div className="flex justify-between items-start mb-6">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                     Question {currentQuestionIndex + 1} of {test.questions.length}
-                  </div>
+                  </span>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                      {currentQuestion.points} {currentQuestion.points === 1 ? 'point' : 'points'}
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      {currentQuestion.points} pts
                     </span>
                     {isCurrentMarked && (
-                      <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded flex items-center gap-1">
-                        <BookmarkSolidIcon className="h-3 w-3" />
-                        Marked for Review
-                      </span>
+                      <BookmarkSolidIcon className="h-5 w-5 text-purple-500" />
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Question Text */}
-              <div className="prose dark:prose-invert max-w-none">
-                <p className="text-lg text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">
-                  {currentQuestion.question_text}
-                </p>
-              </div>
-
-              {/* Question Image */}
-              {currentQuestion.image_url && (
-                <div className="mt-6">
-                  <img
-                    src={currentQuestion.image_url}
-                    alt="Question illustration"
-                    className="max-w-full h-auto rounded-lg border border-gray-200 dark:border-gray-700"
-                  />
+                <div className="prose dark:prose-invert max-w-none mb-8">
+                  <h2 className="text-xl sm:text-2xl font-medium text-gray-900 dark:text-white leading-relaxed">
+                    {currentQuestion.question_text}
+                  </h2>
+                  {currentQuestion.image_url && (
+                    <img
+                      src={currentQuestion.image_url}
+                      alt="Question"
+                      className="mt-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm max-h-96 object-contain bg-gray-50 dark:bg-gray-900"
+                    />
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Answer Options */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wide">
-                Select your answer:
-              </h3>
-              <div className="space-y-3">
-                {currentQuestion.options.map((option) => {
-                  const isSelected = answers[currentQuestionId] === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => handleAnswerSelect(currentQuestionId, option.id!)}
-                      className={`w-full text-left p-5 rounded-lg border-2 transition-all duration-200 ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 shadow-md'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Radio Button */}
-                        <div className="flex-shrink-0 mt-0.5">
-                          <div
-                            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                              isSelected
-                                ? 'border-blue-600 bg-blue-600'
-                                : 'border-gray-400 dark:border-gray-500'
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="w-3 h-3 bg-white rounded-full"></div>
-                            )}
-                          </div>
+                <div className="space-y-3">
+                  {currentQuestion.options.map((option) => {
+                    const isSelected = answers[currentQuestionId] === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => handleAnswerSelect(currentQuestionId, option.id!)}
+                        className={`w-full group relative flex items-center p-4 rounded-xl border-2 text-left transition-all duration-200 ${isSelected
+                            ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 shadow-md z-10'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                          }`}
+                      >
+                        <div className={`flex-shrink-0 h-6 w-6 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-400 dark:border-gray-500 group-hover:border-blue-400'
+                          }`}>
+                          {isSelected && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
                         </div>
-                        {/* Option Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2">
-                            <span className={`font-bold text-base ${
-                              isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'
-                            }`}>
-                              {option.option_label}.
-                            </span>
-                            <span className={`text-base ${
-                              isSelected ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-700 dark:text-gray-300'
-                            }`}>
-                              {option.option_text}
-                            </span>
-                          </div>
+                        <div className="flex-1">
+                          <span className={`text-lg font-medium mr-3 ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {option.option_label}.
+                          </span>
+                          <span className={`text-base ${isSelected ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {option.option_text}
+                          </span>
                         </div>
-                      </div>
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Card Footer Actions */}
+              <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                <button
+                  onClick={handleMarkForReview}
+                  className={`flex items-center gap-2 text-sm font-medium transition-colors ${isCurrentMarked
+                      ? 'text-purple-600 dark:text-purple-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                >
+                  {isCurrentMarked ? <BookmarkSolidIcon className="h-5 w-5" /> : <BookmarkIcon className="h-5 w-5" />}
+                  {isCurrentMarked ? 'Marked for Review' : 'Mark for Review'}
+                </button>
+
+                <button
+                  onClick={handleClearResponse}
+                  disabled={!isCurrentAnswered}
+                  className="text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Clear Selection
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Question Palette - Right Sidebar */}
-        {showQuestionPalette && (
-          <div className="w-80 bg-white dark:bg-gray-800 border-l-2 border-gray-300 dark:border-gray-700 overflow-y-auto flex-shrink-0">
-            <div className="p-4">
-              {/* Palette Header */}
-              <div className="mb-4">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wide mb-3">
-                  Question Palette
-                </h3>
+        {/* Desktop Palette Sidebar */}
+        <div className="hidden lg:block w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-y-auto">
+          <div className="p-6">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
+              Question Palette
+            </h3>
 
-                {/* Legend */}
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-green-500"></div>
-                    <span className="text-gray-600 dark:text-gray-400">Answered ({answeredCount})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-red-500"></div>
-                    <span className="text-gray-600 dark:text-gray-400">Not Answered ({notAnsweredCount})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-gray-300 dark:bg-gray-600"></div>
-                    <span className="text-gray-600 dark:text-gray-400">Not Visited ({notVisitedCount})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center">
-                      <BookmarkSolidIcon className="h-4 w-4 text-white" />
-                    </div>
-                    <span className="text-gray-600 dark:text-gray-400">Marked for Review ({markedCount})</span>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <div className="w-3 h-3 rounded-full bg-green-500" /> Answered
               </div>
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <div className="w-3 h-3 rounded-full bg-gray-200 dark:bg-gray-700" /> Not Visited
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <div className="w-3 h-3 rounded-full bg-purple-500" /> Review
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <div className="w-3 h-3 rounded-full bg-blue-600 ring-2 ring-blue-200" /> Current
+              </div>
+            </div>
 
-              {/* Question Grid */}
-              <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-2">
+              {test.questions.map((_, index) => {
+                const status = getQuestionStatus(index);
+                const isCurrent = index === currentQuestionIndex;
+
+                let baseClasses = "h-10 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center relative";
+                let colorClasses = "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600";
+
+                if (status === 'answered') colorClasses = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800";
+                if (status.includes('marked')) colorClasses = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800";
+                if (isCurrent) colorClasses = "bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-110 z-10";
+
+                return (
+                  <button
+                    key={index}
+                    onClick={() => navigateToQuestion(index)}
+                    className={`${baseClasses} ${colorClasses}`}
+                  >
+                    {index + 1}
+                    {status.includes('marked') && !isCurrent && (
+                      <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-purple-500 rounded-full border-2 border-white dark:border-gray-800" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Palette Drawer/Modal */}
+        {isMobilePaletteOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobilePaletteOpen(false)} />
+            <div className="absolute right-0 top-0 bottom-0 w-80 bg-white dark:bg-gray-800 shadow-2xl p-6 overflow-y-auto animate-slide-in-right">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Question Palette</h3>
+                <button onClick={() => setIsMobilePaletteOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+                  <XMarkIcon className="h-6 w-6 text-gray-500" />
+                </button>
+              </div>
+              {/* Same grid as desktop */}
+              <div className="grid grid-cols-5 gap-3">
                 {test.questions.map((_, index) => {
                   const status = getQuestionStatus(index);
                   const isCurrent = index === currentQuestionIndex;
 
-                  let bgColor = 'bg-gray-300 dark:bg-gray-600';
-                  let textColor = 'text-gray-800 dark:text-gray-200';
-                  let borderColor = 'border-transparent';
-
-                  if (status === 'answered') {
-                    bgColor = 'bg-green-500';
-                    textColor = 'text-white';
-                  } else if (status === 'not_answered') {
-                    bgColor = 'bg-red-500';
-                    textColor = 'text-white';
-                  } else if (status === 'marked_for_review') {
-                    bgColor = 'bg-purple-500';
-                    textColor = 'text-white';
-                  } else if (status === 'answered_and_marked') {
-                    bgColor = 'bg-purple-500';
-                    textColor = 'text-white';
-                  }
-
-                  if (isCurrent) {
-                    borderColor = 'border-blue-600';
-                  }
+                  let colorClasses = "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400";
+                  if (status === 'answered') colorClasses = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
+                  if (status.includes('marked')) colorClasses = "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300";
+                  if (isCurrent) colorClasses = "bg-blue-600 text-white";
 
                   return (
                     <button
                       key={index}
                       onClick={() => navigateToQuestion(index)}
-                      className={`relative h-10 rounded font-semibold text-sm transition-all border-2 ${bgColor} ${textColor} ${borderColor} hover:scale-105`}
+                      className={`h-12 rounded-xl text-sm font-medium transition-all ${colorClasses}`}
                     >
                       {index + 1}
-                      {status === 'marked_for_review' || status === 'answered_and_marked' ? (
-                        <BookmarkSolidIcon className="absolute -top-1 -right-1 h-4 w-4 text-yellow-400" />
-                      ) : null}
                     </button>
                   );
                 })}
@@ -471,141 +465,84 @@ const StudentTestTakingPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Bottom Navigation Bar - Fixed */}
-      <div className="bg-white dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-700 shadow-lg">
-        <div className="px-6 py-4">
-          <div className="flex justify-between items-center">
-            {/* Left: Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleMarkForReview}
-                className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
-                  isCurrentMarked
-                    ? 'bg-purple-600 text-white hover:bg-purple-700'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                }`}
-              >
-                {isCurrentMarked ? (
-                  <BookmarkSolidIcon className="h-5 w-5" />
-                ) : (
-                  <BookmarkIcon className="h-5 w-5" />
-                )}
-                {isCurrentMarked ? 'Unmark' : 'Mark for Review'}
-              </button>
+      {/* Bottom Navigation Bar */}
+      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 z-20">
+        <div className="max-w-4xl mx-auto flex justify-between items-center gap-4">
+          <button
+            onClick={() => navigateToQuestion(Math.max(0, currentQuestionIndex - 1))}
+            disabled={currentQuestionIndex === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+            <span className="hidden sm:inline">Previous</span>
+          </button>
 
+          <div className="flex gap-3">
+            {currentQuestionIndex < test.questions.length - 1 ? (
               <button
-                onClick={handleClearResponse}
-                disabled={!isCurrentAnswered}
-                className="px-4 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => navigateToQuestion(currentQuestionIndex + 1)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-600/20"
               >
-                <XMarkIcon className="h-5 w-5" />
-                Clear Response
-              </button>
-            </div>
-
-            {/* Center: Navigation */}
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigateToQuestion(Math.max(0, currentQuestionIndex - 1))}
-                disabled={currentQuestionIndex === 0}
-                className="px-6 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                Previous
-              </button>
-
-              <button
-                onClick={() => {
-                  if (currentQuestionIndex < test.questions.length - 1) {
-                    navigateToQuestion(currentQuestionIndex + 1);
-                  }
-                }}
-                disabled={currentQuestionIndex === test.questions.length - 1}
-                className="px-6 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                Save & Next
+                <span>Next Question</span>
                 <ArrowRightIcon className="h-5 w-5" />
               </button>
-            </div>
-
-            {/* Right: Submit Button */}
-            <div>
+            ) : (
               <button
-                onClick={handleSubmitClick}
-                className="px-8 py-2 rounded-lg font-bold bg-green-600 text-white hover:bg-green-700 transition-all shadow-lg hover:shadow-xl"
+                onClick={() => setShowSubmitDialog(true)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold bg-green-600 text-white hover:bg-green-700 active:scale-95 transition-all shadow-lg shadow-green-600/20"
               >
-                Submit Test
+                <span>Submit Test</span>
+                <CheckCircleIcon className="h-5 w-5" />
               </button>
-            </div>
+            )}
           </div>
         </div>
-      </div>
+      </footer>
 
-      {/* Submit Confirmation Dialog */}
+      {/* Submit Dialog */}
       {showSubmitDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="flex-shrink-0 w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
-                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all scale-100">
+            <div className="text-center mb-6">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30 mb-4">
+                <ExclamationTriangleIcon className="h-8 w-8 text-yellow-600 dark:text-yellow-400" />
               </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                  Submit Test?
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Are you sure you want to submit your test? You will not be able to change your answers after submission.
-                </p>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Submit Test?</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                You are about to submit your test. This action cannot be undone.
+              </p>
+            </div>
 
-                {/* Summary */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Total Questions:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">{test.questions.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-green-600 dark:text-green-400">Answered:</span>
-                    <span className="font-semibold text-green-600 dark:text-green-400">{answeredCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-red-600 dark:text-red-400">Not Answered:</span>
-                    <span className="font-semibold text-red-600 dark:text-red-400">
-                      {test.questions.length - answeredCount}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-purple-600 dark:text-purple-400">Marked for Review:</span>
-                    <span className="font-semibold text-purple-600 dark:text-purple-400">{markedCount}</span>
-                  </div>
-                </div>
-
-                {test.questions.length - answeredCount > 0 && (
-                  <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                    <p className="text-xs text-yellow-800 dark:text-yellow-200">
-                      ⚠️ You have {test.questions.length - answeredCount} unanswered question(s). These will be marked as incorrect.
-                    </p>
-                  </div>
-                )}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 mb-6 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Answered</span>
+                <span className="font-bold text-green-600 dark:text-green-400">{answeredCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Unanswered</span>
+                <span className="font-bold text-red-600 dark:text-red-400">{notAnsweredCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Marked for Review</span>
+                <span className="font-bold text-purple-600 dark:text-purple-400">{markedCount}</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 justify-end mt-6">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowSubmitDialog(false)}
-                disabled={submitting}
-                className="px-6 py-2 rounded-lg font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                className="px-4 py-2.5 rounded-xl font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
-                Cancel
+                Keep Working
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-6 py-2 rounded-lg font-bold bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2.5 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all"
               >
-                {submitting ? 'Submitting...' : 'Yes, Submit Test'}
+                {submitting ? 'Submitting...' : 'Yes, Submit'}
               </button>
             </div>
           </div>

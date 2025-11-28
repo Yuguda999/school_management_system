@@ -33,7 +33,7 @@ const CommunicationPage: React.FC = () => {
       icon: SpeakerWaveIcon,
       count: null,
     },
-    ...(user?.role !== 'STUDENT' && user?.role !== 'PARENT' ? [{
+    ...(user?.role !== 'student' && user?.role !== 'parent' ? [{
       id: 'statistics' as TabType,
       name: 'Statistics',
       icon: ChartBarIcon,
@@ -49,7 +49,7 @@ const CommunicationPage: React.FC = () => {
     }
   };
 
-  const canCreateMessage = user?.role !== 'STUDENT' && user?.role !== 'PARENT';
+  const canCreateMessage = user?.role !== 'student' && user?.role !== 'parent';
 
   return (
     <div className="space-y-6">
@@ -81,27 +81,24 @@ const CommunicationPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
-                  isActive
+                className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm ${isActive
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
+                  }`}
               >
                 <tab.icon
-                  className={`-ml-0.5 mr-2 h-5 w-5 ${
-                    isActive
+                  className={`-ml-0.5 mr-2 h-5 w-5 ${isActive
                       ? 'text-blue-500 dark:text-blue-400'
                       : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'
-                  }`}
+                    }`}
                 />
                 {tab.name}
                 {tab.count !== null && (
                   <span
-                    className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
-                      isActive
+                    className={`ml-2 py-0.5 px-2 rounded-full text-xs ${isActive
                         ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
                         : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                    }`}
+                      }`}
                   >
                     {tab.count}
                   </span>

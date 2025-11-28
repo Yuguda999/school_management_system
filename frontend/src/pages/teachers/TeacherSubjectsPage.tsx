@@ -5,7 +5,9 @@ import { Subject, Student } from '../../types';
 import { academicService } from '../../services/academicService';
 import { studentService } from '../../services/studentService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { BookOpenIcon, AcademicCapIcon, UserGroupIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { BookOpenIcon, AcademicCapIcon, UserGroupIcon, EyeIcon, EyeSlashIcon, ClipboardDocumentListIcon, ArrowDownTrayIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
+import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 interface SubjectWithStudents extends Subject {
   students: Student[];
@@ -16,9 +18,13 @@ interface SubjectWithStudents extends Subject {
 const TeacherSubjectsPage: React.FC = () => {
   const { user } = useAuth();
   const { showError } = useToast();
+  const navigate = useNavigate();
+  const schoolCode = getSchoolCodeFromUrl();
+
   const [subjects, setSubjects] = useState<SubjectWithStudents[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
 
   useEffect(() => {
     if (user?.role === 'teacher') {
@@ -45,64 +51,92 @@ const TeacherSubjectsPage: React.FC = () => {
       const assignedSubjectIds = teacherSubjectAssignments.map(assignment => assignment.subject_id);
       const teacherSubjects = allSubjects.filter(subject => assignedSubjectIds.includes(subject.id));
 
-      // Initialize subjects with empty student arrays
+      // Initialize subjects with empty student arrays but loading state
       const subjectsWithStudents: SubjectWithStudents[] = teacherSubjects.map(subject => ({
         ...subject,
         students: [],
         studentCount: 0,
-        loading: false
+        loading: true
       }));
 
       setSubjects(subjectsWithStudents);
+      setLoading(false);
+
+      // Fetch students for all subjects in the background
+      teacherSubjects.forEach(async (subject) => {
+        try {
+          const students = await studentService.getStudentsBySubject(subject.id);
+          setSubjects(prev => prev.map(s =>
+            s.id === subject.id
+              ? { ...s, students, studentCount: students.length, loading: false }
+              : s
+          ));
+        } catch (error) {
+          console.error(`Failed to fetch students for subject ${subject.id}:`, error);
+          setSubjects(prev => prev.map(s =>
+            s.id === subject.id
+              ? { ...s, loading: false }
+              : s
+          ));
+        }
+      });
+
     } catch (error) {
       console.error('Failed to fetch teacher subjects:', error);
       showError('Failed to load your subjects. Please try again.', 'Error');
-    } finally {
       setLoading(false);
     }
   };
 
-  const fetchStudentsForSubject = async (subjectId: string) => {
-    try {
-      setSubjects(prev => prev.map(subject =>
-        subject.id === subjectId
-          ? { ...subject, loading: true }
-          : subject
-      ));
 
-      const students = await studentService.getStudentsBySubject(subjectId);
-
-      setSubjects(prev => prev.map(subject =>
-        subject.id === subjectId
-          ? {
-              ...subject,
-              students,
-              studentCount: students.length,
-              loading: false
-            }
-          : subject
-      ));
-    } catch (error) {
-      console.error('Failed to fetch students for subject:', error);
-      showError('Failed to load students for this subject.', 'Error');
-
-      setSubjects(prev => prev.map(subject =>
-        subject.id === subjectId
-          ? { ...subject, loading: false }
-          : subject
-      ));
-    }
-  };
 
   const handleSubjectClick = (subjectId: string) => {
     if (selectedSubject === subjectId) {
       setSelectedSubject(null);
     } else {
       setSelectedSubject(subjectId);
-      const subject = subjects.find(s => s.id === subjectId);
-      if (subject && subject.students.length === 0 && !subject.loading) {
-        fetchStudentsForSubject(subjectId);
-      }
+      setSelectedClassFilter('all');
+    }
+  };
+
+  const handleExportStudents = (subject: SubjectWithStudents, e: React.MouseEvent, studentsToExport?: Student[]) => {
+    e.stopPropagation(); // Prevent toggling the accordion
+
+    const students = studentsToExport || subject.students;
+
+    if (students.length === 0) {
+      showError('No students to export', 'Info');
+      return;
+    }
+
+    try {
+      const headers = ['First Name', 'Last Name', 'Admission Number', 'Gender', 'Age', 'Class'];
+      const rows = students.map(student => [
+        student.first_name,
+        student.last_name,
+        student.admission_number,
+        student.gender,
+        student.age || '',
+        student.current_class_name || ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${subject.name}_students${selectedClassFilter !== 'all' ? `_${selectedClassFilter}` : ''}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to export students:', error);
+      showError('Failed to export student list');
     }
   };
 
@@ -126,11 +160,20 @@ const TeacherSubjectsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Subjects & Students</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          View your assigned subjects and the students enrolled in each subject
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Subjects & Students</h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            View your assigned subjects and the students enrolled in each subject
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(`/${schoolCode}/teacher/attendance/subject`)}
+          className="btn btn-primary"
+        >
+          <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
+          Take Subject Attendance
+        </button>
       </div>
 
       {/* Subjects Overview */}
@@ -230,12 +273,29 @@ const TeacherSubjectsPage: React.FC = () => {
                   </div>
                   <div className="flex items-center space-x-4">
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {subject.studentCount > 0 ? (
-                        <span>{subject.studentCount} students</span>
+                      {subject.loading ? (
+                        <span className="flex items-center">
+                          <LoadingSpinner size="sm" className="mr-2" />
+                          Loading students...
+                        </span>
                       ) : (
-                        <span>Click to load students</span>
+                        <span>{subject.studentCount} students</span>
                       )}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        // If this subject is selected, export filtered students
+                        // Otherwise export all students for this subject
+                        const studentsToExport = selectedSubject === subject.id
+                          ? subject.students.filter(s => selectedClassFilter === 'all' || s.current_class_name === selectedClassFilter)
+                          : subject.students;
+                        handleExportStudents(subject, e, studentsToExport);
+                      }}
+                      className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      title="Export Student List"
+                    >
+                      <ArrowDownTrayIcon className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => handleSubjectClick(subject.id)}
                       className="text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
@@ -258,56 +318,86 @@ const TeacherSubjectsPage: React.FC = () => {
                         <LoadingSpinner className="h-8 w-8" />
                       </div>
                     ) : subject.students.length > 0 ? (
-                      <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                        <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
-                          <thead className="bg-gray-50 dark:bg-gray-700">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                Student
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                Admission Number
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                Gender
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                Age
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            {subject.students.map((student) => (
-                              <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="flex-shrink-0 h-8 w-8">
-                                      <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                          {student.first_name?.[0]}{student.last_name?.[0]}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {student.first_name} {student.last_name}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                  {student.admission_number}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
-                                  {student.gender}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                  {student.age ? `${student.age} years` : 'N/A'}
-                                </td>
-                              </tr>
+                      <div className="space-y-4">
+                        {/* Class Filter */}
+                        <div className="flex items-center space-x-2">
+                          <FunnelIcon className="h-5 w-5 text-gray-400" />
+                          <select
+                            value={selectedClassFilter}
+                            onChange={(e) => setSelectedClassFilter(e.target.value)}
+                            className="input input-sm max-w-xs"
+                          >
+                            <option value="all">All Classes</option>
+                            {Array.from(new Set(subject.students.map(s => s.current_class_name).filter(Boolean))).sort().map(className => (
+                              <option key={className} value={className as string}>
+                                {className}
+                              </option>
                             ))}
-                          </tbody>
-                        </table>
+                          </select>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            Showing {subject.students.filter(s => selectedClassFilter === 'all' || s.current_class_name === selectedClassFilter).length} of {subject.students.length} students
+                          </span>
+                        </div>
+
+                        <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                          <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
+                            <thead className="bg-gray-50 dark:bg-gray-700">
+                              <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                  Student
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                  Admission Number
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                  Class
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                  Gender
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                  Age
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                              {subject.students
+                                .filter(s => selectedClassFilter === 'all' || s.current_class_name === selectedClassFilter)
+                                .map((student) => (
+                                  <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center">
+                                        <div className="flex-shrink-0 h-8 w-8">
+                                          <div className="h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              {student.first_name?.[0]}{student.last_name?.[0]}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="ml-4">
+                                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                            {student.first_name} {student.last_name}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {student.admission_number}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {student.current_class_name || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 capitalize">
+                                      {student.gender}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                      {student.age ? `${student.age} years` : 'N/A'}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     ) : (
                       <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">

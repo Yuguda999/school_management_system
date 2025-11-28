@@ -26,32 +26,26 @@ import RevenueChart from '../../components/dashboard/RevenueChart';
 import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
 import PageHeader from '../../components/Layout/PageHeader';
 import Card from '../../components/ui/Card';
+import { buildSchoolRouteUrl, getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { currentTerm } = useCurrentTerm();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Get currency from school settings or default to USD
+  const currency = user?.school?.settings?.currency || '$';
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const dashboardStats = await reportsService.getDashboardStats(currentTerm?.id);
-        setStats(dashboardStats as any);
+        const data = await reportsService.getDashboardData(currentTerm?.id);
+        setDashboardData(data);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
-        // Fallback to mock data if API fails
-        const mockStats: DashboardStats = {
-          total_students: 1250,
-          total_teachers: 85,
-          total_classes: 42,
-          total_revenue: 125000,
-          pending_fees: 15000,
-          recent_enrollments: 23,
-        };
-        setStats(mockStats);
       } finally {
         setLoading(false);
       }
@@ -75,7 +69,8 @@ const DashboardPage: React.FC = () => {
   };
 
   const getStatsForRole = () => {
-    if (!stats) return [];
+    if (!dashboardData?.stats) return [];
+    const stats = dashboardData.stats;
 
     switch (user?.role) {
       case 'platform_super_admin':
@@ -86,48 +81,36 @@ const DashboardPage: React.FC = () => {
             name: 'Total Students',
             value: stats.total_students.toLocaleString(),
             icon: AcademicCapIcon,
-            change: '+12%',
-            changeType: 'increase' as const,
             color: 'bg-blue-500'
           },
           {
             name: 'Total Teachers',
             value: stats.total_teachers.toString(),
             icon: UserGroupIcon,
-            change: '+3%',
-            changeType: 'increase' as const,
             color: 'bg-purple-500'
           },
           {
             name: 'Total Classes',
             value: stats.total_classes.toString(),
             icon: BuildingOfficeIcon,
-            change: '+5%',
-            changeType: 'increase' as const,
             color: 'bg-indigo-500'
           },
           {
             name: 'Total Revenue',
-            value: `$${(stats as any).total_revenue?.toLocaleString() || '0'}`,
+            value: `${currency}${stats.total_revenue?.toLocaleString() || '0'}`,
             icon: CurrencyDollarIcon,
-            change: '+8%',
-            changeType: 'increase' as const,
             color: 'bg-green-500'
           },
           {
             name: 'Pending Fees',
-            value: `$${stats.pending_fees.toLocaleString()}`,
+            value: `${currency}${stats.pending_fees.toLocaleString()}`,
             icon: ExclamationTriangleIcon,
-            change: '-5%',
-            changeType: 'decrease' as const,
             color: 'bg-red-500'
           },
           {
             name: 'Recent Enrollments',
             value: stats.recent_enrollments.toString(),
             icon: CheckCircleIcon,
-            change: '+15%',
-            changeType: 'increase' as const,
             color: 'bg-teal-500'
           },
         ];
@@ -135,34 +118,26 @@ const DashboardPage: React.FC = () => {
         return [
           {
             name: 'My Students',
-            value: '156',
+            value: stats.my_students_count?.toString() || '0',
             icon: AcademicCapIcon,
-            change: '+2%',
-            changeType: 'increase' as const,
             color: 'bg-blue-500'
           },
           {
             name: 'My Classes',
-            value: '6',
+            value: stats.my_classes_count?.toString() || '0',
             icon: BuildingOfficeIcon,
-            change: '0%',
-            changeType: 'neutral' as const,
             color: 'bg-purple-500'
           },
           {
             name: 'Assignments Due',
-            value: '12',
+            value: stats.assignments_due?.toString() || '0',
             icon: ClockIcon,
-            change: '+3',
-            changeType: 'increase' as const,
             color: 'bg-orange-500'
           },
           {
             name: 'Average Grade',
-            value: '85%',
+            value: stats.average_grade ? `${stats.average_grade}%` : '0%',
             icon: ChartBarIcon,
-            change: '+2%',
-            changeType: 'increase' as const,
             color: 'bg-green-500'
           },
         ];
@@ -200,127 +175,151 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Quick Actions */}
-      {isAdmin && (
-        <div className="animate-fade-in-up delay-300">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card
-              variant="glass"
-              className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 border-l-4 border-l-primary-500"
-              onClick={() => navigate('/students')}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 group-hover:scale-110 transition-transform duration-200">
-                  <PlusIcon className="h-6 w-6" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Add Student</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Register new student</p>
-                </div>
-              </div>
-            </Card>
+      {isAdmin && (() => {
+        const schoolCode = getSchoolCodeFromUrl();
+        if (!schoolCode) return null;
 
-            <Card
-              variant="glass"
-              className="group hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500"
-              onClick={() => navigate('/teachers')}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-200">
-                  <UserGroupIcon className="h-6 w-6" />
+        return (
+          <div className="animate-fade-in-up delay-300">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card
+                variant="glass"
+                className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 border-l-4 border-l-primary-500 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'students'))}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 group-hover:scale-110 transition-transform duration-200">
+                    <PlusIcon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Add Student</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Register new student</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Add Teacher</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Onboard new staff</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card
-              variant="glass"
-              className="group hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-l-4 border-l-indigo-500"
-              onClick={() => navigate('/classes')}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-200">
-                  <BuildingOfficeIcon className="h-6 w-6" />
+              <Card
+                variant="glass"
+                className="group hover:bg-purple-50 dark:hover:bg-purple-900/20 border-l-4 border-l-purple-500 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'teachers'))}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-200">
+                    <UserGroupIcon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Add Teacher</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Onboard new staff</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Create Class</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Set up new classroom</p>
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card
-              variant="glass"
-              className="group hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500"
-              onClick={() => navigate('/communication')}
-            >
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform duration-200">
-                  <MegaphoneIcon className="h-6 w-6" />
+              <Card
+                variant="glass"
+                className="group hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border-l-4 border-l-indigo-500 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'classes'))}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-200">
+                    <BuildingOfficeIcon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Create Class</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Set up new classroom</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white">Announcement</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Broadcast message</p>
+              </Card>
+
+              <Card
+                variant="glass"
+                className="group hover:bg-orange-50 dark:hover:bg-orange-900/20 border-l-4 border-l-orange-500 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'communication'))}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-400 group-hover:scale-110 transition-transform duration-200">
+                    <MegaphoneIcon className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Announcement</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Broadcast message</p>
+                  </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {isTeacher && (
-        <div className="animate-fade-in-up delay-300">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
-            <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card variant="glass" className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/50 text-primary-600">
-                  <CheckCircleIcon className="h-6 w-6" />
+      {isTeacher && (() => {
+        const schoolCode = getSchoolCodeFromUrl();
+        if (!schoolCode) return null;
+
+        return (
+          <div className="animate-fade-in-up delay-300">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+              <ClipboardDocumentCheckIcon className="h-5 w-5 mr-2 text-primary-500" />
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Card
+                variant="glass"
+                className="group hover:bg-primary-50 dark:hover:bg-primary-900/20 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'attendance'))}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/50 text-primary-600">
+                    <CheckCircleIcon className="h-6 w-6" />
+                  </div>
+                  <span className="font-medium">Take Attendance</span>
                 </div>
-                <span className="font-medium">Take Attendance</span>
-              </div>
-            </Card>
-            <Card variant="glass" className="group hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-600">
-                  <AcademicCapIcon className="h-6 w-6" />
+              </Card>
+              <Card
+                variant="glass"
+                className="group hover:bg-green-50 dark:hover:bg-green-900/20 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'grades'))}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-600">
+                    <AcademicCapIcon className="h-6 w-6" />
+                  </div>
+                  <span className="font-medium">Grade Assignment</span>
                 </div>
-                <span className="font-medium">Grade Assignment</span>
-              </div>
-            </Card>
-            <Card variant="glass" className="group hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600">
-                  <EnvelopeIcon className="h-6 w-6" />
+              </Card>
+              <Card
+                variant="glass"
+                className="group hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer"
+                onClick={() => navigate(buildSchoolRouteUrl(schoolCode, 'communication'))}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600">
+                    <EnvelopeIcon className="h-6 w-6" />
+                  </div>
+                  <span className="font-medium">Send Message</span>
                 </div>
-                <span className="font-medium">Send Message</span>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* Charts Section */}
-      {(isAdmin || isTeacher) && (
+      {/* Charts Section - Admin Only */}
+      {isAdmin && dashboardData && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-in-up delay-500">
-          <EnrollmentChart />
-          <RevenueChart />
+          <EnrollmentChart data={dashboardData.enrollment_trend} />
+          <RevenueChart data={dashboardData.revenue_data} currency={currency} />
         </div>
       )}
 
-      {/* Recent Activity */}
-      <div className="animate-fade-in-up delay-700">
-        <RecentActivity />
-      </div>
+      {/* Recent Activity - Admin Only */}
+      {isAdmin && dashboardData && (
+        <div className="animate-fade-in-up delay-700">
+          <RecentActivity activities={dashboardData.recent_activities} />
+        </div>
+      )}
     </div>
   );
 };

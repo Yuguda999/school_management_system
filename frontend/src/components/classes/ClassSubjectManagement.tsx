@@ -37,7 +37,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all subjects
       const subjectsResponse = await academicService.getSubjects({
         is_active: true,
@@ -71,7 +71,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
 
     try {
       setSubmitting(true);
-      
+
       // Create subject assignments
       const assignments = selectedSubjects.map(subjectId => ({
         class_id: classData.id,
@@ -88,7 +88,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
       setSelectedSubjects([]);
       setShowAddModal(false);
       await fetchData(); // Refresh data
-      
+
     } catch (error) {
       console.error('Error assigning subjects:', error);
       showError('Failed to assign subjects to class');
@@ -154,7 +154,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <BookOpenIcon className="h-5 w-5 text-blue-600" />
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 {classSubjects.length} subjects assigned
               </span>
             </div>
@@ -172,10 +172,10 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
 
           {/* Current Subjects */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Assigned Subjects</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Assigned Subjects</h3>
             {classSubjects.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <BookOpenIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <BookOpenIcon className="h-12 w-12 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
                 <p>No subjects assigned to this class yet.</p>
                 <p className="text-sm">Click "Add Subjects" to get started.</p>
               </div>
@@ -184,7 +184,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
                 {classSubjects.map((assignment) => (
                   <div
                     key={assignment.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
                   >
                     <div className="flex items-center space-x-3">
                       <BookOpenIcon className="h-5 w-5 text-blue-600" />
@@ -192,12 +192,12 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
                         <div className="flex items-center space-x-2">
                           <span className="font-medium">{assignment.subject_name}</span>
                           {assignment.is_core && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
                               Core
                             </span>
                           )}
                         </div>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                           Code: {assignment.subject_code}
                         </span>
                       </div>
@@ -206,18 +206,17 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
                       <button
                         onClick={() => handleToggleCore(assignment)}
                         disabled={submitting}
-                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                          assignment.is_core
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                        }`}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${assignment.is_core
+                            ? 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-900/50'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                          }`}
                       >
                         {assignment.is_core ? 'Core' : 'Elective'}
                       </button>
                       <button
                         onClick={() => handleRemoveSubject(assignment.id, assignment.subject_name)}
                         disabled={submitting}
-                        className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                        className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -229,10 +228,10 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
           </div>
 
           {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 rounded-lg p-4">
             <div className="flex items-start space-x-2">
               <CheckCircleIcon className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-800">
+              <div className="text-sm text-blue-800 dark:text-blue-300">
                 <p className="font-medium">Automatic Student Enrollment</p>
                 <p>
                   Students are automatically enrolled in all subjects assigned to their class.
@@ -252,13 +251,13 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
         title="Add Subjects to Class"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Select subjects to assign to {classData.name}:
           </p>
-          
+
           {availableSubjects.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <ExclamationTriangleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+              <ExclamationTriangleIcon className="h-12 w-12 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
               <p>All subjects are already assigned to this class.</p>
             </div>
           ) : (
@@ -266,7 +265,7 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
               {availableSubjects.map((subject) => (
                 <label
                   key={subject.id}
-                  className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                  className="flex items-center space-x-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded cursor-pointer"
                 >
                   <input
                     type="checkbox"
@@ -278,11 +277,11 @@ const ClassSubjectManagement: React.FC<ClassSubjectManagementProps> = ({
                         setSelectedSubjects(selectedSubjects.filter(id => id !== subject.id));
                       }
                     }}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 rounded"
                   />
                   <div>
                     <div className="font-medium">{subject.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       Code: {subject.code} | {subject.is_core ? 'Core' : 'Elective'}
                     </div>
                   </div>

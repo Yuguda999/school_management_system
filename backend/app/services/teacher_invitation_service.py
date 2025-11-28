@@ -16,6 +16,9 @@ from app.services.user_service import UserService
 from app.core.security import get_password_hash, create_access_token, create_refresh_token
 from app.core.config import settings
 import logging
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +273,21 @@ class TeacherInvitationService:
 
             await db.commit()
             await db.refresh(user)
+
+            # Notify the inviter
+            if invitation.invited_by:
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=invitation.school_id,
+                    notification_data=NotificationCreate(
+                        user_id=invitation.invited_by,
+                        title="Invitation Accepted",
+                        message=f"{user.first_name} {user.last_name} has accepted your invitation to join as a teacher.",
+                        type=NotificationType.SUCCESS,
+                        link=f"/teachers/{user.id}"
+                    )
+                )
+
         except Exception as e:
             logger.error(f"Error creating user: {str(e)}")
             await db.rollback()

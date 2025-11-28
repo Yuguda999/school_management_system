@@ -15,13 +15,21 @@ import uuid
 # But here we need it for logic. Let's check if we can import it at top level.
 # SchoolOwnershipService does not import SchoolService, so it should be safe.
 from app.services.school_ownership_service import SchoolOwnershipService
+from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
+from app.schemas.audit_log import AuditLogCreate
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class SchoolService:
     """Service class for school operations"""
     
     @staticmethod
-    async def create_school(db: AsyncSession, school_data: SchoolCreate) -> School:
+    async def create_school(db: AsyncSession, school_data: SchoolCreate, current_user_id: Optional[str] = None) -> School:
         """Create a new school"""
         # Check if school code already exists
         result = await db.execute(
@@ -49,6 +57,33 @@ class SchoolService:
         await db.commit()
         await db.refresh(school)
         
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school.id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="CREATE",
+                    entity_type="school",
+                    entity_id=school.id,
+                    details={"name": school.name, "code": school.code}
+                )
+            )
+
+            # Notification for the creator
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school.id,
+                notification_data=NotificationCreate(
+                    user_id=current_user_id,
+                    title="School Registered",
+                    message=f"School {school.name} ({school.code}) has been successfully registered.",
+                    type=NotificationType.SUCCESS,
+                    link=f"/platform/schools"
+                )
+            )
+
         return school
     
     @staticmethod
@@ -318,7 +353,8 @@ class SchoolService:
     async def update_school(
         db: AsyncSession,
         school_id: str,
-        school_data: SchoolUpdate
+        school_data: SchoolUpdate,
+        current_user_id: Optional[str] = None
     ) -> Optional[School]:
         """Update school information"""
         school = await SchoolService.get_school_by_id(db, school_id)
@@ -398,7 +434,7 @@ class SchoolService:
         }
     
     @staticmethod
-    async def deactivate_school(db: AsyncSession, school_id: str) -> bool:
+    async def deactivate_school(db: AsyncSession, school_id: str, current_user_id: Optional[str] = None) -> bool:
         """Deactivate a school"""
         school = await SchoolService.get_school_by_id(db, school_id)
         if not school:
@@ -407,10 +443,39 @@ class SchoolService:
         school.is_active = False
         await db.commit()
         
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school.id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="DEACTIVATE",
+                    entity_type="school",
+                    entity_id=school.id,
+                    details={"name": school.name}
+                )
+            )
+
+            # Notify School Owner
+            primary_owner = await SchoolOwnershipService.get_school_primary_owner(db, school.id)
+            if primary_owner:
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=school.id,
+                    notification_data=NotificationCreate(
+                        user_id=primary_owner.id,
+                        title="School Deactivated",
+                        message=f"Your school {school.name} has been deactivated. Please contact support.",
+                        type=NotificationType.ERROR,
+                        link="#"
+                    )
+                )
+
         return True
     
     @staticmethod
-    async def activate_school(db: AsyncSession, school_id: str) -> bool:
+    async def activate_school(db: AsyncSession, school_id: str, current_user_id: Optional[str] = None) -> bool:
         """Activate a school"""
         school = await SchoolService.get_school_by_id(db, school_id)
         if not school:
@@ -419,4 +484,33 @@ class SchoolService:
         school.is_active = True
         await db.commit()
         
+        # Audit Log
+        if current_user_id:
+            await AuditService.log_action(
+                db=db,
+                school_id=school.id,
+                audit_data=AuditLogCreate(
+                    user_id=current_user_id,
+                    action="ACTIVATE",
+                    entity_type="school",
+                    entity_id=school.id,
+                    details={"name": school.name}
+                )
+            )
+
+            # Notify School Owner
+            primary_owner = await SchoolOwnershipService.get_school_primary_owner(db, school.id)
+            if primary_owner:
+                await NotificationService.create_notification(
+                    db=db,
+                    school_id=school.id,
+                    notification_data=NotificationCreate(
+                        user_id=primary_owner.id,
+                        title="School Activated",
+                        message=f"Your school {school.name} has been activated.",
+                        type=NotificationType.SUCCESS,
+                        link="/dashboard"
+                    )
+                )
+
         return True

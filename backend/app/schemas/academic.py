@@ -421,6 +421,7 @@ class AttendanceBase(BaseModel):
     status: AttendanceStatus
     student_id: str
     class_id: str
+    subject_id: Optional[str] = None  # NULL for class attendance, set for subject attendance
     term_id: str
     notes: Optional[str] = None
 
@@ -438,6 +439,8 @@ class AttendanceResponse(AttendanceBase):
     id: str
     student_name: Optional[str] = None
     class_name: Optional[str] = None
+    subject_name: Optional[str] = None
+    subject_code: Optional[str] = None
     term_name: Optional[str] = None
     marked_by: Optional[str] = None
     marker_name: Optional[str] = None
@@ -448,11 +451,62 @@ class AttendanceResponse(AttendanceBase):
         from_attributes = True
 
 
+# Individual attendance record for bulk operations
+class AttendanceRecordInput(BaseModel):
+    student_id: str
+    status: AttendanceStatus
+    notes: Optional[str] = None
+
+
+# Bulk class attendance (no subject)
+class BulkClassAttendanceCreate(BaseModel):
+    date: date
+    class_id: str
+    term_id: str
+    records: List[AttendanceRecordInput]
+
+
+# Bulk subject attendance
+class BulkSubjectAttendanceCreate(BaseModel):
+    date: date
+    class_id: str
+    subject_id: str
+    term_id: str
+    records: List[AttendanceRecordInput]
+
+
+# For backward compatibility
 class BulkAttendanceCreate(BaseModel):
     date: date
     class_id: str
     term_id: str
     attendances: List[dict]  # [{"student_id": "...", "status": "present"}, ...]
+
+
+# Attendance summary for a student
+class StudentAttendanceSummary(BaseModel):
+    student_id: str
+    student_name: str
+    total_days: int
+    present_days: int
+    absent_days: int
+    late_days: int
+    excused_days: int
+    attendance_rate: float
+    
+    class Config:
+        from_attributes = True
+
+
+# Attendance filter parameters
+class AttendanceFilterParams(BaseModel):
+    class_id: Optional[str] = None
+    subject_id: Optional[str] = None
+    student_id: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: Optional[AttendanceStatus] = None
+    term_id: Optional[str] = None
 
 
 class ClassTimetableResponse(BaseModel):

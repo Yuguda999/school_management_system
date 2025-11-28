@@ -6,6 +6,9 @@ from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserStatusUpdate, UserRoleUpdate, TeacherCreateWithSubjects
 from app.core.security import get_password_hash
 import uuid
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class UserService:
@@ -155,7 +158,8 @@ class UserService:
         db: AsyncSession,
         user_id: str,
         school_id: str,
-        user_data: UserUpdate
+        user_data: UserUpdate,
+        current_user_id: Optional[str] = None
     ) -> Optional[User]:
         """Update user information"""
         user = await UserService.get_user_by_id(db, user_id, school_id)
@@ -221,6 +225,20 @@ class UserService:
 
         await db.commit()
         await db.refresh(user)
+        
+        # Notify User if updated by someone else
+        if current_user_id and current_user_id != user.id:
+             await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=user.id,
+                    title="Profile Updated",
+                    message="Your profile information has been updated by an administrator.",
+                    type=NotificationType.INFO,
+                    link="/profile"
+                )
+            )
 
         return user
     

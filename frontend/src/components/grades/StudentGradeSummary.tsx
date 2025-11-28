@@ -7,7 +7,7 @@ import {
   DocumentTextIcon,
   CalendarIcon
 } from '@heroicons/react/24/outline';
-import { Student, Term, StudentGradesSummary, GradeScale } from '../../types';
+import { Student, Term, StudentGradesSummary, GradeScale, Class } from '../../types';
 import GradeService from '../../services/gradeService';
 import { studentService } from '../../services/studentService';
 import { academicService } from '../../services/academicService';
@@ -29,9 +29,11 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
   const { showError } = useToast();
   const [summary, setSummary] = useState<StudentGradesSummary | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || '');
+  const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedTermId, setSelectedTermId] = useState(initialTermId || currentTerm?.id || '');
 
   // Update selected term when current term changes
@@ -61,14 +63,16 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
 
   const fetchData = async () => {
     try {
-      const [studentsResponse, termsData] = await Promise.all([
+      const [studentsResponse, termsData, classesData] = await Promise.all([
         studentService.getStudents({ status: 'active' }),
-        academicService.getTerms({ is_current: true })
+        academicService.getTerms({ is_current: true }),
+        academicService.getClasses({ is_active: true })
       ]);
 
       setStudents(studentsResponse.items);
       setTerms(termsData);
-      
+      setClasses(classesData);
+
       // Set default selections if not provided
       if (!selectedStudentId && studentsResponse.items.length > 0) {
         setSelectedStudentId(studentsResponse.items[0].id);
@@ -101,7 +105,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
 
   const getGradeColor = (grade?: GradeScale): string => {
     if (!grade) return 'text-gray-500';
-    
+
     switch (grade) {
       case 'A+':
       case 'A':
@@ -131,6 +135,10 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
     return { label: 'Poor', color: 'text-red-600' };
   };
 
+  const filteredStudents = selectedClassId
+    ? students.filter(s => s.current_class_id === selectedClassId)
+    : students;
+
   const selectedStudent = students.find(s => s.id === selectedStudentId);
   const selectedTerm = terms.find(t => t.id === selectedTermId);
 
@@ -146,21 +154,37 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
             Detailed academic performance overview for individual students
           </p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={selectedClassId}
+            onChange={(e) => {
+              setSelectedClassId(e.target.value);
+              setSelectedStudentId(''); // Reset student selection when class changes
+            }}
+            className="input"
+          >
+            <option value="">All Classes</option>
+            {classes.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
+              </option>
+            ))}
+          </select>
+
           <select
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(e.target.value)}
             className="input"
           >
             <option value="">Select Student</option>
-            {students.map((student) => (
+            {filteredStudents.map((student) => (
               <option key={student.id} value={student.id}>
                 {student.first_name} {student.last_name} ({student.admission_number})
               </option>
             ))}
           </select>
-          
+
           <select
             value={selectedTermId}
             onChange={(e) => setSelectedTermId(e.target.value)}
@@ -221,7 +245,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                   </p>
                 </div>
               </div>
-              
+
               <div className="text-right">
                 {summary.position && (
                   <div className="flex items-center text-yellow-600">
@@ -278,12 +302,11 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
             <div className="card p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    summary.overall_percentage >= 80 ? 'bg-green-100 text-green-600' :
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${summary.overall_percentage >= 80 ? 'bg-green-100 text-green-600' :
                     summary.overall_percentage >= 70 ? 'bg-blue-100 text-blue-600' :
-                    summary.overall_percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
-                    'bg-red-100 text-red-600'
-                  }`}>
+                      summary.overall_percentage >= 60 ? 'bg-yellow-100 text-yellow-600' :
+                        'bg-red-100 text-red-600'
+                    }`}>
                     <span className="text-sm font-bold">%</span>
                   </div>
                 </div>
@@ -292,17 +315,16 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                     Overall Percentage
                   </p>
                   <p className="text-2xl font-semibold text-gray-900 dark:text-white">
-                    {typeof summary.overall_percentage === 'number' 
-                      ? summary.overall_percentage.toFixed(1) 
+                    {typeof summary.overall_percentage === 'number'
+                      ? summary.overall_percentage.toFixed(1)
                       : 'N/A'}%
                   </p>
-                  <p className={`text-xs font-medium ${
-                    typeof summary.overall_percentage === 'number' 
-                      ? getPerformanceLevel(summary.overall_percentage).color 
-                      : 'text-gray-500'
-                  }`}>
-                    {typeof summary.overall_percentage === 'number' 
-                      ? getPerformanceLevel(summary.overall_percentage).label 
+                  <p className={`text-xs font-medium ${typeof summary.overall_percentage === 'number'
+                    ? getPerformanceLevel(summary.overall_percentage).color
+                    : 'text-gray-500'
+                    }`}>
+                    {typeof summary.overall_percentage === 'number'
+                      ? getPerformanceLevel(summary.overall_percentage).label
                       : 'N/A'}
                   </p>
                 </div>
@@ -312,12 +334,11 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
             <div className="card p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    summary.overall_grade === 'A+' || summary.overall_grade === 'A' ? 'bg-green-100 text-green-600' :
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${summary.overall_grade === 'A+' || summary.overall_grade === 'A' ? 'bg-green-100 text-green-600' :
                     summary.overall_grade === 'B+' || summary.overall_grade === 'B' ? 'bg-blue-100 text-blue-600' :
-                    summary.overall_grade === 'C+' || summary.overall_grade === 'C' ? 'bg-yellow-100 text-yellow-600' :
-                    'bg-red-100 text-red-600'
-                  }`}>
+                      summary.overall_grade === 'C+' || summary.overall_grade === 'C' ? 'bg-yellow-100 text-yellow-600' :
+                        'bg-red-100 text-red-600'
+                    }`}>
                     <span className="text-sm font-bold">{summary.overall_grade || 'N/A'}</span>
                   </div>
                 </div>
@@ -343,7 +364,7 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                 Subject Grades
               </h3>
             </div>
-            
+
             {summary.grades.length === 0 ? (
               <div className="p-8 text-center">
                 <DocumentTextIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -407,8 +428,8 @@ const StudentGradeSummary: React.FC<StudentGradeSummaryProps> = ({
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-sm ${getGradeColor(grade.grade)}`}>
-                            {typeof grade.percentage === 'number' 
-                              ? grade.percentage.toFixed(1) 
+                            {typeof grade.percentage === 'number'
+                              ? grade.percentage.toFixed(1)
                               : 'N/A'}%
                           </span>
                         </td>

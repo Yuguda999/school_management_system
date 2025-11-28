@@ -6,7 +6,9 @@ from app.core.deps import (
     get_current_active_user,
     require_school_admin,
     require_teacher_or_admin_user,
-    get_current_school
+    get_current_school,
+    get_current_school_context,
+    SchoolContext
 )
 from app.models.user import User, UserRole
 from app.models.school import School
@@ -106,11 +108,13 @@ async def get_messages(
     sender_id: Optional[str] = Query(None, description="Filter by sender"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all messages with filtering"""
+    current_user = school_context.user
+    current_school = school_context.school
+
     # Students and parents can only see messages sent to them
     recipient_id = None
     if current_user.role in [UserRole.STUDENT, UserRole.PARENT]:
@@ -139,11 +143,13 @@ async def get_messages(
 @router.get("/messages/{message_id}", response_model=MessageResponse)
 async def get_message(
     message_id: str,
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get message by ID"""
+    current_user = school_context.user
+    current_school = school_context.school
+
     message = await CommunicationService.get_message_by_id(db, message_id, current_school.id)
     if not message:
         raise HTTPException(
@@ -195,11 +201,13 @@ async def send_message(
 @router.post("/messages/mark-read")
 async def mark_messages_as_read(
     request: MarkAsReadRequest,
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Mark messages as read by current user"""
+    current_user = school_context.user
+    current_school = school_context.school
+
     marked_count = 0
     
     for message_id in request.message_ids:
@@ -239,11 +247,13 @@ async def get_announcements(
     category: Optional[str] = Query(None, description="Filter by category"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(get_current_active_user),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all announcements"""
+    current_user = school_context.user
+    current_school = school_context.school
+
     # Non-admin users can only see published announcements
     if current_user.role not in [UserRole.SCHOOL_ADMIN, UserRole.SCHOOL_OWNER, UserRole.PLATFORM_SUPER_ADMIN]:
         is_published = True
@@ -287,11 +297,20 @@ async def publish_announcement(
 @router.get("/statistics", response_model=MessageStatistics)
 async def get_communication_statistics(
     days: int = Query(30, ge=1, le=365, description="Number of days for statistics"),
-    current_user: User = Depends(require_teacher_or_admin_user()),
-    current_school: School = Depends(get_current_school),
+    school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get communication statistics (Teacher/Admin only)"""
+    current_user = school_context.user
+    current_school = school_context.school
+
+    # Check permissions manually since we're using context
+    if current_user.role not in [UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN, UserRole.TEACHER]:
+         raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
+
     statistics = await CommunicationService.get_communication_statistics(
         db, current_school.id, days
     )

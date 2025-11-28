@@ -1,5 +1,6 @@
 import React from 'react';
-import { Bars3Icon, BellIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import NotificationBell from '../Notifications/NotificationBell';
 import { useAuth } from '../../contexts/AuthContext';
 import ThemeToggle from '../ui/ThemeToggle';
 
@@ -42,11 +43,7 @@ const SchoolHeader: React.FC<SchoolHeaderProps> = ({ onMenuClick }) => {
           <ThemeToggle />
 
           {/* Notifications */}
-          <button className="p-2 rounded-full text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative">
-            <span className="sr-only">View notifications</span>
-            <BellIcon className="h-6 w-6" aria-hidden="true" />
-            <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
-          </button>
+          <NotificationBell />
 
           {/* Separator */}
           <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2"></div>

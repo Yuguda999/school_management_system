@@ -12,6 +12,9 @@ from app.schemas.academic import (
     TimetableEntryUpdate, AttendanceCreate, AttendanceUpdate
 )
 from datetime import date
+from app.services.notification_service import NotificationService
+from app.schemas.notification import NotificationCreate
+from app.models.notification import NotificationType
 
 
 class AcademicService:
@@ -68,6 +71,20 @@ class AcademicService:
         await db.commit()
         await db.refresh(new_class)
         
+        # Notify Teacher
+        if new_class.teacher_id:
+            await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=new_class.teacher_id,
+                    title="Class Assignment",
+                    message=f"You have been assigned as the class teacher for {new_class.name}.",
+                    type=NotificationType.INFO,
+                    link="/academics/classes"
+                )
+            )
+
         return new_class
     
     @staticmethod
@@ -151,6 +168,20 @@ class AcademicService:
         await db.commit()
         await db.refresh(class_obj)
         
+        # Notify New Teacher if changed
+        if 'teacher_id' in update_data and update_data['teacher_id'] and update_data['teacher_id'] != class_obj.teacher_id:
+             await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=update_data['teacher_id'],
+                    title="Class Assignment",
+                    message=f"You have been assigned as the class teacher for {class_obj.name}.",
+                    type=NotificationType.INFO,
+                    link="/academics/classes"
+                )
+            )
+
         return class_obj
     
     # Subject Management
@@ -414,6 +445,24 @@ class AcademicService:
         db.add(term)
         await db.commit()
         await db.refresh(term)
+        
+        # Notify Admins
+        # Get all admins
+        admins_res = await db.execute(select(User).where(User.school_id == school_id, User.role == UserRole.ADMIN, User.is_active == True))
+        admins = admins_res.scalars().all()
+        
+        for admin in admins:
+             await NotificationService.create_notification(
+                db=db,
+                school_id=school_id,
+                notification_data=NotificationCreate(
+                    user_id=admin.id,
+                    title="New Term Created",
+                    message=f"A new term '{term.name}' has been created for the academic session {term.academic_session}.",
+                    type=NotificationType.INFO,
+                    link="/academics/terms"
+                )
+            )
 
         return term
 

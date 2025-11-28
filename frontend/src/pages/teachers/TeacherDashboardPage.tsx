@@ -19,6 +19,7 @@ import { useToast } from '../../hooks/useToast';
 import { apiService } from '../../services/api';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import PageHeader from '../../components/Layout/PageHeader';
+import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 interface TeacherStats {
   total_classes: number;
@@ -52,7 +53,7 @@ const TeacherDashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
   const { showError } = useToast();
   const navigate = useNavigate();
-  
+
   const [stats, setStats] = useState<TeacherStats>({
     total_classes: 0,
     total_students: 0,
@@ -72,7 +73,7 @@ const TeacherDashboardPage: React.FC = () => {
       setLoading(true);
       // For now, we'll use mock data since the backend endpoints might not exist yet
       // TODO: Replace with actual API calls when teacher-specific endpoints are available
-      
+
       const mockStats: TeacherStats = {
         total_classes: 3,
         total_students: 85,
@@ -100,31 +101,41 @@ const TeacherDashboardPage: React.FC = () => {
           }
         ]
       };
-      
+
       setStats(mockStats);
     } catch (error: any) {
       console.error('Error fetching teacher stats:', error);
-      
+
       if (error.response?.status === 401) {
         logout();
         navigate('/login');
         return;
       }
-      
+
       showError('Failed to load dashboard data');
     } finally {
       setLoading(false);
     }
   };
 
+  const schoolCode = getSchoolCodeFromUrl();
+
   const quickActions: QuickAction[] = [
     {
-      id: 'attendance',
-      title: 'Take Attendance',
-      description: 'Record student attendance for today',
+      id: 'class-attendance',
+      title: 'Class Attendance',
+      description: 'Mark attendance for your assigned class',
       icon: ClipboardDocumentListIcon,
       color: 'bg-blue-500',
-      action: () => navigate('/attendance')
+      action: () => navigate(`/${schoolCode}/teacher/attendance/class`)
+    },
+    {
+      id: 'subject-attendance',
+      title: 'Subject Attendance',
+      description: 'Mark attendance for your subjects',
+      icon: CheckCircleIcon,
+      color: 'bg-teal-500',
+      action: () => navigate(`/${schoolCode}/teacher/attendance/subject`)
     },
     {
       id: 'grade',
@@ -132,7 +143,7 @@ const TeacherDashboardPage: React.FC = () => {
       description: 'Review and grade student submissions',
       icon: PencilSquareIcon,
       color: 'bg-green-500',
-      action: () => navigate('/grades')
+      action: () => navigate(`/${schoolCode}/grades`)
     },
     {
       id: 'classes',
@@ -140,15 +151,7 @@ const TeacherDashboardPage: React.FC = () => {
       description: 'View and manage your classes',
       icon: AcademicCapIcon,
       color: 'bg-purple-500',
-      action: () => navigate('/classes')
-    },
-    {
-      id: 'students',
-      title: 'Student List',
-      description: 'View all your students',
-      icon: UserGroupIcon,
-      color: 'bg-orange-500',
-      action: () => navigate('/students')
+      action: () => navigate(`/${schoolCode}/classes`)
     },
     {
       id: 'subjects',
@@ -156,15 +159,7 @@ const TeacherDashboardPage: React.FC = () => {
       description: 'Manage your subject assignments',
       icon: BookOpenIcon,
       color: 'bg-indigo-500',
-      action: () => navigate('/subjects')
-    },
-    {
-      id: 'communication',
-      title: 'Send Message',
-      description: 'Communicate with students and parents',
-      icon: ChatBubbleLeftRightIcon,
-      color: 'bg-pink-500',
-      action: () => navigate('/communication')
+      action: () => navigate(`/${schoolCode}/teacher/subjects`)
     },
     {
       id: 'tools',
@@ -172,7 +167,15 @@ const TeacherDashboardPage: React.FC = () => {
       description: 'Access teaching tools and utilities',
       icon: WrenchScrewdriverIcon,
       color: 'bg-cyan-500',
-      action: () => navigate('/teacher/tools')
+      action: () => navigate(`/${schoolCode}/teacher/tools`)
+    },
+    {
+      id: 'communication',
+      title: 'Send Message',
+      description: 'Communicate with students and parents',
+      icon: ChatBubbleLeftRightIcon,
+      color: 'bg-pink-500',
+      action: () => navigate(`/${schoolCode}/communication`)
     },
     {
       id: 'profile',
@@ -180,7 +183,7 @@ const TeacherDashboardPage: React.FC = () => {
       description: 'View and update your profile information',
       icon: UserIcon,
       color: 'bg-gray-500',
-      action: () => navigate('/teacher/profile')
+      action: () => navigate(`/${schoolCode}/teacher/profile`)
     }
   ];
 
@@ -203,7 +206,7 @@ const TeacherDashboardPage: React.FC = () => {
     const now = new Date();
     const time = new Date(timestamp);
     const diffInHours = Math.floor((now.getTime() - time.getTime()) / (1000 * 60 * 60));
-    
+
     if (diffInHours < 1) {
       return 'Just now';
     } else if (diffInHours < 24) {

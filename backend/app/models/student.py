@@ -1,12 +1,13 @@
 from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, JSON
 from sqlalchemy.orm import relationship
 from app.models.base import TenantBaseModel
-from app.models.user import Gender
+from app.models.user import Gender, UserRole
 import enum
 
 
 class StudentStatus(str, enum.Enum):
     ACTIVE = "active"
+    INACTIVE = "inactive"
     GRADUATED = "graduated"
     TRANSFERRED = "transferred"
     SUSPENDED = "suspended"
@@ -109,6 +110,10 @@ class Student(TenantBaseModel):
     @property
     def current_class_name(self):
         return self.current_class.name if self.current_class else None
+
+    @property
+    def role(self):
+        return UserRole.STUDENT
 
 
 class StudentClassHistory(TenantBaseModel):

@@ -70,11 +70,83 @@ class PlatformAdminService:
         )
         schools_this_month = schools_this_month_result.scalar() or 0
         
-        # Calculate growth percentages (mock for now - would need historical data)
-        schools_growth = "+15%" if schools_this_month > 0 else "0%"
-        school_owners_growth = "+10%"
-        trial_schools_growth = "+25%"
-        monthly_growth = "+12%"
+        # Calculate growth percentages
+        last_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+        
+        # Schools last month
+        schools_last_month_result = await db.execute(
+            select(func.count(School.id)).where(
+                and_(
+                    School.is_deleted == False,
+                    School.created_at >= last_month_start,
+                    School.created_at < current_month_start
+                )
+            )
+        )
+        schools_last_month = schools_last_month_result.scalar() or 0
+        
+        # School owners last month
+        owners_last_month_result = await db.execute(
+            select(func.count(User.id)).where(
+                and_(
+                    User.is_deleted == False,
+                    User.role == UserRole.SCHOOL_OWNER,
+                    User.created_at >= last_month_start,
+                    User.created_at < current_month_start
+                )
+            )
+        )
+        owners_last_month = owners_last_month_result.scalar() or 0
+        
+        def calculate_growth(current, previous):
+            if previous == 0:
+                return "+100%" if current > 0 else "0%"
+            growth = ((current - previous) / previous) * 100
+            return f"{'+' if growth >= 0 else ''}{round(growth, 1)}%"
+
+        schools_growth = calculate_growth(schools_this_month, schools_last_month)
+        
+        # Owners this month (reusing logic)
+        owners_this_month_result = await db.execute(
+            select(func.count(User.id)).where(
+                and_(
+                    User.is_deleted == False,
+                    User.role == UserRole.SCHOOL_OWNER,
+                    User.created_at >= current_month_start
+                )
+            )
+        )
+        owners_this_month = owners_this_month_result.scalar() or 0
+        school_owners_growth = calculate_growth(owners_this_month, owners_last_month)
+        
+        # Trial schools growth (simplified, just using total trials vs last month trials)
+        # Or just use a placeholder if tracking historical trials is hard without a history table.
+        # Let's use the same logic for trial schools created this month vs last month.
+        trial_schools_this_month_result = await db.execute(
+            select(func.count(School.id)).where(
+                and_(
+                    School.subscription_plan == "trial",
+                    School.is_deleted == False,
+                    School.created_at >= current_month_start
+                )
+            )
+        )
+        trial_schools_this_month = trial_schools_this_month_result.scalar() or 0
+        
+        trial_schools_last_month_result = await db.execute(
+            select(func.count(School.id)).where(
+                and_(
+                    School.subscription_plan == "trial",
+                    School.is_deleted == False,
+                    School.created_at >= last_month_start,
+                    School.created_at < current_month_start
+                )
+            )
+        )
+        trial_schools_last_month = trial_schools_last_month_result.scalar() or 0
+        trial_schools_growth = calculate_growth(trial_schools_this_month, trial_schools_last_month)
+        
+        monthly_growth = schools_growth # Simplified
 
         return {
             "total_schools": total_schools,

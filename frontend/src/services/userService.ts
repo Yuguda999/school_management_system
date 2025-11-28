@@ -49,7 +49,7 @@ class UserService {
   async getUsersByRole(role: string, schoolId?: string): Promise<User[]> {
     const params = new URLSearchParams({ role });
     if (schoolId) params.append('school_id', schoolId);
-    
+
     const response = await apiService.get<PaginatedResponse<User>>(`/api/v1/users?${params.toString()}`);
     return response.items;
   }
@@ -88,6 +88,21 @@ class UserService {
     if (params?.size) queryParams.append('size', params.size.toString());
 
     return apiService.get<User[]>(`/api/v1/users/teachers?${queryParams.toString()}`);
+  }
+
+  // Export teachers to CSV
+  async exportTeachers(params?: {
+    department?: string;
+    is_active?: boolean;
+  }): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    if (params?.department) queryParams.append('department', params.department);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+
+    const response = await apiService.api.get(`/api/v1/users/teachers/export?${queryParams.toString()}`, {
+      responseType: 'blob',
+    });
+    return response.data;
   }
 }
 
