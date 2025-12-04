@@ -54,7 +54,7 @@ const TeacherSetupPage: React.FC = () => {
   const validateToken = async () => {
     try {
       const response = await teacherInvitationService.validateInvitationToken(token!);
-      
+
       if (response.valid && response.invitation) {
         setInvitation(response.invitation);
         setValue('invitation_token', token!);
@@ -74,7 +74,7 @@ const TeacherSetupPage: React.FC = () => {
       console.log('Form already submitting, ignoring duplicate submission');
       return;
     }
-    
+
     setSubmitting(true);
     try {
       console.log('=== FORM SUBMISSION START ===');
@@ -83,16 +83,16 @@ const TeacherSetupPage: React.FC = () => {
       console.log('Form data keys:', Object.keys(data));
       console.log('Invitation data:', invitation);
       console.log('Current timestamp:', new Date().toISOString());
-      
+
       const response = await teacherInvitationService.acceptInvitation(data);
       console.log('=== FORM SUBMISSION SUCCESS ===');
-      
+
       // Set authentication state directly (no need for additional API call)
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('refresh_token', response.refresh_token);
-      
+
       console.log('Authentication tokens stored, updating user state...');
-      
+
       // Use updateUser to refresh the authentication state
       // This will fetch the current user data using the stored tokens
       await updateUser();
@@ -105,9 +105,9 @@ const TeacherSetupPage: React.FC = () => {
       // Redirect based on profile completion status with school code
       if (response.profile_completed) {
         if (schoolCode) {
-          navigate(`/${schoolCode}/teacher/dashboard`);
+          navigate(`/${schoolCode}/dashboard`);
         } else {
-          navigate('/teacher/dashboard');
+          navigate('/dashboard');
         }
       } else {
         navigate('/teacher/complete-profile');
@@ -120,13 +120,13 @@ const TeacherSetupPage: React.FC = () => {
       console.error('Error response data:', error.response?.data);
       console.error('Error response status:', error.response?.status);
       console.error('Current timestamp:', new Date().toISOString());
-      
+
       // Handle different error formats
       let errorMessage = 'Failed to set up account';
-      
+
       if (error.response?.data) {
         const data = error.response.data;
-        
+
         // Handle validation errors (array of error objects)
         if (Array.isArray(data)) {
           errorMessage = data.map(err => err.msg || err.message || 'Validation error').join(', ');
@@ -140,7 +140,7 @@ const TeacherSetupPage: React.FC = () => {
           errorMessage = data;
         }
       }
-      
+
       showError(errorMessage);
     } finally {
       setSubmitting(false);
@@ -216,22 +216,22 @@ const TeacherSetupPage: React.FC = () => {
             </div>
           </div>
 
-          <form 
+          <form
             onSubmit={(e) => {
               console.log('Raw form submit event triggered');
               e.preventDefault();
               handleSubmit(onSubmit)(e);
-            }} 
-            className="space-y-6" 
+            }}
+            className="space-y-6"
             autoComplete="off"
           >
             {/* Hidden invitation token field */}
-            <input 
-              type="hidden" 
-              {...register('invitation_token')} 
-              value={token || ''} 
+            <input
+              type="hidden"
+              {...register('invitation_token')}
+              value={token || ''}
             />
-            
+
             {/* Password */}
             <div>
               <label className="label">
@@ -359,7 +359,7 @@ const TeacherSetupPage: React.FC = () => {
           {/* Security Note */}
           <div className="mt-6 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <p className="text-xs text-gray-600 dark:text-gray-400">
-              <strong>Security tip:</strong> Use a strong password with at least 8 characters, 
+              <strong>Security tip:</strong> Use a strong password with at least 8 characters,
               including uppercase and lowercase letters, numbers, and special characters.
             </p>
           </div>

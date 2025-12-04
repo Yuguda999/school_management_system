@@ -3,7 +3,7 @@ Attendance Service - Handles both class and subject attendance operations
 """
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
@@ -509,10 +509,10 @@ class AttendanceService:
         # Count attendance by status
         stmt = select(
             func.count(Attendance.id).label('total'),
-            func.sum(func.case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('present'),
-            func.sum(func.case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label('absent'),
-            func.sum(func.case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label('late'),
-            func.sum(func.case((Attendance.status == AttendanceStatus.EXCUSED, 1), else_=0)).label('excused')
+            func.sum(case((Attendance.status == AttendanceStatus.PRESENT, 1), else_=0)).label('present'),
+            func.sum(case((Attendance.status == AttendanceStatus.ABSENT, 1), else_=0)).label('absent'),
+            func.sum(case((Attendance.status == AttendanceStatus.LATE, 1), else_=0)).label('late'),
+            func.sum(case((Attendance.status == AttendanceStatus.EXCUSED, 1), else_=0)).label('excused')
         ).where(and_(*conditions))
 
         result = await db.execute(stmt)

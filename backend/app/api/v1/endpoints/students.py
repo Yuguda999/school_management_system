@@ -115,6 +115,7 @@ async def create_student(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new student (Admin/Super Admin only)"""
+    current_user = school_context.user
     # Check if admission number already exists
     result = await db.execute(
         select(Student).where(

@@ -32,7 +32,11 @@ from app.schemas.grade import (
     ReportCardCreate,
     ReportCardUpdate,
     ReportCardResponse,
-    GradeStatistics
+    GradeStatistics,
+    SubjectsWithMappingsResponse,
+    SubjectWithMapping,
+    SubjectConsolidatedGradesResponse,
+    ConsolidatedStudentGrade
 )
 from app.services.grade_service import GradeService
 
@@ -48,6 +52,18 @@ async def create_exam(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new exam (Teacher/Admin only)"""
+    # Additional validation for teachers
+    if current_user.role == UserRole.TEACHER:
+        # Check if teacher can access the subject
+        can_access_subject = await check_teacher_can_access_subject(
+            db, current_user.id, exam_data.subject_id, school_context.school.id
+        )
+        if not can_access_subject:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only create exams for subjects you teach"
+            )
+
     exam = await GradeService.create_exam(
         db, exam_data, school_context.school_id, current_user.id
     )
@@ -81,10 +97,27 @@ async def get_exams(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all exams with filtering"""
+    allowed_subject_ids = None
+    
+    # For teachers, only show exams for subjects they teach
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        # If subject_id filter is provided, verify teacher access
+        if subject_id and subject_id not in allowed_subject_ids:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view exams for subjects you teach"
+            )
+
     skip = (page - 1) * size
     exams = await GradeService.get_exams(
         db, current_school.id, subject_id, class_id, term_id, 
-        exam_type, is_published, is_active, skip, size
+        exam_type, is_published, is_active, allowed_subject_ids, skip, size
     )
     
     response_exams = []
@@ -139,6 +172,20 @@ async def get_exam(
             detail="Exam not found"
         )
     
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if exam.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view exams for subjects you teach"
+            )
+    
     response = ExamResponse.from_orm(exam)
     if exam.creator:
         response.creator_name = exam.creator.full_name
@@ -179,6 +226,28 @@ async def update_exam(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update exam (Teacher/Admin only)"""
+    # Verify exam exists first
+    exam = await GradeService.get_exam_by_id(db, exam_id, current_school.id)
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found"
+        )
+
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if exam.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update exams for subjects you teach"
+            )
+
     exam = await GradeService.update_exam(db, exam_id, exam_data, current_school.id)
     if not exam:
         raise HTTPException(
@@ -232,6 +301,20 @@ async def publish_exam(
             detail="Exam not found"
         )
     
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if exam.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only publish exams for subjects you teach"
+            )
+
     # Update exam to published
     exam_data = ExamUpdate(is_published=True)
     await GradeService.update_exam(db, exam_id, exam_data, current_school.id)
@@ -252,7 +335,7 @@ async def create_grade(
     if current_user.role == UserRole.TEACHER:
         # Check if teacher can access the student
         can_access_student = await check_teacher_can_access_student(
-            db, current_user.id, grade_data.student_id, current_school.id
+            db, current_user.id, grade_data.student_id, school_context.school.id
         )
         if not can_access_student:
             raise HTTPException(
@@ -262,7 +345,7 @@ async def create_grade(
 
         # Check if teacher can access the subject
         can_access_subject = await check_teacher_can_access_subject(
-            db, current_user.id, grade_data.subject_id, current_school.id
+            db, current_user.id, grade_data.subject_id, school_context.school.id, strict=True
         )
         if not can_access_subject:
             raise HTTPException(
@@ -271,7 +354,7 @@ async def create_grade(
             )
 
     grade = await GradeService.create_grade(
-        db, grade_data, current_school.id, current_user.id
+        db, grade_data, school_context.school_id, current_user.id
     )
     
     # Prepare response with additional data
@@ -318,7 +401,7 @@ async def create_bulk_grades(
 
         # Check if teacher can access the subject
         can_access_subject = await check_teacher_can_access_subject(
-            db, current_user.id, exam.subject_id, current_school.id
+            db, current_user.id, exam.subject_id, current_school.id, strict=True
         )
         if not can_access_subject:
             raise HTTPException(
@@ -396,75 +479,49 @@ async def get_grades(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all grades with filtering"""
+    allowed_subject_ids = None
+    allowed_student_ids = None
+
     # Students can only see their own published grades
     if current_user.role == UserRole.STUDENT:
         student_id = current_user.student.id if current_user.student else None
         is_published = True
     elif current_user.role == UserRole.TEACHER:
         # Teachers can only see grades for their subjects and students
-        # If specific filters are provided, validate teacher access
-        if subject_id:
-            can_access_subject = await check_teacher_can_access_subject(
-                db, current_user.id, subject_id, current_school.id
-            )
-            if not can_access_subject:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You can only view grades for subjects you teach"
-                )
-
-        if student_id:
-            can_access_student = await check_teacher_can_access_student(
-                db, current_user.id, student_id, current_school.id
-            )
-            if not can_access_student:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You can only view grades for students in your classes or subjects"
-                )
-
-    skip = (page - 1) * size
-
-    # For teachers, we need to filter grades to only show those they can access
-    if current_user.role == UserRole.TEACHER:
-        # Get teacher's subjects and students
         from app.services.teacher_subject_service import TeacherSubjectService
         from app.services.student_service import StudentService
 
+        # Get allowed subjects
         teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
-            db, current_user.id, current_school.id
+            db, current_user.id, current_school.id, include_class_subjects=False
         )
-        teacher_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
 
+        # Get allowed students
         teacher_students = await StudentService.get_teacher_students(
-            db, current_user.id, current_school.id, None, None, 0, 1000  # Get all accessible students
+            db, current_user.id, current_school.id, None, None, 0, 1000
         )
-        teacher_student_ids = [s.id for s in teacher_students]
+        allowed_student_ids = [s.id for s in teacher_students]
 
-        # Apply teacher-specific filters
-        if not subject_id:
-            subject_id = teacher_subject_ids[0] if teacher_subject_ids else None
-        if not student_id and teacher_student_ids:
-            # Don't set student_id to allow viewing all accessible students
-            pass
+        # If specific filters are provided, validate teacher access
+        if subject_id and subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view grades for subjects you teach"
+            )
 
-        grades = await GradeService.get_grades(
-            db, current_school.id, student_id, subject_id, exam_id,
-            term_id, class_id, is_published, skip, size
-        )
+        if student_id and student_id not in allowed_student_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view grades for students in your classes or subjects"
+            )
 
-        # Additional filtering to ensure teacher can only see their grades
-        filtered_grades = []
-        for grade in grades:
-            if (grade.subject_id in teacher_subject_ids and
-                grade.student_id in teacher_student_ids):
-                filtered_grades.append(grade)
-        grades = filtered_grades
-    else:
-        grades = await GradeService.get_grades(
-            db, current_school.id, student_id, subject_id, exam_id,
-            term_id, class_id, is_published, skip, size
-        )
+    skip = (page - 1) * size
+
+    grades = await GradeService.get_grades(
+        db, current_school.id, student_id, subject_id, exam_id,
+        term_id, class_id, is_published, allowed_subject_ids, allowed_student_ids, skip, size
+    )
     
     response_grades = []
     for grade in grades:
@@ -502,6 +559,33 @@ async def get_grade(
             detail="Grade not found"
         )
 
+    # Teachers can only see grades for their subjects and students
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        from app.services.student_service import StudentService
+
+        # Check subject access
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if grade.subject_id not in allowed_subject_ids:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view grades for subjects you teach"
+            )
+
+        # Check student access
+        can_access_student = await check_teacher_can_access_student(
+            db, current_user.id, grade.student_id, current_school.id
+        )
+        if not can_access_student:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view grades for students in your classes or subjects"
+            )
+
     # Students can only see their own published grades
     if current_user.role == UserRole.STUDENT:
         if grade.student_id != current_user.student.id or not grade.is_published:
@@ -532,6 +616,28 @@ async def update_grade(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update grade (Teacher/Admin only)"""
+    # Verify grade exists first
+    grade = await GradeService.get_grade_by_id(db, grade_id, current_school.id)
+    if not grade:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Grade not found"
+        )
+
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if grade.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update grades for subjects you teach"
+            )
+
     grade = await GradeService.update_grade(db, grade_id, grade_data, current_school.id)
     if not grade:
         raise HTTPException(
@@ -585,6 +691,20 @@ async def publish_grade(
             detail="Grade not found"
         )
     
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if grade.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only publish grades for subjects you teach"
+            )
+
     # Update grade to published
     grade_data = GradeUpdate(is_published=True)
     await GradeService.update_grade(db, grade_id, grade_data, current_school.id)
@@ -607,6 +727,20 @@ async def publish_exam_grades(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exam not found"
         )
+    
+    # For teachers, check if they have access to the subject
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if exam.subject_id not in allowed_subject_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only publish grades for subjects you teach"
+            )
     
     # Update all grades for this exam to published
     from sqlalchemy import update
@@ -649,8 +783,27 @@ async def get_student_grades_summary(
                 detail="Access denied"
             )
 
+    # Teachers can only see summaries for students they have access to
+    allowed_subject_ids = None
+    if current_user.role == UserRole.TEACHER:
+        can_access_student = await check_teacher_can_access_student(
+            db, current_user.id, student_id, current_school.id
+        )
+        if not can_access_student:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view summaries for students in your classes or subjects"
+            )
+        
+        # Get teacher's allowed subjects to filter the summary
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+
     summary = await GradeService.get_student_grades_summary(
-        db, student_id, term_id, current_school.id
+        db, student_id, term_id, current_school.id, allowed_subject_ids
     )
     if not summary:
         raise HTTPException(
@@ -670,6 +823,28 @@ async def get_class_grades_summary(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get grade summary for a class in a specific exam (Teacher/Admin only)"""
+    # Verify exam exists first to check subject
+    exam = await GradeService.get_exam_by_id(db, exam_id, current_school.id)
+    if not exam:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exam not found"
+        )
+
+    # Teachers can only see summaries for subjects they teach
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+        
+        if exam.subject_id not in allowed_subject_ids:
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view summaries for subjects you teach"
+            )
+
     summary = await GradeService.get_class_grades_summary(
         db, class_id, exam_id, current_school.id
     )
@@ -827,6 +1002,31 @@ async def get_report_cards(
         if is_published is not None:
             conditions.append(ReportCard.is_published == is_published)
         
+        # For teachers, filter report cards by subjects they teach
+        allowed_subject_ids = None
+        if current_user.role == UserRole.TEACHER:
+            from app.services.teacher_subject_service import TeacherSubjectService
+            teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+                db, current_user.id, current_school.id, include_class_subjects=False
+            )
+            allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+            # If a teacher has no subjects, they shouldn't see any report cards
+            if not allowed_subject_ids:
+                return []
+            
+            # Filter report cards by checking if any of their associated grades belong to allowed subjects
+            # This requires a subquery or join to the Grade table
+            conditions.append(
+                ReportCard.id.in_(
+                    select(Grade.report_card_id)
+                    .where(
+                        Grade.subject_id.in_(allowed_subject_ids),
+                        Grade.school_id == current_school.id,
+                        Grade.is_deleted == False
+                    )
+                )
+            )
+
         # Calculate pagination
         skip = (page - 1) * size
         
@@ -913,6 +1113,253 @@ async def get_report_cards(
         )
 
 
+
+# Grade Setup Endpoints
+@router.get("/subjects-with-mappings", response_model=SubjectsWithMappingsResponse)
+async def get_subjects_with_mappings(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get subjects with component mappings configured (Teacher/Admin only)"""
+    from app.models.component_mapping import ComponentMapping
+    from app.models.academic import Subject, Class, Term
+    from app.models.grade_template import GradeTemplate, AssessmentComponent
+    from app.services.teacher_subject_service import TeacherSubjectService
+    
+    # Get teacher's allowed subjects
+    allowed_subject_ids = None
+    if current_user.role == UserRole.TEACHER:
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+    
+    # Build query conditions
+    conditions = [
+        ComponentMapping.school_id == current_school.id,
+        ComponentMapping.is_deleted == False,
+        ComponentMapping.include_in_calculation == True
+    ]
+    
+    if term_id:
+        conditions.append(ComponentMapping.term_id == term_id)
+    
+    if allowed_subject_ids:
+        conditions.append(ComponentMapping.subject_id.in_(allowed_subject_ids))
+    
+    # Get all component mappings
+    mappings_result = await db.execute(
+        select(ComponentMapping).options(
+            selectinload(ComponentMapping.subject),
+            selectinload(ComponentMapping.term),
+            selectinload(ComponentMapping.component).selectinload(AssessmentComponent.template)
+        ).where(and_(*conditions))
+    )
+    mappings = list(mappings_result.scalars().all())
+    
+    # Group by subject+term+class
+    subject_term_map = {}
+    for mapping in mappings:
+        if not mapping.subject or not mapping.term:
+            continue
+            
+        # Get class info from teacher subjects
+        class_id = None
+        class_name = None
+        
+        if current_user.role == UserRole.TEACHER:
+            # Find the class this teacher teaches this subject in
+            for ts in teacher_subjects:
+                if ts.subject_id == mapping.subject_id:
+                    class_id = ts.class_id if hasattr(ts, 'class_id') else None
+                    class_name = ts.class_.name if hasattr(ts, 'class_') and ts.class_ else "All Classes"
+                    break
+        
+        key = f"{mapping.subject_id}_{mapping.term_id}_{class_id or 'all'}"
+        
+        if key not in subject_term_map:
+            # Count students enrolled in this subject/term/class
+            enroll_conditions = [
+                Enrollment.school_id == current_school.id,
+                Enrollment.subject_id == mapping.subject_id,
+                Enrollment.term_id == mapping.term_id,
+                Enrollment.is_deleted == False,
+                Enrollment.is_active == True
+            ]
+            
+            if class_id:
+                enroll_conditions.append(Enrollment.class_id == class_id)
+            
+            student_count_result = await db.execute(
+                select(func.count(Enrollment.student_id.distinct())).where(and_(*enroll_conditions))
+            )
+            student_count = student_count_result.scalar() or 0
+            
+            # Get template info if available
+            template_id = None
+            template_name = None
+            if mapping.component and mapping.component.template:
+                template_id = mapping.component.template.id
+                template_name = mapping.component.template.name
+            
+            subject_term_map[key] = SubjectWithMapping(
+                subject_id=mapping.subject_id,
+                subject_name=mapping.subject.name,
+                class_id=class_id or "",
+                class_name=class_name or "All Classes",
+                term_id=mapping.term_id,
+                term_name=mapping.term.name,
+                has_mappings=True,
+                student_count=student_count,
+                template_id=template_id,
+                template_name=template_name
+            )
+    
+    return SubjectsWithMappingsResponse(subjects=list(subject_term_map.values()))
+
+
+@router.get("/subject/{subject_id}/consolidated", response_model=SubjectConsolidatedGradesResponse)
+async def get_subject_consolidated_grades(
+    subject_id: str,
+    term_id: str = Query(..., description="Term ID"),
+    class_id: Optional[str] = Query(None, description="Optional class ID filter"),
+    current_user: User = Depends(require_teacher_or_admin_user()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """Get consolidated grades for all students in a subject (Teacher/Admin only)"""
+    from app.models.academic import Subject, Class, Term
+    from app.models.grade_template import AssessmentComponent
+    
+    # Verify teacher access to subject
+    if current_user.role == UserRole.TEACHER:
+        can_access = await check_teacher_can_access_subject(
+            db, current_user.id, subject_id, current_school.id
+        )
+        if not can_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view grades for subjects you teach"
+            )
+    
+    # Get subject, term, and class info
+    subject = await db.get(Subject, subject_id)
+    term = await db.get(Term, term_id)
+    
+    class_name = "All Classes"
+    if class_id:
+        class_obj = await db.get(Class, class_id)
+        if class_obj:
+            class_name = class_obj.name
+    
+    if not subject or not term:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subject or term not found"
+        )
+    
+    # Get all enrolled students for this subject/term
+    enroll_conditions = [
+        Enrollment.school_id == current_school.id,
+        Enrollment.subject_id == subject_id,
+        Enrollment.term_id == term_id,
+        Enrollment.is_deleted == False,
+        Enrollment.is_active == True
+    ]
+    
+    if class_id:
+        enroll_conditions.append(Enrollment.class_id == class_id)
+    
+    enrollments_result = await db.execute(
+        select(Enrollment).options(
+            selectinload(Enrollment.student)
+        ).where(and_(*enroll_conditions))
+    )
+    enrollments = list(enrollments_result.scalars().all())
+    
+    # Get template components for this subject (via component mappings)
+    from app.models.component_mapping import ComponentMapping
+    
+    mappings_result = await db.execute(
+        select(ComponentMapping).options(
+            selectinload(ComponentMapping.component)
+        ).where(
+            ComponentMapping.subject_id == subject_id,
+            ComponentMapping.term_id == term_id,
+            ComponentMapping.school_id == current_school.id,
+            ComponentMapping.is_deleted == False,
+            ComponentMapping.include_in_calculation == True
+        )
+    )
+    mappings = list(mappings_result.scalars().all())
+    
+    # Get unique component names
+    component_names_set = set()
+    for mapping in mappings:
+        if mapping.component:
+            component_names_set.add(mapping.component.name)
+    
+    template_components = sorted(list(component_names_set))
+    
+    # Get consolidated grades for each student
+    consolidated_students = []
+    
+    for enrollment in enrollments:
+        if not enrollment.student:
+            continue
+        
+        student = enrollment.student
+        
+        # Get all grades for this student in this subject/term
+        grades_result = await db.execute(
+            select(Grade).options(
+                selectinload(Grade.exam),
+                selectinload(Grade.subject)
+            ).where(
+                Grade.student_id == student.id,
+                Grade.subject_id == subject_id,
+                Grade.term_id == term_id,
+                Grade.school_id == current_school.id,
+                Grade.is_deleted == False
+            )
+        )
+        grades = list(grades_result.scalars().all())
+        
+        if not grades:
+            continue
+        
+        # Consolidate grades using the service method
+        consolidated = await GradeService.consolidate_grades_by_subject(
+            db=db,
+            grades=grades,
+            term_id=term_id,
+            school_id=current_school.id,
+            grade_template_id=None
+        )
+        
+        if consolidated:
+            consolidated_grade = consolidated[0]
+            
+            consolidated_students.append(ConsolidatedStudentGrade(
+                student_id=student.id,
+                student_name=student.full_name,
+                component_scores=consolidated_grade['component_scores'],
+                total=float(consolidated_grade['score']),
+                grade=consolidated_grade['grade'].value if consolidated_grade.get('grade') else None
+            ))
+    
+    return SubjectConsolidatedGradesResponse(
+        subject_id=subject_id,
+        subject_name=subject.name,
+        class_name=class_name,
+        term_name=term.name,
+        template_components=template_components,
+        students=consolidated_students
+    )
+
+
 @router.get("/statistics", response_model=GradeStatistics)
 async def get_grade_statistics(
     term_id: Optional[str] = Query(None, description="Filter by term"),
@@ -922,8 +1369,18 @@ async def get_grade_statistics(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get comprehensive grade statistics (Teacher/Admin only)"""
+    allowed_subject_ids = None
+    
+    # For teachers, only show statistics for subjects they teach
+    if current_user.role == UserRole.TEACHER:
+        from app.services.teacher_subject_service import TeacherSubjectService
+        teacher_subjects = await TeacherSubjectService.get_teacher_subjects(
+            db, current_user.id, current_school.id, include_class_subjects=False
+        )
+        allowed_subject_ids = [ts.subject_id for ts in teacher_subjects]
+    
     statistics = await GradeService.get_grade_statistics(
-        db, current_school.id, term_id, class_id
+        db, current_school.id, term_id, class_id, allowed_subject_ids
     )
 
     return statistics

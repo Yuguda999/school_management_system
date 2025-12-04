@@ -94,6 +94,10 @@ class Grade(TenantBaseModel):
     graded_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     graded_date = Column(Date, nullable=False)
     
+    # Component scores breakdown (for consolidated grades)
+    # Stores individual component scores as JSON: {"First C.A": 12.5, "Second C.A": 13.0, "Exam": 58.0}
+    component_scores = Column(JSON, nullable=True)
+    
     # Additional information
     remarks = Column(Text, nullable=True)
     is_published = Column(Boolean, default=False, nullable=False)

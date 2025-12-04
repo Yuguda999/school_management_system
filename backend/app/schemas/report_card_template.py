@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict, Any
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 from app.models.report_card_template import (
@@ -15,19 +15,19 @@ class ReportCardTemplateFieldBase(BaseModel):
     label: Optional[str] = Field(None, description="Display label for the field")
     
     # Position and Size (in inches)
-    x_position: float = Field(..., ge=0, description="X position in inches from left")
-    y_position: float = Field(..., ge=0, description="Y position in inches from top")
-    width: float = Field(..., gt=0, description="Width in inches")
-    height: float = Field(..., gt=0, description="Height in inches")
+    x_position: float = Field(..., ge=0, description="X position in pixels from left")
+    y_position: float = Field(..., ge=0, description="Y position in pixels from top")
+    width: float = Field(..., gt=0, description="Width in pixels")
+    height: float = Field(..., gt=0, description="Height in pixels")
     
     # Styling
     font_family: Optional[str] = Field(None, description="Font family name")
     font_size: Optional[int] = Field(None, ge=6, le=72, description="Font size in points")
     font_weight: FontWeight = FontWeight.NORMAL
     font_style: FontStyle = FontStyle.NORMAL
-    text_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$", description="Text color in hex format")
-    background_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$", description="Background color in hex format")
-    border_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$", description="Border color in hex format")
+    text_color: Optional[str] = Field(None, description="Text color")
+    background_color: Optional[str] = Field(None, description="Background color")
+    border_color: Optional[str] = Field(None, description="Border color")
     border_width: float = Field(0.0, ge=0, description="Border width in points")
     border_style: str = Field("solid", description="Border style")
     
@@ -68,9 +68,9 @@ class ReportCardTemplateFieldUpdate(BaseModel):
     font_size: Optional[int] = Field(None, ge=6, le=72)
     font_weight: Optional[FontWeight] = None
     font_style: Optional[FontStyle] = None
-    text_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
-    background_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
-    border_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
+    text_color: Optional[str] = Field(None)
+    background_color: Optional[str] = Field(None)
+    border_color: Optional[str] = Field(None)
     border_width: Optional[float] = Field(None, ge=0)
     border_style: Optional[str] = None
     
@@ -94,8 +94,8 @@ class ReportCardTemplateFieldUpdate(BaseModel):
 class ReportCardTemplateFieldResponse(ReportCardTemplateFieldBase):
     id: str
     template_id: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True
@@ -110,19 +110,19 @@ class ReportCardTemplateBase(BaseModel):
     # Design Settings
     paper_size: PaperSize = PaperSize.A4
     orientation: Orientation = Orientation.PORTRAIT
-    page_margin_top: float = Field(1.0, ge=0, le=5, description="Top margin in inches")
-    page_margin_bottom: float = Field(1.0, ge=0, le=5, description="Bottom margin in inches")
-    page_margin_left: float = Field(1.0, ge=0, le=5, description="Left margin in inches")
-    page_margin_right: float = Field(1.0, ge=0, le=5, description="Right margin in inches")
+    page_margin_top: float = Field(1.0, ge=0, description="Top margin in pixels")
+    page_margin_bottom: float = Field(1.0, ge=0, description="Bottom margin in pixels")
+    page_margin_left: float = Field(1.0, ge=0, description="Left margin in pixels")
+    page_margin_right: float = Field(1.0, ge=0, description="Right margin in pixels")
     
     # Template Configuration
-    background_color: str = Field("#FFFFFF", pattern="^#[0-9A-Fa-f]{6}$", description="Background color")
+    background_color: str = Field("#FFFFFF", description="Background color")
     background_image_url: Optional[str] = Field(None, max_length=500, description="Background image URL")
     
     # Default Styles
     default_font_family: str = Field("Arial", max_length=50, description="Default font family")
     default_font_size: int = Field(12, ge=6, le=72, description="Default font size")
-    default_text_color: str = Field("#000000", pattern="^#[0-9A-Fa-f]{6}$", description="Default text color")
+    default_text_color: str = Field("#000000", description="Default text color")
     default_line_height: float = Field(1.2, gt=0, le=3, description="Default line height")
     
     # Template Status
@@ -143,25 +143,28 @@ class ReportCardTemplateUpdate(BaseModel):
     # Design Settings
     paper_size: Optional[PaperSize] = None
     orientation: Optional[Orientation] = None
-    page_margin_top: Optional[float] = Field(None, ge=0, le=5)
-    page_margin_bottom: Optional[float] = Field(None, ge=0, le=5)
-    page_margin_left: Optional[float] = Field(None, ge=0, le=5)
-    page_margin_right: Optional[float] = Field(None, ge=0, le=5)
+    page_margin_top: Optional[float] = Field(None, ge=0)
+    page_margin_bottom: Optional[float] = Field(None, ge=0)
+    page_margin_left: Optional[float] = Field(None, ge=0)
+    page_margin_right: Optional[float] = Field(None, ge=0)
     
     # Template Configuration
-    background_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
+    background_color: Optional[str] = Field(None)
     background_image_url: Optional[str] = Field(None, max_length=500)
     
     # Default Styles
     default_font_family: Optional[str] = Field(None, max_length=50)
     default_font_size: Optional[int] = Field(None, ge=6, le=72)
-    default_text_color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
+    default_text_color: Optional[str] = Field(None)
     default_line_height: Optional[float] = Field(None, gt=0, le=3)
     
     # Template Status
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
     is_published: Optional[bool] = None
+    
+    # Fields
+    fields: Optional[List[Dict[str, Any]]] = None
 
 
 class ReportCardTemplateResponse(ReportCardTemplateBase):
@@ -170,8 +173,8 @@ class ReportCardTemplateResponse(ReportCardTemplateBase):
     created_by: str
     usage_count: int
     last_used: Optional[str] = None
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     
     # Related data
     creator_name: Optional[str] = None
@@ -194,7 +197,8 @@ class ReportCardTemplateListResponse(BaseModel):
     is_published: bool
     usage_count: int
     last_used: Optional[str] = None
-    created_at: str
+    created_at: datetime
+    updated_at: datetime
     creator_name: Optional[str] = None
     assignments_count: int = 0
     
@@ -230,8 +234,8 @@ class ReportCardTemplateAssignmentResponse(ReportCardTemplateAssignmentBase):
     class_id: str
     school_id: str
     assigned_by: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
     
     # Related data
     template_name: Optional[str] = None

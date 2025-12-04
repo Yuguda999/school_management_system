@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import all endpoint routers
-from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance
+from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, grade_templates, component_mappings, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance
 
 api_router = APIRouter()
 
@@ -19,6 +19,8 @@ api_router.include_router(terms.router, prefix="/terms", tags=["terms"])
 api_router.include_router(academic_sessions.router, prefix="/academic-sessions", tags=["academic-sessions"])
 api_router.include_router(fees.router, prefix="/fees", tags=["fees"])
 api_router.include_router(grades.router, prefix="/grades", tags=["grades"])
+api_router.include_router(grade_templates.router, prefix="/grade-templates", tags=["grade-templates"])
+api_router.include_router(component_mappings.router, prefix="/component-mappings", tags=["component-mappings"])
 api_router.include_router(communication.router, prefix="/communication", tags=["communication"])
 api_router.include_router(teacher_invitations.router, prefix="/teacher-invitations", tags=["teacher-invitations"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
@@ -48,6 +50,7 @@ api_router.include_router(terms.router, prefix="/school/{school_code}/terms", ta
 api_router.include_router(academic_sessions.router, prefix="/school/{school_code}/academic-sessions", tags=["school-academic-sessions"])
 api_router.include_router(fees.router, prefix="/school/{school_code}/fees", tags=["school-fees"])
 api_router.include_router(grades.router, prefix="/school/{school_code}/grades", tags=["school-grades"])
+api_router.include_router(grade_templates.router, prefix="/school/{school_code}/grade-templates", tags=["school-grade-templates"])
 api_router.include_router(communication.router, prefix="/school/{school_code}/communication", tags=["school-communication"])
 api_router.include_router(teacher_invitations.router, prefix="/school/{school_code}/teacher-invitations", tags=["school-teacher-invitations"])
 api_router.include_router(documents.router, prefix="/school/{school_code}/documents", tags=["school-documents"])

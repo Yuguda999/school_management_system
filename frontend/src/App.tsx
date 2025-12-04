@@ -14,7 +14,7 @@ import TeacherSetupPage from './pages/auth/TeacherSetupPage';
 import FreemiumRegistrationPage from './pages/public/FreemiumRegistrationPage';
 import LandingPage from './pages/public/LandingPage';
 import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileCompletionPage';
-import TeacherDashboardPage from './pages/teachers/TeacherDashboardPage';
+
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
 import TeacherToolsPage from './pages/teachers/TeacherToolsPage';
@@ -73,7 +73,7 @@ function App() {
       <NotificationProvider>
         <Routes>
           {/* Public Routes */}
-          <Route path="/home" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/:schoolCode/login" element={<SchoolLoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -116,15 +116,7 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="student/fees" element={<StudentFeesPage />} />
 
-            {/* Teacher Dashboard */}
-            <Route
-              path="teacher/dashboard"
-              element={
-                <SchoolRoute allowedRoles={['teacher']}>
-                  <TeacherDashboardPage />
-                </SchoolRoute>
-              }
-            />
+
 
             {/* Student Dashboard */}
             <Route

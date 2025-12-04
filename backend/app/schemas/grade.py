@@ -72,6 +72,7 @@ class GradeBase(BaseModel):
     exam_id: str
     term_id: str
     remarks: Optional[str] = None
+    component_scores: Optional[Dict[str, float]] = None  # Component breakdown (e.g., {"First C.A": 12.5, "Exam": 58.0})
     
     @validator('score')
     def validate_score(cls, v, values):
@@ -85,9 +86,12 @@ class GradeCreate(GradeBase):
 
 
 class GradeUpdate(BaseModel):
-    score: Optional[Decimal] = Field(None, ge=0, le=1000)
+    score: Optional[float] = Field(None, ge=0, le=1000)
+    total_marks: Optional[float] = Field(None, ge=0, le=1000)
     remarks: Optional[str] = None
+    component_scores: Optional[Dict[str, float]] = None  # Component breakdown
     is_published: Optional[bool] = None
+
 
 
 class GradeResponse(GradeBase):
@@ -97,6 +101,7 @@ class GradeResponse(GradeBase):
     graded_by: str
     graded_date: date
     is_published: bool
+    component_scores: Optional[Dict[str, float]] = None  # Component breakdown
     grader_name: Optional[str] = None
     student_name: Optional[str] = None
     subject_name: Optional[str] = None
@@ -107,6 +112,7 @@ class GradeResponse(GradeBase):
 
     class Config:
         from_attributes = True
+
 
 
 class BulkGradeCreate(BaseModel):
@@ -243,3 +249,42 @@ class GradeStatistics(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# New schemas for Grade Setup tab
+class SubjectWithMapping(BaseModel):
+    """Subject with component mapping information"""
+    subject_id: str
+    subject_name: str
+    class_id: str
+    class_name: str
+    term_id: str
+    term_name: str
+    has_mappings: bool
+    student_count: int
+    template_id: Optional[str] = None
+    template_name: Optional[str] = None
+
+
+class SubjectsWithMappingsResponse(BaseModel):
+    """Response containing subjects with component mappings"""
+    subjects: List[SubjectWithMapping]
+
+
+class ConsolidatedStudentGrade(BaseModel):
+    """Consolidated grade for a student"""
+    student_id: str
+    student_name: str
+    component_scores: Dict[str, float]
+    total: float
+    grade: Optional[str] = None
+
+
+class SubjectConsolidatedGradesResponse(BaseModel):
+    """Response containing consolidated grades for a subject"""
+    subject_id: str
+    subject_name: str
+    class_name: str
+    term_name: str
+    template_components: List[str]
+    students: List[ConsolidatedStudentGrade]

@@ -319,36 +319,49 @@ class AcademicService:
         is_active: Optional[bool] = None,
         is_core: Optional[bool] = None,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        include_class_subjects: bool = True
     ) -> List[Subject]:
         """Get subjects that a teacher is assigned to teach (including class subjects if they are a class teacher)"""
         from sqlalchemy import text
 
-        # Get subjects directly assigned to teacher OR subjects assigned to their class
-        base_query = """
+        # Base query for directly assigned subjects
+        direct_subjects_condition = """
+            s.id IN (
+                SELECT ts.subject_id
+                FROM teacher_subjects ts
+                WHERE ts.teacher_id = :teacher_id
+                AND ts.school_id = :school_id
+                AND ts.is_deleted = false
+            )
+        """
+
+        # Condition for class subjects
+        class_subjects_condition = """
+            s.id IN (
+                SELECT cs.subject_id
+                FROM class_subjects cs
+                JOIN classes c ON cs.class_id = c.id
+                WHERE c.teacher_id = :teacher_id
+                AND cs.school_id = :school_id
+                AND cs.is_deleted = false
+                AND c.is_deleted = false
+            )
+        """
+
+        # Construct the WHERE clause based on include_class_subjects
+        if include_class_subjects:
+            where_clause = f"({direct_subjects_condition} OR {class_subjects_condition})"
+        else:
+            where_clause = direct_subjects_condition
+
+        base_query = f"""
             SELECT DISTINCT s.id, s.name, s.code, s.description, s.is_core,
                    s.credit_units, s.is_active, s.created_at, s.updated_at, s.school_id, s.is_deleted
             FROM subjects s
             WHERE s.school_id = :school_id
             AND s.is_deleted = false
-            AND (
-                s.id IN (
-                    SELECT ts.subject_id
-                    FROM teacher_subjects ts
-                    WHERE ts.teacher_id = :teacher_id
-                    AND ts.school_id = :school_id
-                    AND ts.is_deleted = false
-                )
-                OR s.id IN (
-                    SELECT cs.subject_id
-                    FROM class_subjects cs
-                    JOIN classes c ON cs.class_id = c.id
-                    WHERE c.teacher_id = :teacher_id
-                    AND cs.school_id = :school_id
-                    AND cs.is_deleted = false
-                    AND c.is_deleted = false
-                )
-            )
+            AND {where_clause}
         """
 
         params = {

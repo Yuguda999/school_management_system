@@ -7,15 +7,18 @@ import { useToast } from '../../hooks/useToast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StudentProfile from '../../components/students/StudentProfile';
 import MultiStepStudentModal from '../../components/students/MultiStepStudentModal';
+import { ReportCardViewer } from '../../components/reports/ReportCardViewer';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 const StudentDetailPage: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
   const { showError, showSuccess } = useToast();
-  
+
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showReportCard, setShowReportCard] = useState(false);
 
   useEffect(() => {
     if (studentId) {
@@ -25,7 +28,7 @@ const StudentDetailPage: React.FC = () => {
 
   const fetchStudent = async () => {
     if (!studentId) return;
-    
+
     try {
       setLoading(true);
       const studentData = await studentService.getStudentById(studentId);
@@ -106,19 +109,28 @@ const StudentDetailPage: React.FC = () => {
             </p>
           </div>
         </div>
-        
-        <button
-          onClick={handleEdit}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <PencilIcon className="h-4 w-4" />
-          <span>Edit Student</span>
-        </button>
+
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowReportCard(true)}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <DocumentTextIcon className="h-4 w-4" />
+            <span>View Report Card</span>
+          </button>
+          <button
+            onClick={handleEdit}
+            className="btn-primary flex items-center space-x-2"
+          >
+            <PencilIcon className="h-4 w-4" />
+            <span>Edit Student</span>
+          </button>
+        </div>
       </div>
 
       {/* Student Profile */}
       <div className="card">
-        <StudentProfile 
+        <StudentProfile
           student={student}
           onEdit={handleEdit}
         />
@@ -130,6 +142,15 @@ const StudentDetailPage: React.FC = () => {
           student={student}
           onClose={() => setShowEditModal(false)}
           onSave={handleEditSave}
+        />
+      )}
+
+      {showReportCard && student && (
+        <ReportCardViewer
+          isOpen={showReportCard}
+          onClose={() => setShowReportCard(false)}
+          studentId={student.id}
+          classId={student.current_class_id}
         />
       )}
     </div>

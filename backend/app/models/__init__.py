@@ -9,6 +9,8 @@ from .student import *  # noqa
 from .academic import *  # noqa
 from .fee import *  # noqa
 from .grade import *  # noqa
+from .grade_template import *  # noqa
+from .component_mapping import *  # noqa
 from .communication import *  # noqa
 from .teacher_invitation import *  # noqa
 from .document import *  # noqa

@@ -6,6 +6,7 @@ import {
   Cog6ToothIcon,
   BuildingOfficeIcon,
   BuildingStorefrontIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { Term } from '../../types';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
@@ -20,8 +21,10 @@ import { CURRENCY_OPTIONS } from '../../utils/currency';
 import { apiService } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 import { useEffect } from 'react';
+import { TemplateService, ReportCardTemplate } from '../../services/templateService';
+import GradeTemplateManagement from './GradeTemplateManagement';
 
-type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general';
+type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general' | 'report_cards';
 
 const SchoolSettings: React.FC = () => {
   const { user } = useAuth();
@@ -43,6 +46,12 @@ const SchoolSettings: React.FC = () => {
   const [termsPerYear, setTermsPerYear] = useState('3');
   const [loadingAcademic, setLoadingAcademic] = useState(false);
 
+  // Report Card Settings State
+  const [templates, setTemplates] = useState<ReportCardTemplate[]>([]);
+  const [defaultTemplateId, setDefaultTemplateId] = useState<string>('');
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   useEffect(() => {
     if (user?.school) {
       setSchoolName(user.school_name || '');
@@ -56,8 +65,48 @@ const SchoolSettings: React.FC = () => {
       if (user.school.settings?.academic_calendar?.terms_per_year) {
         setTermsPerYear(String(user.school.settings.academic_calendar.terms_per_year));
       }
+      if (user.school.default_template_id) {
+        setDefaultTemplateId(user.school.default_template_id);
+      }
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'report_cards') {
+      fetchTemplates();
+    }
+  }, [activeTab]);
+
+  const fetchTemplates = async () => {
+    setLoadingTemplates(true);
+    try {
+      const data = await TemplateService.getTemplates();
+      setTemplates(data);
+    } catch (error) {
+      console.error('Failed to fetch templates:', error);
+      showError('Failed to load templates');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  const handleSaveReportCardTemplate = async (templateId: string) => {
+    setSavingTemplate(true);
+    try {
+      await apiService.put('/api/v1/schools/me', {
+        default_template_id: templateId
+      });
+      setDefaultTemplateId(templateId);
+      showSuccess('Default report card template updated');
+      // Update user context if possible, or trigger a reload/refetch
+      // For now, local state update is enough for UI feedback
+    } catch (error) {
+      console.error('Failed to save default template:', error);
+      showError('Failed to update default template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const handleSaveGeneral = async () => {
     setLoadingGeneral(true);
@@ -131,6 +180,12 @@ const SchoolSettings: React.FC = () => {
       name: 'Academic',
       icon: AcademicCapIcon,
       description: 'Academic year and term settings'
+    },
+    {
+      id: 'report_cards' as SchoolSettingsTab,
+      name: 'Report Cards',
+      icon: DocumentTextIcon,
+      description: 'Manage report card templates'
     },
     {
       id: 'general' as SchoolSettingsTab,
@@ -306,6 +361,11 @@ const SchoolSettings: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Grade Templates Section */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+              <GradeTemplateManagement />
+            </div>
           </div>
         );
 
@@ -380,6 +440,66 @@ const SchoolSettings: React.FC = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        );
+
+      case 'report_cards':
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Report Card Settings
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                Select the default report card template for your school. This template will be used for all classes unless overridden in class settings.
+              </p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                Available Templates
+              </h4>
+
+              {loadingTemplates ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className={`relative border rounded-lg p-4 cursor-pointer transition-all ${defaultTemplateId === template.id
+                        ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+                        }`}
+                      onClick={() => handleSaveReportCardTemplate(template.id)}
+                    >
+                      <div className="aspect-[210/297] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded mb-3 overflow-hidden relative group">
+                        {/* Placeholder for template preview */}
+                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800">
+                          <DocumentTextIcon className="h-12 w-12 opacity-20" />
+                        </div>
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
+                      </div>
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h5 className="font-medium text-gray-900 dark:text-white text-sm">{template.name}</h5>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{template.description}</p>
+                        </div>
+                        {defaultTemplateId === template.id && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         );

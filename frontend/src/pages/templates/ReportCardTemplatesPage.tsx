@@ -16,6 +16,7 @@ import {
   SparklesIcon,
   SwatchIcon,
   AdjustmentsHorizontalIcon,
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import PageHeader from '../../components/Layout/PageHeader';
@@ -46,6 +47,10 @@ const ReportCardTemplatesPage: React.FC = () => {
   const [newTemplateDescription, setNewTemplateDescription] = useState('');
   const [selectedTemplates, setSelectedTemplates] = useState<Set<string>>(new Set());
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renamingTemplate, setRenamingTemplate] = useState<ReportCardTemplate | null>(null);
+  const [renameName, setRenameName] = useState('');
+  const [renameDescription, setRenameDescription] = useState('');
 
   useEffect(() => {
     loadTemplates();
@@ -72,14 +77,10 @@ const ReportCardTemplatesPage: React.FC = () => {
         description: newTemplateDescription,
         paperSize: 'A4',
         orientation: 'portrait',
+        version: '1.0',
         isActive: true,
         isDefault: false,
         isPublished: false,
-        usageCount: 0,
-        lastUsed: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        creatorName: 'Current User',
-        assignmentsCount: 0,
       });
 
       if (newTemplate) {
@@ -96,9 +97,22 @@ const ReportCardTemplatesPage: React.FC = () => {
     }
   };
 
-  const handleEditTemplate = (template: ReportCardTemplate) => {
-    setEditingTemplate(template);
-    setShowEditor(true);
+  const handleEditTemplate = async (template: ReportCardTemplate) => {
+    // CRITICAL FIX: Fetch the full template with fields from the backend
+    // The list response doesn't include fields/elements, so we need to fetch the complete template
+    try {
+      console.log('🔍 Fetching full template for editing:', template.id);
+      const fullTemplate = await TemplateService.getTemplate(template.id);
+      if (fullTemplate) {
+        console.log('✅ Full template loaded with', fullTemplate.elements?.length, 'elements');
+        setEditingTemplate(fullTemplate);
+        setShowEditor(true);
+      } else {
+        console.error('❌ Failed to load template');
+      }
+    } catch (error) {
+      console.error('❌ Error loading template:', error);
+    }
   };
 
   const handlePreviewTemplate = (template: ReportCardTemplate) => {
@@ -113,7 +127,7 @@ const ReportCardTemplatesPage: React.FC = () => {
 
   const confirmDelete = async () => {
     if (!templateToDelete) return;
-    
+
     try {
       const success = await TemplateService.deleteTemplate(templateToDelete);
       if (success) {
@@ -133,7 +147,7 @@ const ReportCardTemplatesPage: React.FC = () => {
         ...t,
         isDefault: t.id === templateId
       }));
-      
+
       setTemplates(updatedTemplates);
       await TemplateService.updateTemplate(templateId, { isDefault: true });
     } catch (error) {
@@ -144,12 +158,15 @@ const ReportCardTemplatesPage: React.FC = () => {
   const handleDuplicateTemplate = async (template: ReportCardTemplate) => {
     try {
       const duplicatedTemplate = await TemplateService.createTemplate({
-        ...template,
         name: `${template.name} (Copy)`,
+        description: template.description,
+        paperSize: template.paperSize,
+        orientation: template.orientation,
+        version: template.version,
+        isActive: template.isActive,
         isDefault: false,
         isPublished: false,
-        usageCount: 0,
-        createdAt: new Date().toISOString(),
+        elements: template.elements,
       });
 
       if (duplicatedTemplate) {
@@ -157,6 +174,32 @@ const ReportCardTemplatesPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error duplicating template:', error);
+    }
+  };
+
+  const handleRenameClick = (template: ReportCardTemplate) => {
+    setRenamingTemplate(template);
+    setRenameName(template.name);
+    setRenameDescription(template.description || '');
+    setShowRenameModal(true);
+  };
+
+  const handleRenameSubmit = async () => {
+    if (!renamingTemplate || !renameName.trim()) return;
+
+    try {
+      const updated = await TemplateService.updateTemplate(renamingTemplate.id, {
+        name: renameName,
+        description: renameDescription,
+      });
+
+      if (updated) {
+        setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t));
+        setShowRenameModal(false);
+        setRenamingTemplate(null);
+      }
+    } catch (error) {
+      console.error('Error renaming template:', error);
     }
   };
 
@@ -173,8 +216,8 @@ const ReportCardTemplatesPage: React.FC = () => {
   const filteredAndSortedTemplates = React.useMemo(() => {
     let filtered = templates.filter(template => {
       const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           template.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
+        template.description.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesFilter = (() => {
         switch (filterBy) {
           case 'published': return template.isPublished;
@@ -189,11 +232,12 @@ const ReportCardTemplatesPage: React.FC = () => {
 
     return filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'oldest': return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'newest': return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
+        case 'oldest': return new Date(a.updatedAt || a.createdAt).getTime() - new Date(b.updatedAt || b.createdAt).getTime();
         case 'name': return a.name.localeCompare(b.name);
         case 'usage': return b.usageCount - a.usageCount;
         case 'default': return (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0);
-        default: return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        default: return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
       }
     });
   }, [templates, searchTerm, filterBy, sortBy]);
@@ -224,7 +268,7 @@ const ReportCardTemplatesPage: React.FC = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowTemplateGallery(true)}
@@ -233,13 +277,13 @@ const ReportCardTemplatesPage: React.FC = () => {
                 <SwatchIcon className="h-5 w-5 mr-2" />
                 Browse Gallery
               </button>
-          <button
+              <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transform transition-all duration-200 hover:scale-105 shadow-lg"
-          >
+              >
                 <SparklesIcon className="h-5 w-5 mr-2" />
-            Create Template
-          </button>
+                Create Template
+              </button>
             </div>
           </div>
         </div>
@@ -285,7 +329,7 @@ const ReportCardTemplatesPage: React.FC = () => {
                   onChange={(e) => setSortBy(e.target.value as SortBy)}
                   className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white"
                 >
-                  <option value="newest">Newest First</option>
+                  <option value="newest">Recently Updated</option>
                   <option value="oldest">Oldest First</option>
                   <option value="name">Name A-Z</option>
                   <option value="usage">Most Used</option>
@@ -298,21 +342,19 @@ const ReportCardTemplatesPage: React.FC = () => {
               <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-all ${
-                    viewMode === 'grid' 
-                      ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400' 
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                  className={`p-2 rounded-md transition-all ${viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
                 >
                   <Squares2X2Icon className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-all ${
-                    viewMode === 'list' 
-                      ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400' 
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                  className={`p-2 rounded-md transition-all ${viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-600 shadow-sm text-blue-600 dark:text-blue-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
                 >
                   <ListBulletIcon className="h-5 w-5" />
                 </button>
@@ -331,7 +373,7 @@ const ReportCardTemplatesPage: React.FC = () => {
               {searchTerm || filterBy !== 'all' ? 'No templates found' : 'No templates yet'}
             </h3>
             <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto">
-              {searchTerm || filterBy !== 'all' 
+              {searchTerm || filterBy !== 'all'
                 ? 'Try adjusting your search or filter criteria.'
                 : 'Create your first report card template to get started with beautiful, customized reports.'
               }
@@ -344,7 +386,7 @@ const ReportCardTemplatesPage: React.FC = () => {
                 <SwatchIcon className="h-5 w-5 mr-2" />
                 Browse Gallery
               </button>
-            <button
+              <button
                 onClick={() => setShowCreateModal(true)}
                 className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transform transition-all duration-200 hover:scale-105 shadow-lg"
               >
@@ -367,6 +409,7 @@ const ReportCardTemplatesPage: React.FC = () => {
                 onDuplicate={() => handleDuplicateTemplate(template)}
                 onDelete={() => handleDeleteTemplate(template.id)}
                 onSetDefault={() => handleSetDefault(template.id)}
+                onRename={() => handleRenameClick(template)}
               />
             ))}
           </div>
@@ -408,10 +451,30 @@ const ReportCardTemplatesPage: React.FC = () => {
             setShowEditor(false);
             setEditingTemplate(null);
           }}
-          onSave={(template) => {
-            setShowEditor(false);
-            setEditingTemplate(null);
-            loadTemplates();
+          onSave={async (templateData) => {
+            if (editingTemplate?.id) {
+              try {
+                console.log('=== SAVING TEMPLATE ===');
+                console.log('Elements before save:', templateData.elements?.slice(0, 3).map((e: any) => ({ id: e.id, type: e.type })));
+
+                const updated = await TemplateService.updateTemplate(editingTemplate.id, templateData);
+
+                console.log('Elements after save:', updated?.elements?.slice(0, 3).map((e: any) => ({ id: e.id, type: e.type })));
+
+                if (updated) {
+                  // Update the templates list
+                  setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t));
+
+                  // CRITICAL: Update the editing template so the editor reloads with correct UUIDs
+                  // This prevents the "reset" issue where element IDs don't match database IDs
+                  setEditingTemplate(updated);
+
+                  console.log('✅ Template saved - editor will reload with database UUIDs');
+                }
+              } catch (error) {
+                console.error('Error saving template:', error);
+              }
+            }
           }}
         />
       )}
@@ -421,23 +484,35 @@ const ReportCardTemplatesPage: React.FC = () => {
         <TemplateGallery
           isOpen={showTemplateGallery}
           onClose={() => setShowTemplateGallery(false)}
-          onSelectTemplate={(templateData) => {
-            // Create a new template from gallery selection
-            setEditingTemplate({
-              ...templateData,
-              id: templateData.id || Date.now().toString(),
-              isActive: true,
-              isDefault: false,
-              isPublished: false,
-              usageCount: 0,
-              lastUsed: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              creatorName: 'Current User',
-              assignmentsCount: 0,
-              version: '1.0',
-            } as ReportCardTemplate);
-            setShowEditor(true);
-            setShowTemplateGallery(false);
+          onSelectTemplate={async (templateData) => {
+            try {
+              // Create the template in the backend immediately
+              const newTemplate = await TemplateService.createTemplate({
+                name: templateData.name,
+                description: templateData.description,
+                paperSize: 'A4',
+                orientation: 'portrait',
+                version: '1.0',
+                isActive: true,
+                isDefault: false,
+                isPublished: false,
+                pageMarginTop: 0,
+                pageMarginBottom: 0,
+                pageMarginLeft: 0,
+                pageMarginRight: 0,
+                // Pass elements to be created as fields
+                elements: templateData.elements
+              } as any);
+
+              if (newTemplate) {
+                setTemplates(prev => [newTemplate, ...prev]);
+                setEditingTemplate(newTemplate);
+                setShowEditor(true);
+                setShowTemplateGallery(false);
+              }
+            } catch (error) {
+              console.error('Error creating template from gallery:', error);
+            }
           }}
         />
       )}
@@ -448,6 +523,19 @@ const ReportCardTemplatesPage: React.FC = () => {
           isOpen={showDeleteConfirm}
           onClose={() => setShowDeleteConfirm(false)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {/* Rename Template Modal */}
+      {showRenameModal && (
+        <RenameTemplateModal
+          isOpen={showRenameModal}
+          onClose={() => setShowRenameModal(false)}
+          templateName={renameName}
+          setTemplateName={setRenameName}
+          templateDescription={renameDescription}
+          setTemplateDescription={setRenameDescription}
+          onSubmit={handleRenameSubmit}
         />
       )}
     </div>
@@ -465,6 +553,7 @@ interface TemplateCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onSetDefault: () => void;
+  onRename: () => void;
 }
 
 const TemplateCard: React.FC<TemplateCardProps> = ({
@@ -477,6 +566,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
   onDuplicate,
   onDelete,
   onSetDefault,
+  onRename,
 }) => {
   if (viewMode === 'list') {
     return (
@@ -499,11 +589,10 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">{template.description}</p>
               <div className="flex items-center space-x-4 mt-1">
-                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                  template.isPublished 
-                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                }`}>
+                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${template.isPublished
+                  ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                  }`}>
                   {template.isPublished ? 'Published' : 'Draft'}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">Used {template.usageCount} times</span>
@@ -517,8 +606,11 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             <button onClick={onEdit} className="p-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all">
               <PencilIcon className="h-4 w-4" />
             </button>
-            <button onClick={onDuplicate} className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all">
+            <button onClick={onDuplicate} className="p-2 text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all" title="Duplicate">
               <DocumentDuplicateIcon className="h-4 w-4" />
+            </button>
+            <button onClick={onRename} className="p-2 text-gray-500 dark:text-gray-400 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-all" title="Rename">
+              <TagIcon className="h-4 w-4" />
             </button>
             <button onClick={onDelete} className="p-2 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all">
               <TrashIcon className="h-4 w-4" />
@@ -557,7 +649,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             />
           </div>
         </div>
-        
+
         {/* Hover Actions */}
         <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
           <button
@@ -591,11 +683,10 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
 
         {/* Status and Metrics */}
         <div className="flex items-center justify-between mb-4">
-          <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${
-            template.isPublished 
-              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-          }`}>
+          <span className={`inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full ${template.isPublished
+            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+            : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+            }`}>
             {template.isPublished ? 'Published' : 'Draft'}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">{template.usageCount} uses</span>
@@ -616,6 +707,13 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             title="Duplicate"
           >
             <DocumentDuplicateIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onRename}
+            className="p-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
+            title="Rename"
+          >
+            <TagIcon className="h-4 w-4" />
           </button>
           {!template.isDefault && (
             <button
@@ -770,3 +868,96 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, onClose
 };
 
 export default ReportCardTemplatesPage;
+
+// Rename Template Modal Component
+interface RenameTemplateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  templateName: string;
+  setTemplateName: (name: string) => void;
+  templateDescription: string;
+  setTemplateDescription: (description: string) => void;
+  onSubmit: () => void;
+}
+
+const RenameTemplateModal: React.FC<RenameTemplateModalProps> = ({
+  isOpen,
+  onClose,
+  templateName,
+  setTemplateName,
+  templateDescription,
+  setTemplateDescription,
+  onSubmit,
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 rounded-lg flex items-center justify-center">
+                <TagIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Rename Template</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Update template details</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Template Name
+              </label>
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g., Primary School Report Card"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Description
+              </label>
+              <textarea
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+                placeholder="Describe what this template is for..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex space-x-3 mt-8">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onSubmit}
+              disabled={!templateName.trim()}
+              className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-lg hover:from-orange-700 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

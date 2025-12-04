@@ -18,6 +18,13 @@ async def create_subject(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new subject (School Admin only)"""
+    current_school = school_context.school
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+        
     subject = await AcademicService.create_subject(db, subject_data, current_school.id)
     return SubjectResponse.from_orm(subject)
 
@@ -46,7 +53,7 @@ async def get_subjects(
     # Teachers can only see subjects they are assigned to teach
     if current_user.role == UserRole.TEACHER:
         subjects = await AcademicService.get_teacher_subjects(
-            db, current_user.id, school_context.school_id, is_active, is_core, skip, size
+            db, current_user.id, school_context.school_id, is_active, is_core, skip, size, include_class_subjects=False
         )
     else:
         # Admins can see all subjects
@@ -86,7 +93,7 @@ async def get_subject(
     # Check permissions for teachers
     if current_user.role == UserRole.TEACHER:
         can_access = await check_teacher_can_access_subject(
-            db, current_user.id, subject_id, current_school.id
+            db, current_user.id, subject_id, current_school.id, strict=True
         )
         if not can_access:
             raise HTTPException(
@@ -105,6 +112,13 @@ async def update_subject(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update subject information (School Admin only)"""
+    current_school = school_context.school
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+
     from sqlalchemy import select
     from app.models.academic import Subject
     

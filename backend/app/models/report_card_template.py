@@ -18,39 +18,67 @@ class Orientation(str, enum.Enum):
 
 
 class FieldType(str, enum.Enum):
-    TEXT = "text"
-    NUMBER = "number"
-    DATE = "date"
-    IMAGE = "image"
-    TABLE = "table"
-    SIGNATURE = "signature"
-    BARCODE = "barcode"
-    STUDENT_INFO = "student_info"
-    GRADE_TABLE = "grade_table"
-    ATTENDANCE = "attendance"
-    COMMENTS = "comments"
-    SCHOOL_HEADER = "school_header"
-    PERFORMANCE_SUMMARY = "performance_summary"
+    TEXT = "TEXT"
+    NUMBER = "NUMBER"
+    DATE = "DATE"
+    IMAGE = "IMAGE"
+    TABLE = "TABLE"
+    SIGNATURE = "SIGNATURE"
+    BARCODE = "BARCODE"
+    STUDENT_INFO = "STUDENT_INFO"
+    GRADE_TABLE = "GRADE_TABLE"
+    ATTENDANCE = "ATTENDANCE"
+    COMMENTS = "COMMENTS"
+    SCHOOL_HEADER = "SCHOOL_HEADER"
+    PERFORMANCE_SUMMARY = "PERFORMANCE_SUMMARY"
+    # New types from frontend
+    ATTENDANCE_TABLE = "ATTENDANCE_TABLE"
+    BEHAVIOR_TABLE = "BEHAVIOR_TABLE"
+    GRADING_SCALE = "GRADING_SCALE"
+    LINE = "LINE"
+    WATERMARK = "WATERMARK"
+    SHAPE = "SHAPE"
+    
+    # School Details
+    SCHOOL_LOGO = "SCHOOL_LOGO"
+    SCHOOL_NAME = "SCHOOL_NAME"
+    SCHOOL_ADDRESS = "SCHOOL_ADDRESS"
+    SCHOOL_MOTTO = "SCHOOL_MOTTO"
+    
+    # Student Details
+    STUDENT_NAME = "STUDENT_NAME"
+    CLASS_NAME = "CLASS_NAME"
+    ROLL_NUMBER = "ROLL_NUMBER"
+    ACADEMIC_YEAR = "ACADEMIC_YEAR"
+    TERM = "TERM"
+    
+    # Summary Details
+    TOTAL_MARKS = "TOTAL_MARKS"
+    PERCENTAGE = "PERCENTAGE"
+    POSITION = "POSITION"
+    RESULT = "RESULT"
+    ATTENDANCE_SUMMARY = "ATTENDANCE_SUMMARY"
+    NEXT_TERM_DATE = "NEXT_TERM_DATE"
 
 
 class Alignment(str, enum.Enum):
-    LEFT = "left"
-    CENTER = "center"
-    RIGHT = "right"
-    JUSTIFY = "justify"
+    LEFT = "LEFT"
+    CENTER = "CENTER"
+    RIGHT = "RIGHT"
+    JUSTIFY = "JUSTIFY"
 
 
 class FontWeight(str, enum.Enum):
-    NORMAL = "normal"
-    BOLD = "bold"
-    LIGHTER = "lighter"
-    BOLDER = "bolder"
+    NORMAL = "NORMAL"
+    BOLD = "BOLD"
+    LIGHTER = "LIGHTER"
+    BOLDER = "BOLDER"
 
 
 class FontStyle(str, enum.Enum):
-    NORMAL = "normal"
-    ITALIC = "italic"
-    OBLIQUE = "oblique"
+    NORMAL = "NORMAL"
+    ITALIC = "ITALIC"
+    OBLIQUE = "OBLIQUE"
 
 
 class ReportCardTemplate(TenantBaseModel):

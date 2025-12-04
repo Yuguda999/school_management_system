@@ -80,6 +80,7 @@ class Class(TenantBaseModel):
     
     # Additional information
     description = Column(Text, nullable=True)
+    report_card_template_id = Column(String(36), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     
     # Foreign Keys

@@ -277,7 +277,8 @@ class TeacherSubjectService:
     async def get_teacher_subjects(
         db: AsyncSession,
         teacher_id: str,
-        school_id: str
+        school_id: str,
+        include_class_subjects: bool = True
     ) -> List[TeacherSubjectAssignmentResponse]:
         """Get all subjects assigned to a teacher (including class subjects if they are a class teacher)"""
         # Get subjects directly assigned to the teacher
@@ -331,13 +332,19 @@ class TeacherSubjectService:
             )
         """)
 
-        # Combine both queries
-        combined_query = text(f"""
-            {direct_subjects_query.text}
-            UNION ALL
-            {class_subjects_query.text}
-            ORDER BY subject_name
-        """)
+        # Combine queries based on flag
+        if include_class_subjects:
+            combined_query = text(f"""
+                {direct_subjects_query.text}
+                UNION ALL
+                {class_subjects_query.text}
+                ORDER BY subject_name
+            """)
+        else:
+            combined_query = text(f"""
+                {direct_subjects_query.text}
+                ORDER BY subject_name
+            """)
 
         result = await db.execute(combined_query, {"teacher_id": teacher_id, "school_id": school_id})
         rows = result.fetchall()

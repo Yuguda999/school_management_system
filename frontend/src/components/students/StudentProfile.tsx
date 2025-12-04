@@ -9,10 +9,17 @@ import {
   ChartBarIcon,
   DocumentTextIcon,
   PlusIcon,
+  ChartPieIcon,
 } from '@heroicons/react/24/outline';
-import { Student, Grade, Parent } from '../../types';
+import { Student, Parent } from '../../types';
+import { studentService } from '../../services/studentService';
+import GradeService, { Grade } from '../../services/gradeService';
 import DocumentList from '../documents/DocumentList';
 import DocumentUpload from '../documents/DocumentUpload';
+import StudentAnalytics from './StudentAnalytics';
+import AcademicRecords from './AcademicRecords';
+import { attendanceService, StudentAttendanceSummary } from '../../services/attendanceService';
+import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 interface StudentProfileProps {
   student: Student;
@@ -26,14 +33,22 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
   onClose
 }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [grades, setGrades] = useState<Grade[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
+  const [attendanceSummary, setAttendanceSummary] = useState<StudentAttendanceSummary | null>(null);
   const [loading, setLoading] = useState(false);
+  // We still need grades for analytics tab if it uses them, but let's check.
+  // StudentAnalytics takes grades as prop. So we might still need to fetch them for Analytics tab.
+  // But for Academic Records tab, we use the component.
+  const [grades, setGrades] = useState<Grade[]>([]);
 
   useEffect(() => {
-    if (activeTab === 'academic') {
+    // Fetch grades for Analytics tab
+    if (activeTab === 'analytics') {
       fetchGrades();
-    } else if (activeTab === 'family') {
+      fetchAttendance();
+    }
+
+    if (activeTab === 'family') {
       fetchParents();
     }
   }, [activeTab, student.id]);
@@ -41,70 +56,25 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
   const fetchGrades = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with actual API call
-      const mockGrades: Grade[] = [
-        {
-          id: '1',
-          student_id: student.id,
-          subject_id: 'math1',
-          term_id: 'term1',
-          assignment_type: 'Test',
-          score: 85,
-          max_score: 100,
-          date_recorded: '2024-01-15T00:00:00Z',
-          comments: 'Good performance',
-          student,
-          subject: {
-            id: 'math1',
-            name: 'Mathematics',
-            code: 'MATH101',
-            credits: 3,
-            school_id: student.user.school_id,
-          },
-          term: {
-            id: 'term1',
-            name: 'First Term',
-            start_date: '2024-01-01',
-            end_date: '2024-03-31',
-            academic_year: '2024',
-            school_id: student.user.school_id,
-            is_current: true,
-          },
-        },
-        {
-          id: '2',
-          student_id: student.id,
-          subject_id: 'sci1',
-          term_id: 'term1',
-          assignment_type: 'Assignment',
-          score: 92,
-          max_score: 100,
-          date_recorded: '2024-01-20T00:00:00Z',
-          comments: 'Excellent work',
-          student,
-          subject: {
-            id: 'sci1',
-            name: 'Science',
-            code: 'SCI101',
-            credits: 3,
-            school_id: student.user.school_id,
-          },
-          term: {
-            id: 'term1',
-            name: 'First Term',
-            start_date: '2024-01-01',
-            end_date: '2024-03-31',
-            academic_year: '2024',
-            school_id: student.user.school_id,
-            is_current: true,
-          },
-        },
-      ];
-      setGrades(mockGrades);
+      const data = await GradeService.getGrades({ student_id: student.id });
+      setGrades(data);
     } catch (error) {
       console.error('Failed to fetch grades:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAttendance = async () => {
+    try {
+      const schoolCode = getSchoolCodeFromUrl();
+      if (!schoolCode) return;
+
+      const summary = await attendanceService.getStudentAttendanceSummary(schoolCode, student.id);
+      setAttendanceSummary(summary);
+    } catch (error) {
+      console.error('Failed to fetch attendance:', error);
+      setAttendanceSummary(null);
     }
   };
 
@@ -128,7 +98,8 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
             role: 'parent',
             is_active: true,
             is_verified: true,
-            school_id: student.user.school_id,
+            profile_completed: true,
+            school_id: getSchoolCodeFromUrl(), // Use helper instead of student.user
             created_at: '2024-01-01T00:00:00Z',
             updated_at: '2024-01-01T00:00:00Z',
           },
@@ -145,13 +116,14 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
 
   const calculateGPA = () => {
     if (grades.length === 0) return 'N/A';
-    const totalPoints = grades.reduce((sum, grade) => sum + (grade.score / grade.max_score) * 4, 0);
+    const totalPoints = grades.reduce((sum, grade) => sum + (grade.score / grade.total_marks) * 4, 0);
     return (totalPoints / grades.length).toFixed(2);
   };
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: UserIcon },
     { id: 'academic', name: 'Academic Records', icon: ChartBarIcon },
+    { id: 'analytics', name: 'Analytics', icon: ChartPieIcon },
     { id: 'family', name: 'Family', icon: UserGroupIcon },
     { id: 'documents', name: 'Documents', icon: DocumentTextIcon },
   ];
@@ -171,11 +143,10 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Admission Number: {student.admission_number}
             </p>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              student.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${student.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
               student.status === 'inactive' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-              'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-            }`}>
+                'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+              }`}>
               {student.status}
             </span>
           </div>
@@ -196,16 +167,15 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+              className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab.id
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
             >
               <tab.icon className="h-5 w-5 mr-2" />
               {tab.name}
@@ -396,51 +366,22 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
         )}
 
         {activeTab === 'academic' && (
-          <div className="space-y-6">
-            <div className="card">
-              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                  Recent Grades
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="table">
-                  <thead className="table-header">
-                    <tr>
-                      <th className="table-header-cell">Subject</th>
-                      <th className="table-header-cell">Type</th>
-                      <th className="table-header-cell">Score</th>
-                      <th className="table-header-cell">Date</th>
-                      <th className="table-header-cell">Comments</th>
-                    </tr>
-                  </thead>
-                  <tbody className="table-body">
-                    {grades.map((grade) => (
-                      <tr key={grade.id}>
-                        <td className="table-cell">{grade.subject.name}</td>
-                        <td className="table-cell">
-                          <span className="badge badge-primary">{grade.assignment_type}</span>
-                        </td>
-                        <td className="table-cell">
-                          <span className={`font-medium ${
-                            (grade.score / grade.max_score) >= 0.8 ? 'text-green-600 dark:text-green-400' :
-                            (grade.score / grade.max_score) >= 0.6 ? 'text-yellow-600 dark:text-yellow-400' :
-                            'text-red-600 dark:text-red-400'
-                          }`}>
-                            {grade.score}/{grade.max_score}
-                          </span>
-                        </td>
-                        <td className="table-cell">
-                          {new Date(grade.date_recorded).toLocaleDateString()}
-                        </td>
-                        <td className="table-cell">{grade.comments || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <AcademicRecords
+            student={student}
+            onUpdate={() => {
+              // Refresh grades for analytics if needed
+              fetchGrades();
+            }}
+          />
+        )}
+
+        {activeTab === 'analytics' && (
+          <StudentAnalytics
+            student={student}
+            grades={grades}
+            attendanceSummary={attendanceSummary}
+            loading={loading}
+          />
         )}
 
         {activeTab === 'family' && (

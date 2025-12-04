@@ -487,24 +487,26 @@ async def check_teacher_can_access_subject(
     db: AsyncSession,
     teacher_id: str,
     subject_id: str,
-    school_id: str
+    school_id: str,
+    strict: bool = False
 ) -> bool:
     """Check if a teacher can access a specific subject"""
     from sqlalchemy import text
 
     # Teachers can access subjects if:
     # 1. They are directly assigned to teach the subject
-    # 2. They are a class teacher and the subject is assigned to their class
-    query = text("""
+    # 2. They are a class teacher and the subject is assigned to their class (unless strict=True)
+    
+    direct_query = """
         SELECT 1
         FROM teacher_subjects ts
         WHERE ts.teacher_id = :teacher_id
         AND ts.subject_id = :subject_id
         AND ts.school_id = :school_id
         AND ts.is_deleted = false
-
-        UNION
-
+    """
+    
+    class_query = """
         SELECT 1
         FROM class_subjects cs
         JOIN classes c ON cs.class_id = c.id
@@ -513,9 +515,12 @@ async def check_teacher_can_access_subject(
         AND cs.school_id = :school_id
         AND cs.is_deleted = false
         AND c.is_deleted = false
+    """
 
-        LIMIT 1
-    """)
+    if strict:
+        query = text(f"{direct_query} LIMIT 1")
+    else:
+        query = text(f"{direct_query} UNION {class_query} LIMIT 1")
 
     result = await db.execute(query, {
         "teacher_id": teacher_id,

@@ -13,126 +13,154 @@ export interface ReportCardTemplate {
   usageCount: number;
   lastUsed: string;
   createdAt: string;
+  updatedAt: string;
   creatorName: string;
   assignmentsCount: number;
+  elements?: any[];
+  fields?: any[]; // Raw backend fields for preview
 }
 
 export class TemplateService {
   static async getTemplates(): Promise<ReportCardTemplate[]> {
-    try {
-      const response = await apiService.get('/api/v1/templates');
-      return response.data || [];
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      // Return mock data for development
-      return [
-        {
-          id: '1',
-          name: 'Standard Report Card',
-          description: 'A comprehensive report card template with all standard sections',
-          version: '1.0',
-          paperSize: 'A4',
-          orientation: 'portrait',
-          isActive: true,
-          isDefault: true,
-          isPublished: true,
-          usageCount: 45,
-          lastUsed: '2024-01-15T10:30:00Z',
-          createdAt: '2024-01-01T00:00:00Z',
-          creatorName: 'John Doe',
-          assignmentsCount: 8,
-        },
-        {
-          id: '2',
-          name: 'Minimal Report Card',
-          description: 'A clean, minimal design for simple report cards',
-          version: '1.2',
-          paperSize: 'A4',
-          orientation: 'portrait',
-          isActive: true,
-          isDefault: false,
-          isPublished: true,
-          usageCount: 23,
-          lastUsed: '2024-01-14T14:20:00Z',
-          createdAt: '2024-01-05T00:00:00Z',
-          creatorName: 'Jane Smith',
-          assignmentsCount: 3,
-        },
-        {
-          id: '3',
-          name: 'Landscape Report Card',
-          description: 'Wide format report card for detailed information',
-          version: '2.0',
-          paperSize: 'A4',
-          orientation: 'landscape',
-          isActive: true,
-          isDefault: false,
-          isPublished: false,
-          usageCount: 12,
-          lastUsed: '2024-01-10T09:15:00Z',
-          createdAt: '2024-01-10T00:00:00Z',
-          creatorName: 'Mike Johnson',
-          assignmentsCount: 1,
-        },
-      ];
-    }
+    const response = await apiService.get<ReportCardTemplate[]>('/api/v1/templates/');
+    console.log('📥 Fetched templates from backend:', response?.length);
+    const mapped = (response || []).map(this.mapBackendToFrontend);
+    mapped.forEach((t, i) => {
+      console.log(`📥 Template ${i} "${t.name}": ${t.elements?.length} elements, IDs:`,
+        t.elements?.slice(0, 3).map(e => ({ id: e.id, type: e.type })));
+    });
+    return mapped;
   }
 
   static async getTemplate(id: string): Promise<ReportCardTemplate | null> {
-    try {
-      const response = await apiService.get(`/api/v1/templates/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching template:', error);
-      return null;
-    }
+    const response = await apiService.get<any>(`/api/v1/templates/${id}`);
+    console.log('📥 Fetched template from backend:', { id, fieldCount: response?.fields?.length });
+    console.log('📥 Sample field IDs:', response?.fields?.slice(0, 3).map((f: any) => ({ id: f.id, type: f.field_type })));
+    const mapped = response ? this.mapBackendToFrontend(response) : null;
+    console.log('📥 After mapping to frontend - element IDs:', mapped?.elements?.slice(0, 3).map((e: any) => ({ id: e.id, type: e.type })));
+    return mapped;
   }
 
   static async createTemplate(data: Partial<ReportCardTemplate>): Promise<ReportCardTemplate | null> {
-    try {
-      const response = await apiService.post('/api/v1/templates', data);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating template:', error);
-      // Return mock created template for development
-      const newTemplate: ReportCardTemplate = {
-        id: Date.now().toString(),
-        name: data.name || 'New Template',
-        description: data.description || '',
-        version: '1.0',
-        paperSize: data.paperSize || 'A4',
-        orientation: data.orientation || 'portrait',
-        isActive: data.isActive ?? true,
-        isDefault: data.isDefault ?? false,
-        isPublished: data.isPublished ?? false,
-        usageCount: 0,
-        lastUsed: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        creatorName: data.creatorName || 'Current User',
-        assignmentsCount: 0,
-      };
-      return newTemplate;
-    }
+    const backendData = this.mapFrontendToBackend(data);
+    const response = await apiService.post<any>('/api/v1/templates/', backendData);
+    return response ? this.mapBackendToFrontend(response) : null;
   }
 
   static async updateTemplate(id: string, data: Partial<ReportCardTemplate>): Promise<ReportCardTemplate | null> {
-    try {
-      const response = await apiService.put(`/api/v1/templates/${id}`, data);
-      return response.data;
-    } catch (error) {
-      console.error('Error updating template:', error);
-      return null;
-    }
+    const backendData = this.mapFrontendToBackend(data);
+    const response = await apiService.put<any>(`/api/v1/templates/${id}`, backendData);
+    return response ? this.mapBackendToFrontend(response) : null;
   }
 
   static async deleteTemplate(id: string): Promise<boolean> {
-    try {
-      await apiService.delete(`/api/v1/templates/${id}`);
-      return true;
-    } catch (error) {
-      console.error('Error deleting template:', error);
-      // Return true for development
-      return true;
+    await apiService.delete(`/api/v1/templates/${id}`);
+    return true;
+  }
+
+  // Helper to map backend fields to frontend elements
+  private static mapBackendToFrontend(template: any): ReportCardTemplate {
+    return {
+      ...template,
+      fields: template.fields, // Keep raw backend fields for preview
+      elements: template.fields?.map((field: any) => ({
+        id: field.id, // Use database ID
+        type: field.field_type.toLowerCase(), // Convert to lowercase for frontend
+        content: field.default_value || field.label || '',
+        x: field.x_position * 96, // Convert inches to pixels (approx)
+        y: field.y_position * 96,
+        width: field.width * 96,
+        height: field.height * 96,
+        fontSize: field.font_size,
+        fontFamily: field.font_family,
+        fontWeight: field.font_weight?.toLowerCase(),
+        fontStyle: field.font_style?.toLowerCase(),
+        color: field.text_color || 'transparent',
+        backgroundColor: field.background_color || 'transparent',
+        borderColor: field.border_color || 'transparent',
+        borderWidth: field.border_width,
+        borderStyle: field.border_style,
+        textAlign: field.text_align?.toLowerCase(),
+        zIndex: field.z_index,
+        visible: field.is_visible,
+        // Map other properties from JSON
+        ...field.properties
+      })) || []
+    };
+  }
+
+  // Helper to map frontend elements to backend fields
+  private static mapFrontendToBackend(template: Partial<ReportCardTemplate>): any {
+    const { elements, ...rest } = template;
+
+    const backendPayload: any = {
+      name: template.name,
+      description: template.description,
+      version: template.version || '1.0',
+      paper_size: template.paperSize || 'A4',
+      orientation: template.orientation || 'portrait',
+      is_active: template.isActive ?? true,
+      is_default: template.isDefault ?? false,
+      is_published: template.isPublished ?? false,
+
+      // Map margins if they exist
+      page_margin_top: (template as any).pageMarginTop ?? 1.0,
+      page_margin_bottom: (template as any).pageMarginBottom ?? 1.0,
+      page_margin_left: (template as any).pageMarginLeft ?? 1.0,
+      page_margin_right: (template as any).pageMarginRight ?? 1.0,
+    };
+
+    // Only add fields if elements exist
+    if (elements && elements.length > 0) {
+      backendPayload.fields = elements.map((el: any) => ({
+        // Always send the ID if it exists - the backend will handle UUID validation
+        // This is critical for updates to work correctly
+        id: el.id,
+        field_id: el.id,
+        field_type: el.type.toUpperCase(), // Convert to UPPERCASE to match backend enum
+        label: el.type === 'text' ? 'Text Block' : el.type,
+
+        // Position and Size (pixels to inches)
+        x_position: el.x / 96,
+        y_position: el.y / 96,
+        width: el.width / 96,
+        height: el.height / 96,
+
+        // Styling
+        font_family: el.fontFamily,
+        font_size: el.fontSize,
+        font_weight: (el.fontWeight || 'NORMAL').toUpperCase(),
+        font_style: (el.fontStyle || 'NORMAL').toUpperCase(),
+        text_color: el.color && el.color !== 'transparent' ? el.color : null,
+        background_color: el.backgroundColor && el.backgroundColor !== 'transparent' ? el.backgroundColor : null,
+        border_color: el.borderColor && el.borderColor !== 'transparent' ? el.borderColor : null,
+        border_width: el.borderWidth || 0,
+        border_style: el.borderStyle || 'solid',
+
+        // Text Properties
+        text_align: (el.textAlign || 'LEFT').toUpperCase(),
+
+        // Configuration
+        default_value: el.content,
+        is_visible: el.visible !== false,
+        z_index: el.zIndex || 0,
+
+        // Store extra properties in JSON
+        properties: {
+          showRemarks: el.showRemarks,
+          striped: el.striped,
+          compact: el.compact,
+          headerBackgroundColor: el.headerBackgroundColor,
+          headerTextColor: el.headerTextColor,
+          rotation: el.rotation,
+          opacity: el.opacity,
+          locked: el.locked,
+          boxShadow: el.boxShadow,
+          borderRadius: el.borderRadius
+        }
+      }));
     }
+
+    return backendPayload;
   }
 }

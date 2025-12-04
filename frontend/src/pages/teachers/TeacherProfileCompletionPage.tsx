@@ -11,9 +11,9 @@ const TeacherProfileCompletionPage: React.FC = () => {
     // Redirect to teacher dashboard after profile completion with school code
     const schoolCode = user?.school?.code || user?.school_code || localStorage.getItem('school_code');
     if (schoolCode) {
-      navigate(`/${schoolCode}/teacher/dashboard`);
+      navigate(`/${schoolCode}/dashboard`);
     } else {
-      navigate('/teacher/dashboard');
+      navigate('/dashboard');
     }
   };
 

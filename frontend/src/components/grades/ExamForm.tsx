@@ -85,56 +85,66 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
   const onFormSubmit = async (data: ExamFormData) => {
     try {
       setLoading(true);
-      
+
+      // Sanitize data
+      const sanitizedData = {
+        ...data,
+        start_time: data.start_time || null, // Send null if empty string
+        duration_minutes: data.duration_minutes ? Number(data.duration_minutes) : null, // Convert to number or null
+        venue: data.venue || null,
+        instructions: data.instructions || null,
+        description: data.description || null
+      };
+
       if (exam) {
         // Update existing exam
         const updateData: ExamUpdateData = {
-          name: data.name,
-          description: data.description,
-          exam_type: data.exam_type,
-          exam_date: data.exam_date,
-          start_time: data.start_time,
-          duration_minutes: data.duration_minutes,
-          total_marks: data.total_marks,
-          pass_marks: data.pass_marks,
-          instructions: data.instructions,
-          venue: data.venue
+          name: sanitizedData.name,
+          description: sanitizedData.description,
+          exam_type: sanitizedData.exam_type,
+          exam_date: sanitizedData.exam_date,
+          start_time: sanitizedData.start_time,
+          duration_minutes: sanitizedData.duration_minutes,
+          total_marks: Number(sanitizedData.total_marks),
+          pass_marks: Number(sanitizedData.pass_marks),
+          instructions: sanitizedData.instructions,
+          venue: sanitizedData.venue
         };
-        
+
         const updatedExam = await GradeService.updateExam(exam.id, updateData);
         showSuccess('Exam updated successfully');
         onSubmit(updatedExam);
       } else {
         // Create new exam
         const createData: ExamCreateData = {
-          name: data.name,
-          description: data.description,
-          exam_type: data.exam_type,
-          exam_date: data.exam_date,
-          start_time: data.start_time,
-          duration_minutes: data.duration_minutes,
-          total_marks: data.total_marks,
-          pass_marks: data.pass_marks,
-          subject_id: data.subject_id,
-          class_id: data.class_id,
-          term_id: data.term_id,
-          instructions: data.instructions,
-          venue: data.venue
+          name: sanitizedData.name,
+          description: sanitizedData.description,
+          exam_type: sanitizedData.exam_type,
+          exam_date: sanitizedData.exam_date,
+          start_time: sanitizedData.start_time,
+          duration_minutes: sanitizedData.duration_minutes,
+          total_marks: Number(sanitizedData.total_marks),
+          pass_marks: Number(sanitizedData.pass_marks),
+          subject_id: sanitizedData.subject_id,
+          class_id: sanitizedData.class_id,
+          term_id: sanitizedData.term_id,
+          instructions: sanitizedData.instructions,
+          venue: sanitizedData.venue
         };
-        
+
         const newExam = await GradeService.createExam(createData);
         showSuccess('Exam created successfully');
         onSubmit(newExam);
       }
     } catch (error: any) {
       console.error('Error saving exam:', error);
-      
+
       // Extract detailed error message from response
       let errorMessage = 'Failed to save exam';
-      
+
       if (error.response?.data) {
         const data = error.response.data;
-        
+
         // Handle validation errors (array of error objects)
         if (Array.isArray(data)) {
           errorMessage = data.map(err => err.msg || err.message || 'Validation error').join(', ');
@@ -154,7 +164,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
           errorMessage = data;
         }
       }
-      
+
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -180,7 +190,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
             Basic Information
           </h3>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Exam Name *
@@ -234,7 +244,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
             Academic Details
           </h3>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Subject *
@@ -305,7 +315,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           Exam Schedule
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -369,7 +379,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           Scoring
         </h3>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -377,7 +387,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
             </label>
             <input
               type="number"
-              {...register('total_marks', { 
+              {...register('total_marks', {
                 required: 'Total marks is required',
                 min: { value: 1, message: 'Total marks must be at least 1' },
                 max: { value: 1000, message: 'Total marks cannot exceed 1000' }
@@ -396,7 +406,7 @@ const ExamForm: React.FC<ExamFormProps> = ({ exam, onSubmit, onCancel }) => {
             </label>
             <input
               type="number"
-              {...register('pass_marks', { 
+              {...register('pass_marks', {
                 required: 'Pass marks is required',
                 min: { value: 0, message: 'Pass marks cannot be negative' },
                 max: { value: totalMarks || 1000, message: 'Pass marks cannot exceed total marks' }

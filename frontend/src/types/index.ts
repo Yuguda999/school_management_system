@@ -66,6 +66,7 @@ export interface SchoolInfo {
   max_students?: number;
   max_teachers?: number;
   max_classes?: number;
+  default_template_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -509,6 +510,7 @@ export interface Class {
   student_count?: number;
   students?: Student[];
   subjects?: Subject[];
+  report_card_template_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -1140,6 +1142,7 @@ export interface UpdateClassForm {
   section?: string;
   teacher_id?: string;
   description?: string;
+  report_card_template_id?: string;
   is_active?: boolean;
 }
 
@@ -1535,3 +1538,192 @@ export interface AssetStats {
   inactive_assets: number;
 }
 
+// Grade Template Types
+export interface AssessmentComponent {
+  id?: string;
+  template_id?: string;
+  name: string;
+  weight: number; // Percentage weight (0-100)
+  is_required: boolean;
+  order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AssessmentComponentCreate {
+  name: string;
+  weight: number;
+  is_required?: boolean;
+  order?: number;
+}
+
+export interface GradeScaleItem {
+  id?: string;
+  template_id?: string;
+  grade: string; // e.g., "A+", "A", "B", etc.
+  min_score: number;
+  max_score: number;
+  remark?: string; // e.g., "Excellent", "Good", etc.
+  color?: string; // Hex color code
+  order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GradeScaleCreate {
+  grade: string;
+  min_score: number;
+  max_score: number;
+  remark?: string;
+  color?: string;
+  order?: number;
+}
+
+export interface RemarkTemplate {
+  id?: string;
+  template_id?: string;
+  min_percentage: number;
+  max_percentage: number;
+  remark_text: string;
+  order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RemarkTemplateCreate {
+  min_percentage: number;
+  max_percentage: number;
+  remark_text: string;
+  order?: number;
+}
+
+export interface GradeTemplate {
+  id: string;
+  school_id: string;
+  name: string;
+  description?: string;
+  total_marks: number;
+  is_default: boolean;
+  is_active: boolean;
+  created_by: string;
+  assessment_components: AssessmentComponent[];
+  grade_scales: GradeScaleItem[];
+  remark_templates: RemarkTemplate[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GradeTemplateCreate {
+  name: string;
+  description?: string;
+  total_marks?: number;
+  assessment_components: AssessmentComponentCreate[];
+  grade_scales: GradeScaleCreate[];
+  remark_templates?: RemarkTemplateCreate[];
+}
+
+export interface GradeTemplateUpdate {
+  name?: string;
+  description?: string;
+  total_marks?: number;
+  is_active?: boolean;
+  assessment_components?: AssessmentComponentCreate[];
+  grade_scales?: GradeScaleCreate[];
+  remark_templates?: RemarkTemplateCreate[];
+}
+
+export interface GradeTemplateSummary {
+  id: string;
+  name: string;
+  description?: string;
+  is_default: boolean;
+  is_active: boolean;
+  total_marks: number;
+  component_count: number;
+  scale_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Component Mapping Types
+export interface ComponentMapping {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  subject_id: string;
+  term_id: string;
+  component_id: string;
+  exam_type_name: string;
+  include_in_calculation: boolean;
+  component_name?: string;
+  component_weight?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComponentMappingCreate {
+  teacher_id: string;
+  subject_id: string;
+  term_id: string;
+  component_id: string;
+  exam_type_name: string;
+  include_in_calculation?: boolean;
+}
+
+export interface ComponentMappingUpdate {
+  exam_type_name?: string;
+  component_id?: string;
+  include_in_calculation?: boolean;
+}
+
+export interface ExamTypeInfo {
+  exam_type_name: string;
+  exam_count: number;
+  mapped: boolean;
+  mapped_to_component?: string;
+}
+
+export interface MappingPreview {
+  component_id: string;
+  component_name: string;
+  component_weight: number;
+  mapped_exam_types: string[];
+  exam_count: number;
+  sample_score?: number;
+  weighted_score?: number;
+}
+
+// Grade Setup Redesign Types
+export interface SubjectWithMapping {
+  subject_id: string;
+  subject_name: string;
+  class_id: string;
+  class_name: string;
+  term_id: string;
+  term_name: string;
+  has_mappings: boolean;
+  student_count: number;
+  template_id?: string;
+  template_name?: string;
+}
+
+export interface SubjectsWithMappingsResponse {
+  subjects: SubjectWithMapping[];
+}
+
+export interface ConsolidatedStudentGrade {
+  student_id: string;
+  student_name: string;
+  component_scores: Record<string, number>;
+  total: number;
+  grade?: string;
+}
+
+export interface SubjectConsolidatedGradesResponse {
+  subject_id: string;
+  subject_name: string;
+  class_name: string;
+  term_name: string;
+  template_components: string[];
+  students: ConsolidatedStudentGrade[];
+}

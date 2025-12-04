@@ -445,27 +445,25 @@ const ClassesPage: React.FC = () => {
       )}
 
       {showDetailsModal && selectedClass && (
-        <Modal
-          isOpen={showDetailsModal}
+        <ClassDetails
+          classData={selectedClass}
+          onEdit={() => {
+            setShowDetailsModal(false);
+            setShowEditModal(true);
+          }}
           onClose={() => {
             setShowDetailsModal(false);
             setSelectedClass(null);
           }}
-          title="Class Details"
-          size="3xl"
-        >
-          <ClassDetails
-            classData={selectedClass}
-            onEdit={() => {
-              setShowDetailsModal(false);
-              setShowEditModal(true);
-            }}
-            onClose={() => {
-              setShowDetailsModal(false);
-              setSelectedClass(null);
-            }}
-          />
-        </Modal>
+          onUpdate={(updatedClass) => {
+            // Update the selected class with the latest data
+            setSelectedClass(updatedClass);
+            // Also update the class in the classes array
+            setClasses(prevClasses =>
+              prevClasses.map(c => c.id === updatedClass.id ? updatedClass : c)
+            );
+          }}
+        />
       )}
 
       <ConfirmationModal

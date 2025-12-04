@@ -1,4 +1,8 @@
 import { apiService } from './api';
+import {
+  SubjectsWithMappingsResponse,
+  SubjectConsolidatedGradesResponse
+} from '../types';
 
 export interface ExamType {
   CONTINUOUS_ASSESSMENT: 'continuous_assessment';
@@ -57,21 +61,26 @@ export interface Grade {
   score: number;
   total_marks: number;
   percentage: number;
-  grade?: keyof GradeScale;
+  grade: keyof GradeScale | null;
   student_id: string;
   subject_id: string;
   exam_id: string;
   term_id: string;
+  school_id: string;
   graded_by: string;
   graded_date: string;
-  remarks?: string;
+  remarks: string | null;
   is_published: boolean;
+  component_scores?: Record<string, number>;  // Component breakdown (e.g., {"First C.A": 12.5, "Exam": 58.0})
+  created_at: string;
+  updated_at: string;
+
+  // Populated fields
   grader_name?: string;
   student_name?: string;
   subject_name?: string;
   exam_name?: string;
-  created_at: string;
-  updated_at: string;
+  exam_type?: string;
 }
 
 export interface ExamCreateData {
@@ -235,7 +244,7 @@ class GradeService {
     is_active?: boolean;
   }): Promise<Exam[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.subject_id) queryParams.append('subject_id', params.subject_id);
     if (params?.class_id) queryParams.append('class_id', params.class_id);
     if (params?.term_id) queryParams.append('term_id', params.term_id);
@@ -273,7 +282,7 @@ class GradeService {
     is_published?: boolean;
   }): Promise<Grade[]> {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.student_id) queryParams.append('student_id', params.student_id);
     if (params?.subject_id) queryParams.append('subject_id', params.subject_id);
     if (params?.exam_id) queryParams.append('exam_id', params.exam_id);
@@ -343,7 +352,7 @@ class GradeService {
     if (params?.is_published !== undefined) queryParams.append('is_published', params.is_published.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
-    
+
     const url = `/api/v1/grades/report-cards${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return await apiService.get<ReportCard[]>(url);
   }
@@ -354,9 +363,9 @@ class GradeService {
 
   // Template-based report card generation
   static async generateReportCardWithTemplate(
-    studentId: string, 
-    classId: string, 
-    termId: string, 
+    studentId: string,
+    classId: string,
+    termId: string,
     templateId?: string
   ): Promise<ReportCard> {
     const data: ReportCardCreateData = {
@@ -364,11 +373,11 @@ class GradeService {
       class_id: classId,
       term_id: termId,
     };
-    
+
     if (templateId) {
       data.template_id = templateId;
     }
-    
+
     return await this.createReportCard(data);
   }
 
@@ -377,12 +386,12 @@ class GradeService {
       // Get the assigned template for this class
       const response = await apiService.get(`/api/v1/templates/assignments?class_id=${classId}&is_active=true`);
       const assignments = response.data;
-      
+
       if (assignments && assignments.length > 0) {
         // Return the first active assignment's template ID
         return assignments[0].templateId;
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error getting template for class:', error);
@@ -484,6 +493,26 @@ class GradeService {
   }
 
   // Utility functions
+  // Grade Setup Redesign Methods
+  static async getSubjectsWithMappings(termId?: string): Promise<SubjectsWithMappingsResponse> {
+    const params = new URLSearchParams();
+    if (termId) params.append('term_id', termId);
+
+    return await apiService.get<SubjectsWithMappingsResponse>(`/api/v1/grades/subjects-with-mappings?${params.toString()}`);
+  }
+
+  static async getSubjectConsolidatedGrades(
+    subjectId: string,
+    termId: string,
+    classId?: string
+  ): Promise<SubjectConsolidatedGradesResponse> {
+    const params = new URLSearchParams();
+    params.append('term_id', termId);
+    if (classId) params.append('class_id', classId);
+
+    return await apiService.get<SubjectConsolidatedGradesResponse>(`/api/v1/grades/subject/${subjectId}/consolidated?${params.toString()}`);
+  }
+
   static getGradeColor(grade?: keyof GradeScale): string {
     if (!grade) return 'text-gray-500';
 

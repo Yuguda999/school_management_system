@@ -88,7 +88,7 @@ async def get_teacher_subjects(
 ) -> Any:
     """Get all subjects assigned to a teacher"""
     assignments = await TeacherSubjectService.get_teacher_subjects(
-        db, teacher_id, current_school.id
+        db, teacher_id, current_school.id, include_class_subjects=False
     )
     return assignments
 

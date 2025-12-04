@@ -10,7 +10,9 @@ from app.core.deps import (
     SchoolContext
 )
 from app.models.user import User, UserRole
+from app.models.school import School
 from app.models.school_ownership import SchoolOwnership
+from app.models.report_card_template import ReportCardTemplate
 from app.schemas.report_card_template import (
     ReportCardTemplateCreate,
     ReportCardTemplateUpdate,
@@ -58,7 +60,7 @@ def require_school_owner():
                 )
             )
         )
-        ownership = ownership_result.scalar_one_or_none()
+        ownership = ownership_result.scalars().first()
         
         if not ownership:
             raise HTTPException(
@@ -72,11 +74,11 @@ def require_school_owner():
 
 
 # Template Management Endpoints
-@router.post("/templates", response_model=ReportCardTemplateResponse)
+@router.post("/", response_model=ReportCardTemplateResponse)
 async def create_template(
     template_data: ReportCardTemplateCreate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new report card template (School Owner only)"""
@@ -94,24 +96,41 @@ async def create_template(
         )
     
     template = await ReportCardTemplateService.create_template(
-        db, template_data, school_context.school_id, current_user.id
+        db, template_data, school.id, current_user.id
     )
     
-    # Prepare response with additional data
-    response = ReportCardTemplateResponse.from_orm(template)
-    if template.creator:
-        response.creator_name = template.creator.full_name
-    
-    # Count assignments
-    assignments = await ReportCardTemplateAssignmentService.get_assignments(
-        db, current_user.id, template_id=template.id
+    # Reload template with relationships
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ReportCardTemplate)
+        .options(
+            selectinload(ReportCardTemplate.fields),
+            selectinload(ReportCardTemplate.school_owner)
+        )
+        .where(ReportCardTemplate.id == template.id)
     )
-    response.assignments_count = len(assignments)
+    template = result.scalar_one()
     
-    return response
+    # Manually construct response to handle created_by field
+    response_data = {
+        **template_data.dict(exclude={'fields'}),
+        'id': template.id,
+        'school_id': template.school_id,
+        'created_by': template.school_owner_id,
+        'usage_count': template.usage_count,
+        'last_used': template.last_used,
+        'created_at': template.created_at,
+        'updated_at': template.updated_at,
+        'creator_name': template.school_owner.full_name if template.school_owner else None,
+        'fields': [ReportCardTemplateFieldResponse.from_orm(field) for field in template.fields],
+        'assignments_count': 0
+    }
+    
+    return ReportCardTemplateResponse(**response_data)
 
 
-@router.get("/templates", response_model=List[ReportCardTemplateListResponse])
+
+@router.get("/", response_model=List[ReportCardTemplateListResponse])
 async def get_templates(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     is_published: Optional[bool] = Query(None, description="Filter by published status"),
@@ -119,7 +138,7 @@ async def get_templates(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get report card templates with filtering"""
@@ -128,16 +147,19 @@ async def get_templates(
     if current_user.role != UserRole.SCHOOL_OWNER:
         is_published = True
     
+    # Pass owner_id only for school owners, None for others (to see school templates)
+    owner_id = current_user.id if current_user.role == UserRole.SCHOOL_OWNER else None
+    
     skip = (page - 1) * size
     templates = await ReportCardTemplateService.get_templates(
-        db, current_user.id, is_active, is_published, search, skip, size
+        db, owner_id, school.id, is_active, is_published, search, skip, size
     )
     
     response_templates = []
     for template in templates:
         template_response = ReportCardTemplateListResponse.from_orm(template)
-        if template.creator:
-            template_response.creator_name = template.creator.full_name
+        if template.school_owner:
+            template_response.creator_name = template.school_owner.full_name
         
         # Count assignments
         assignments = await ReportCardTemplateAssignmentService.get_assignments(
@@ -150,55 +172,99 @@ async def get_templates(
     return response_templates
 
 
-@router.get("/templates/{template_id}", response_model=ReportCardTemplateResponse)
+@router.get("/{template_id}", response_model=ReportCardTemplateResponse)
 async def get_template(
     template_id: str,
     current_user: User = Depends(get_current_active_user),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get template by ID with full details"""
     
-    template = await ReportCardTemplateService.get_template_by_id(
-        db, template_id, current_user.id
-    )
+    # Load template with relationships
+    from sqlalchemy.orm import selectinload
+    
+    # Build query based on user role
+    if current_user.role == UserRole.SCHOOL_OWNER:
+        # School owners can see their own templates
+        query = select(ReportCardTemplate).options(
+            selectinload(ReportCardTemplate.fields),
+            selectinload(ReportCardTemplate.school_owner)
+        ).where(
+            and_(
+                ReportCardTemplate.id == template_id,
+                ReportCardTemplate.school_owner_id == current_user.id,
+                ReportCardTemplate.is_deleted == False
+            )
+        )
+    else:
+        # Teachers can see any template from their school (for class-assigned templates)
+        query = select(ReportCardTemplate).options(
+            selectinload(ReportCardTemplate.fields),
+            selectinload(ReportCardTemplate.school_owner)
+        ).where(
+            and_(
+                ReportCardTemplate.id == template_id,
+                ReportCardTemplate.school_id == school.id,
+                ReportCardTemplate.is_deleted == False
+            )
+        )
+    
+    result = await db.execute(query)
+    template = result.scalar_one_or_none()
+    
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Template not found"
         )
     
-    # Check permissions
-    if current_user.role != UserRole.SCHOOL_OWNER and not template.is_published:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
-        )
-    
-    response = ReportCardTemplateResponse.from_orm(template)
-    if template.creator:
-        response.creator_name = template.creator.full_name
-    
-    # Convert fields to response format
-    response.fields = [
-        ReportCardTemplateFieldResponse.from_orm(field) for field in template.fields
-    ]
-    
     # Count assignments
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
         db, current_user.id, template_id=template.id
     )
-    response.assignments_count = len(assignments)
     
-    return response
+    # Manually construct response
+    response_data = {
+        'id': template.id,
+        'name': template.name,
+        'description': template.description,
+        'version': template.version,
+        'paper_size': template.paper_size,
+        'orientation': template.orientation,
+        'page_margin_top': template.page_margin_top,
+        'page_margin_bottom': template.page_margin_bottom,
+        'page_margin_left': template.page_margin_left,
+        'page_margin_right': template.page_margin_right,
+        'background_color': template.background_color,
+        'background_image_url': template.background_image_url,
+        'default_font_family': template.default_font_family,
+        'default_font_size': template.default_font_size,
+        'default_text_color': template.default_text_color,
+        'default_line_height': template.default_line_height,
+        'is_active': template.is_active,
+        'is_default': template.is_default,
+        'is_published': template.is_published,
+        'school_id': template.school_id,
+        'created_by': template.school_owner_id,
+        'usage_count': template.usage_count,
+        'last_used': template.last_used,
+        'created_at': template.created_at,
+        'updated_at': template.updated_at,
+        'creator_name': template.school_owner.full_name if template.school_owner else None,
+        'fields': [ReportCardTemplateFieldResponse.from_orm(field) for field in template.fields],
+        'assignments_count': len(assignments)
+    }
+    
+    return ReportCardTemplateResponse(**response_data)
 
 
-@router.put("/templates/{template_id}", response_model=ReportCardTemplateResponse)
+@router.put("/{template_id}", response_model=ReportCardTemplateResponse)
 async def update_template(
     template_id: str,
     template_data: ReportCardTemplateUpdate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update template (School Owner only)"""
@@ -212,29 +278,63 @@ async def update_template(
             detail="Template not found"
         )
     
-    response = ReportCardTemplateResponse.from_orm(template)
-    if template.creator:
-        response.creator_name = template.creator.full_name
-    
-    # Convert fields to response format
-    response.fields = [
-        ReportCardTemplateFieldResponse.from_orm(field) for field in template.fields
-    ]
+    # Reload template with relationships
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ReportCardTemplate)
+        .options(
+            selectinload(ReportCardTemplate.fields),
+            selectinload(ReportCardTemplate.school_owner)
+        )
+        .where(ReportCardTemplate.id == template.id)
+    )
+    template = result.scalar_one()
     
     # Count assignments
     assignments = await ReportCardTemplateAssignmentService.get_assignments(
         db, current_user.id, template_id=template.id
     )
-    response.assignments_count = len(assignments)
     
-    return response
+    # Manually construct response
+    response_data = {
+        'id': template.id,
+        'name': template.name,
+        'description': template.description,
+        'version': template.version,
+        'paper_size': template.paper_size,
+        'orientation': template.orientation,
+        'page_margin_top': template.page_margin_top,
+        'page_margin_bottom': template.page_margin_bottom,
+        'page_margin_left': template.page_margin_left,
+        'page_margin_right': template.page_margin_right,
+        'background_color': template.background_color,
+        'background_image_url': template.background_image_url,
+        'default_font_family': template.default_font_family,
+        'default_font_size': template.default_font_size,
+        'default_text_color': template.default_text_color,
+        'default_line_height': template.default_line_height,
+        'is_active': template.is_active,
+        'is_default': template.is_default,
+        'is_published': template.is_published,
+        'school_id': template.school_id,
+        'created_by': template.school_owner_id,
+        'usage_count': template.usage_count,
+        'last_used': template.last_used,
+        'created_at': template.created_at,
+        'updated_at': template.updated_at,
+        'creator_name': template.school_owner.full_name if template.school_owner else None,
+        'fields': [ReportCardTemplateFieldResponse.from_orm(field) for field in template.fields],
+        'assignments_count': len(assignments)
+    }
+    
+    return ReportCardTemplateResponse(**response_data)
 
 
-@router.delete("/templates/{template_id}")
+@router.delete("/{template_id}")
 async def delete_template(
     template_id: str,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete template (School Owner only)"""
@@ -251,18 +351,18 @@ async def delete_template(
     return {"message": "Template deleted successfully"}
 
 
-@router.post("/templates/{template_id}/clone", response_model=ReportCardTemplateResponse)
+@router.post("/{template_id}/clone", response_model=ReportCardTemplateResponse)
 async def clone_template(
     template_id: str,
     clone_data: ReportCardTemplateCloneRequest,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Clone an existing template (School Owner only)"""
     
     template = await ReportCardTemplateService.clone_template(
-        db, template_id, clone_data, school_context.school_id, current_user.id
+        db, template_id, clone_data, school.id, current_user.id
     )
     if not template:
         raise HTTPException(
@@ -271,8 +371,8 @@ async def clone_template(
         )
     
     response = ReportCardTemplateResponse.from_orm(template)
-    if template.creator:
-        response.creator_name = template.creator.full_name
+    if template.school_owner:
+        response.creator_name = template.school_owner.full_name
     
     # Convert fields to response format
     response.fields = [
@@ -282,11 +382,11 @@ async def clone_template(
     return response
 
 
-@router.post("/templates/{template_id}/set-default")
+@router.post("/{template_id}/set-default")
 async def set_default_template(
     template_id: str,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Set template as default (School Owner only)"""
@@ -303,7 +403,7 @@ async def set_default_template(
     return {"message": "Template set as default successfully"}
 
 
-@router.post("/templates/validate", response_model=TemplateValidationResult)
+@router.post("/validate", response_model=TemplateValidationResult)
 async def validate_template(
     template_data: ReportCardTemplateCreate,
     current_user: User = Depends(require_school_owner()),
@@ -314,10 +414,10 @@ async def validate_template(
     return await ReportCardTemplateService.validate_template(template_data)
 
 
-@router.get("/templates/statistics", response_model=ReportCardTemplateStatistics)
+@router.get("/statistics", response_model=ReportCardTemplateStatistics)
 async def get_template_statistics(
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get template usage statistics (School Owner only)"""
@@ -330,12 +430,12 @@ async def get_template_statistics(
 
 
 # Template Field Management Endpoints
-@router.post("/templates/{template_id}/fields", response_model=ReportCardTemplateFieldResponse)
+@router.post("/{template_id}/fields", response_model=ReportCardTemplateFieldResponse)
 async def create_template_field(
     template_id: str,
     field_data: ReportCardTemplateFieldCreate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new template field (School Owner only)"""
@@ -352,12 +452,12 @@ async def create_template_field(
     return ReportCardTemplateFieldResponse.from_orm(field)
 
 
-@router.put("/templates/fields/{field_id}", response_model=ReportCardTemplateFieldResponse)
+@router.put("/fields/{field_id}", response_model=ReportCardTemplateFieldResponse)
 async def update_template_field(
     field_id: str,
     field_data: ReportCardTemplateFieldUpdate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update template field (School Owner only)"""
@@ -374,11 +474,11 @@ async def update_template_field(
     return ReportCardTemplateFieldResponse.from_orm(field)
 
 
-@router.delete("/templates/fields/{field_id}")
+@router.delete("/fields/{field_id}")
 async def delete_template_field(
     field_id: str,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete template field (School Owner only)"""
@@ -396,17 +496,17 @@ async def delete_template_field(
 
 
 # Template Assignment Management Endpoints
-@router.post("/templates/assignments", response_model=ReportCardTemplateAssignmentResponse)
+@router.post("/assignments", response_model=ReportCardTemplateAssignmentResponse)
 async def create_template_assignment(
     assignment_data: ReportCardTemplateAssignmentCreate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Assign template to class (School Owner only)"""
     
     assignment = await ReportCardTemplateAssignmentService.create_assignment(
-        db, assignment_data, school_context.school_id, current_user.id, current_user.id
+        db, assignment_data, school.id, current_user.id, current_user.id
     )
     if not assignment:
         raise HTTPException(
@@ -425,13 +525,13 @@ async def create_template_assignment(
     return response
 
 
-@router.get("/templates/assignments", response_model=List[ReportCardTemplateAssignmentResponse])
+@router.get("/assignments", response_model=List[ReportCardTemplateAssignmentResponse])
 async def get_template_assignments(
     template_id: Optional[str] = Query(None, description="Filter by template"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get template assignments (School Owner only)"""
@@ -455,12 +555,12 @@ async def get_template_assignments(
     return response_assignments
 
 
-@router.put("/templates/assignments/{assignment_id}", response_model=ReportCardTemplateAssignmentResponse)
+@router.put("/assignments/{assignment_id}", response_model=ReportCardTemplateAssignmentResponse)
 async def update_template_assignment(
     assignment_id: str,
     assignment_data: ReportCardTemplateAssignmentUpdate,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update template assignment (School Owner only)"""
@@ -485,11 +585,11 @@ async def update_template_assignment(
     return response
 
 
-@router.delete("/templates/assignments/{assignment_id}")
+@router.delete("/assignments/{assignment_id}")
 async def delete_template_assignment(
     assignment_id: str,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete template assignment (School Owner only)"""
@@ -507,12 +607,12 @@ async def delete_template_assignment(
 
 
 # Preview and Export Endpoints
-@router.post("/templates/{template_id}/preview", response_model=ReportCardTemplatePreviewResponse)
+@router.post("/{template_id}/preview", response_model=ReportCardTemplatePreviewResponse)
 async def preview_template(
     template_id: str,
     preview_data: ReportCardTemplatePreviewRequest,
     current_user: User = Depends(require_school_owner()),
-    school_context: SchoolContext = Depends(get_current_school),
+    school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Generate template preview (School Owner only)"""

@@ -4,7 +4,8 @@ import {
   ChartBarIcon,
   UserGroupIcon,
   ClipboardDocumentListIcon,
-  PlusIcon
+  PlusIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { Exam } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -15,10 +16,11 @@ import BulkGradeEntry from '../../components/grades/BulkGradeEntry';
 import GradeList from '../../components/grades/GradeList';
 import GradeStatistics from '../../components/grades/GradeStatistics';
 import StudentGradeSummary from '../../components/grades/StudentGradeSummary';
+import ComponentMapping from '../../components/grades/ComponentMapping'; // Main Grade Setup Dashboard
 import Modal from '../../components/ui/Modal';
 import Card from '../../components/ui/Card';
 
-type TabType = 'exams' | 'grades' | 'statistics' | 'students';
+type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students';
 
 const GradesPage: React.FC = () => {
   const { user } = useAuth();
@@ -40,6 +42,12 @@ const GradesPage: React.FC = () => {
       name: 'Grades',
       icon: ClipboardDocumentListIcon,
       description: 'View and manage student grades'
+    },
+    {
+      id: 'mapping' as TabType,
+      name: 'Grade Setup',
+      icon: AdjustmentsHorizontalIcon,
+      description: 'Configure how your assessments count toward final grades'
     },
     {
       id: 'statistics' as TabType,
@@ -131,6 +139,9 @@ const GradesPage: React.FC = () => {
 
       case 'statistics':
         return <GradeStatistics />;
+
+      case 'mapping':
+        return <ComponentMapping />;
 
       case 'students':
         return <StudentGradeSummary />;

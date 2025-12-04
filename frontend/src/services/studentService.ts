@@ -124,14 +124,14 @@ class StudentService {
     return apiService.post<Student>(endpoint);
   }
 
-  // Get student's academic record
-  async getStudentAcademicRecord(id: string): Promise<any> {
+  // Get student's grades
+  async getStudentGrades(id: string): Promise<any[]> {
     const schoolCode = getSchoolCodeFromUrl();
     if (!schoolCode) {
       throw new Error('School code not found in URL');
     }
 
-    const endpoint = buildSchoolApiUrl(schoolCode, `students/${id}/academic-record`);
+    const endpoint = buildSchoolApiUrl(schoolCode, `grades?student_id=${id}`);
     return apiService.get(endpoint);
   }
 

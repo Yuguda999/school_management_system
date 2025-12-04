@@ -55,7 +55,9 @@ class SchoolUpdate(BaseModel):
     established_year: Optional[str] = None
     current_session: Optional[str] = None
     current_term: Optional[str] = None
+    current_term: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
+    default_template_id: Optional[str] = None
 
 
 class SchoolResponse(SchoolBase):
@@ -63,6 +65,7 @@ class SchoolResponse(SchoolBase):
     code: str
     logo_url: Optional[str] = None
     settings: Optional[Dict[str, Any]] = None
+    default_template_id: Optional[str] = None
     is_active: bool
     is_verified: bool
 

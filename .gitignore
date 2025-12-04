@@ -185,8 +185,12 @@ env/
 *.sqlite
 *.sqlite3
 *.db
+school_management.db
 alembic/versions/*.py
 !alembic/versions/__init__.py
+
+# Python libs directory (should use venv instead)
+libs/
 
 # Logs and temporary files
 *.log
@@ -315,3 +319,15 @@ playwright-report/
 .DS_Store.*
 *.swp.*
 *.swo.*
+
+# Test and debug scripts (backend root)
+backend/check_*.py
+backend/create_*.py
+backend/debug_*.py
+backend/fix_*.py
+backend/get_*.py
+backend/seed_data.py
+backend/test_*.py
+backend/update_*.py
+!backend/test_main.py
+!backend/tests/

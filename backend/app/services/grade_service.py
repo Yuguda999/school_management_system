@@ -9,6 +9,7 @@ from datetime import date, datetime
 from app.models.grade import Exam, Grade, ReportCard, ExamType, GradeScale
 from app.models.academic import Class, Subject, Term, Enrollment
 from app.models.student import Student
+from app.models.user import User
 from app.schemas.grade import (
     ExamCreate, ExamUpdate, GradeCreate, GradeUpdate, BulkGradeCreate,
     ReportCardCreate, StudentGradesSummary, ClassGradesSummary,
@@ -177,6 +178,7 @@ class GradeService:
         exam_type: Optional[ExamType] = None,
         is_published: Optional[bool] = None,
         is_active: Optional[bool] = None,
+        allowed_subject_ids: Optional[List[str]] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[Exam]:
@@ -191,6 +193,9 @@ class GradeService:
             Exam.school_id == school_id,
             Exam.is_deleted == False
         )
+        
+        if allowed_subject_ids is not None:
+            query = query.where(Exam.subject_id.in_(allowed_subject_ids))
         
         if subject_id:
             query = query.where(Exam.subject_id == subject_id)
@@ -393,6 +398,10 @@ class GradeService:
             'percentage': percentage,
             'grade': letter_grade
         })
+        
+        # Include component_scores if provided (for consolidated grades)
+        if grade_data.component_scores:
+            grade_dict['component_scores'] = grade_data.component_scores
 
         grade = Grade(**grade_dict)
         db.add(grade)
@@ -586,6 +595,8 @@ class GradeService:
         term_id: Optional[str] = None,
         class_id: Optional[str] = None,
         is_published: Optional[bool] = None,
+        allowed_subject_ids: Optional[List[str]] = None,
+        allowed_student_ids: Optional[List[str]] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[Grade]:
@@ -600,6 +611,11 @@ class GradeService:
             Grade.school_id == school_id,
             Grade.is_deleted == False
         )
+
+        if allowed_subject_ids is not None:
+            query = query.where(Grade.subject_id.in_(allowed_subject_ids))
+        if allowed_student_ids is not None:
+            query = query.where(Grade.student_id.in_(allowed_student_ids))
 
         if student_id:
             query = query.where(Grade.student_id == student_id)
@@ -688,11 +704,186 @@ class GradeService:
         return True
 
     @staticmethod
+    async def consolidate_grades_by_subject(
+        db: AsyncSession,
+        grades: List[Grade],
+        term_id: str,
+        school_id: str,
+        grade_template_id: Optional[str] = None
+    ) -> List[dict]:
+        """
+        Consolidate multiple exam grades for the same subject using component mappings.
+        Only includes subjects where exams map to grade template components.
+        
+        Args:
+            db: Database session
+            grades: List of Grade objects to consolidate
+            term_id: Term ID for looking up component mappings
+            school_id: School ID
+            grade_template_id: Optional grade template ID to get components
+            
+        Returns:
+            List of dictionaries with consolidated grade data, one per subject
+        """
+        from app.models.component_mapping import ComponentMapping
+        from app.models.grade_template import AssessmentComponent
+        
+        # Get grade template components if template is specified
+        component_name_map = {}  # Maps component_id -> component_name (e.g., "First C.A")
+        if grade_template_id:
+            components_result = await db.execute(
+                select(AssessmentComponent).where(
+                    AssessmentComponent.template_id == grade_template_id,
+                    AssessmentComponent.school_id == school_id,
+                    AssessmentComponent.is_deleted == False
+                )
+            )
+            components = list(components_result.scalars().all())
+            component_name_map = {c.id: c.name for c in components}
+        
+        # Group grades by subject
+        subject_grades_map = {}
+        for grade in grades:
+            subject_id = grade.subject_id
+            if subject_id not in subject_grades_map:
+                subject_grades_map[subject_id] = []
+            subject_grades_map[subject_id].append(grade)
+        
+        # Consolidate each subject's grades
+        consolidated_grades = []
+        for subject_id, subject_grades in subject_grades_map.items():
+            if not subject_grades:
+                continue
+            
+            # Get component mappings for this subject/term
+            # Mappings tell us which exam types map to which components
+            mappings_result = await db.execute(
+                select(ComponentMapping).options(
+                    selectinload(ComponentMapping.component).selectinload(AssessmentComponent.template)
+                ).where(
+                    ComponentMapping.subject_id == subject_id,
+                    ComponentMapping.term_id == term_id,
+                    ComponentMapping.school_id == school_id,
+                    ComponentMapping.is_deleted == False,
+                    ComponentMapping.include_in_calculation == True
+                )
+            )
+            mappings = list(mappings_result.scalars().all())
+            
+            # Build a map: exam_type -> component_name
+            exam_type_to_component = {}
+            for mapping in mappings:
+                if mapping.component:
+                    exam_type_to_component[mapping.exam_type_name] = mapping.component.name
+                
+            # Build a map: component_name -> component object (for weights)
+            component_map = {}
+            for mapping in mappings:
+                if mapping.component:
+                    component_map[mapping.component.name] = mapping.component
+            
+            # Group exams by component and sum their scores
+            component_raw_scores = {}  # component_name -> {score: X, total: Y}
+            component_raw_totals = {}
+            has_mapped_components = False
+            
+            for grade in subject_grades:
+                if grade.exam:
+                    # Get the enum value (e.g., "continuous_assessment")
+                    exam_type = grade.exam.exam_type.value if hasattr(grade.exam.exam_type, 'value') else str(grade.exam.exam_type)
+                    # Look up the component name for this exam type
+                    component_name = exam_type_to_component.get(exam_type)
+                    if component_name:
+                        # Add this exam's score to the component's total
+                        if component_name not in component_raw_scores:
+                            component_raw_scores[component_name] = 0.0
+                            component_raw_totals[component_name] = 0.0
+                        component_raw_scores[component_name] += float(grade.score)
+                        component_raw_totals[component_name] += float(grade.total_marks)
+                        has_mapped_components = True
+            
+            # Only include this subject if it has mapped components
+            if not has_mapped_components:
+                continue
+            
+            # Scale each component to its weight
+            # Get the total marks from grade template (e.g., 100)
+            template_total_marks = 100.0  # Default
+            if mappings and mappings[0].component and mappings[0].component.template:
+                template_total_marks = float(mappings[0].component.template.total_marks)
+            
+            component_scores = {}
+            total_score = 0.0
+            total_marks = 0.0
+            
+            for component_name, raw_score in component_raw_scores.items():
+                component = component_map.get(component_name)
+                if component:
+                    # Component weight is a percentage (e.g., 20.00 for 20%)
+                    component_weight = float(component.weight)
+                    # Calculate the maximum marks for this component
+                    component_max_marks = (component_weight / 100.0) * template_total_marks
+                    
+                    # Get the raw total marks for this component
+                    raw_total = component_raw_totals[component_name]
+                    
+                    # Scale the raw score to fit the component max
+                    if raw_total > 0:
+                        scaled_score = (raw_score / raw_total) * component_max_marks
+                    else:
+                        scaled_score = 0.0
+                    
+                    component_scores[component_name] = round(scaled_score, 2)
+                    total_score += scaled_score
+                    total_marks += component_max_marks
+            
+            # Calculate consolidated percentage and grade
+            if total_marks > 0:
+                percentage = (total_score / total_marks) * 100
+                letter_grade = GradeService.calculate_grade(float(percentage))
+            else:
+                percentage = 0
+                letter_grade = GradeScale.F
+            
+            # Use the first grade as reference for other fields
+            reference_grade = subject_grades[0]
+            
+            # Create consolidated data dictionary
+            consolidated = {
+                'id': reference_grade.id,
+                'score': total_score,
+                'total_marks': total_marks,
+                'percentage': percentage,
+                'grade': letter_grade,
+                'student_id': reference_grade.student_id,
+                'subject_id': reference_grade.subject_id,
+                'exam_id': reference_grade.exam_id,
+                'term_id': reference_grade.term_id,
+                'graded_by': reference_grade.graded_by,
+                'graded_date': reference_grade.graded_date,
+                'remarks': reference_grade.remarks,
+                'is_published': reference_grade.is_published,
+                'component_scores': component_scores,
+                'created_at': reference_grade.created_at,
+                'updated_at': reference_grade.updated_at,
+                # Store references to relationship objects
+                'grader': reference_grade.grader,
+                'student': reference_grade.student,
+                'subject': reference_grade.subject,
+                'exam': reference_grade.exam
+            }
+            
+            consolidated_grades.append(consolidated)
+        
+        return consolidated_grades
+
+    @staticmethod
     async def get_student_grades_summary(
         db: AsyncSession,
         student_id: str,
         term_id: str,
-        school_id: str
+        school_id: str,
+        allowed_subject_ids: Optional[List[str]] = None
     ) -> Optional[StudentGradesSummary]:
         """Get comprehensive grade summary for a student in a term"""
         # Verify student exists
@@ -722,18 +913,24 @@ class GradeService:
             return None
 
         # Get all grades for the student in this term (including unpublished for summary)
+        # Filter by allowed_subject_ids for teachers
+        grade_conditions = [
+            Grade.student_id == student_id,
+            Grade.term_id == term_id,
+            Grade.school_id == school_id,
+            Grade.is_deleted == False
+        ]
+        
+        if allowed_subject_ids is not None:
+            grade_conditions.append(Grade.subject_id.in_(allowed_subject_ids))
+        
         grades_result = await db.execute(
             select(Grade).options(
                 selectinload(Grade.subject),
                 selectinload(Grade.exam),
                 selectinload(Grade.grader),
                 selectinload(Grade.student)
-            ).where(
-                Grade.student_id == student_id,
-                Grade.term_id == term_id,
-                Grade.school_id == school_id,
-                Grade.is_deleted == False
-            )
+            ).where(and_(*grade_conditions))
         )
         grades = list(grades_result.scalars().all())
 
@@ -749,21 +946,38 @@ class GradeService:
         # Commit repairs if any
         if grades_to_repair:
             await db.commit()
+        
+        # **CONSOLIDATE GRADES BY SUBJECT** - Uses component mappings to map exam types
+        # to grade template components (First C.A, Second C.A, Exam)
+        # Only includes subjects with proper component mappings
+        consolidated_grades = await GradeService.consolidate_grades_by_subject(
+            db=db,
+            grades=grades,
+            term_id=term_id,
+            school_id=school_id,
+            grade_template_id=None  # TODO: Pass actual grade template ID if available
+        )
 
-        # Get enrolled subjects count
+        # Get enrolled subjects count (filter by allowed_subject_ids for teachers)
+        enrollment_conditions = [
+            Enrollment.student_id == student_id,
+            Enrollment.term_id == term_id,
+            Enrollment.school_id == school_id,
+            Enrollment.is_deleted == False
+        ]
+        
+        if allowed_subject_ids is not None:
+            enrollment_conditions.append(Enrollment.subject_id.in_(allowed_subject_ids))
+        
         enrolled_subjects_result = await db.execute(
-            select(func.count(Enrollment.id.distinct())).where(
-                Enrollment.student_id == student_id,
-                Enrollment.term_id == term_id,
-                Enrollment.school_id == school_id,
-                Enrollment.is_deleted == False
-            )
+            select(func.count(Enrollment.id.distinct())).where(and_(*enrollment_conditions))
         )
         total_subjects = enrolled_subjects_result.scalar() or 0
 
-        # Calculate totals
-        total_score = sum(grade.score for grade in grades)
-        total_possible = sum(grade.total_marks for grade in grades)
+        # Calculate totals using CONSOLIDATED grades (which are dictionaries)
+        total_score = sum(grade['score'] for grade in consolidated_grades)
+        total_possible = sum(grade['total_marks'] for grade in consolidated_grades)
+
         overall_percentage = (total_score / total_possible * 100) if total_possible > 0 else 0
         overall_grade = GradeService.calculate_grade(overall_percentage)
 
@@ -781,18 +995,24 @@ class GradeService:
             class_student_ids = [row[0] for row in class_students_result.fetchall()]
             
             # Calculate average percentage for each student in this term
+            # Filter by allowed_subject_ids for fair comparison
             student_averages = []
             for class_student_id in class_student_ids:
+                position_grade_conditions = [
+                    Grade.student_id == class_student_id,
+                    Grade.term_id == term_id,
+                    Grade.school_id == school_id,
+                    Grade.is_deleted == False
+                ]
+                
+                if allowed_subject_ids is not None:
+                    position_grade_conditions.append(Grade.subject_id.in_(allowed_subject_ids))
+                
                 student_grades_result = await db.execute(
                     select(
                         func.sum(Grade.score).label('total_score'),
                         func.sum(Grade.total_marks).label('total_possible')
-                    ).where(
-                        Grade.student_id == class_student_id,
-                        Grade.term_id == term_id,
-                        Grade.school_id == school_id,
-                        Grade.is_deleted == False
-                    )
+                    ).where(and_(*position_grade_conditions))
                 )
                 result = student_grades_result.first()
                 if result and result.total_possible and result.total_possible > 0:
@@ -806,23 +1026,35 @@ class GradeService:
                     position = i + 1
                     break
 
-        # Convert grades to GradeResponse objects with proper names
+        # Convert CONSOLIDATED grade dictionaries to GradeResponse objects
+        # Consolidated grades are dictionaries, not ORM objects
         grade_responses = []
-        for grade in grades:
-            grade_response = GradeResponse.from_orm(grade)
-            # Convert Decimal fields to float for proper JSON serialization
-            grade_response.score = float(grade.score)
-            grade_response.total_marks = float(grade.total_marks)
-            grade_response.percentage = float(grade.percentage) if grade.percentage else 0.0
-            if grade.grader:
-                grade_response.grader_name = grade.grader.full_name
-            if grade.student:
-                grade_response.student_name = grade.student.full_name
-            if grade.subject:
-                grade_response.subject_name = grade.subject.name
-            if grade.exam:
-                grade_response.exam_name = grade.exam.name
-                grade_response.exam_type = grade.exam.exam_type
+        for grade_data in consolidated_grades:
+            # Construct GradeResponse from dictionary data
+            grade_response = GradeResponse(
+                id=grade_data['id'],
+                score=float(grade_data['score']),
+                total_marks=float(grade_data['total_marks']),
+                percentage=float(grade_data['percentage']),
+                grade=grade_data['grade'],
+                student_id=grade_data['student_id'],
+                subject_id=grade_data['subject_id'],
+                exam_id=grade_data['exam_id'],
+                term_id=grade_data['term_id'],
+                graded_by=grade_data['graded_by'],
+                graded_date=grade_data['graded_date'],
+                remarks=grade_data['remarks'],
+                is_published=grade_data['is_published'],
+                component_scores=grade_data['component_scores'],
+                created_at=grade_data['created_at'],
+                updated_at=grade_data['updated_at'],
+                # Populate relationship fields from stored references
+                grader_name=grade_data['grader'].full_name if grade_data.get('grader') else None,
+                student_name=grade_data['student'].full_name if grade_data.get('student') else None,
+                subject_name=grade_data['subject'].name if grade_data.get('subject') else None,
+                exam_name=grade_data['exam'].name if grade_data.get('exam') else None,
+                exam_type=grade_data['exam'].exam_type if grade_data.get('exam') else None
+            )
             grade_responses.append(grade_response)
 
         # Group grades by subject and calculate subject-level summaries
@@ -863,19 +1095,25 @@ class GradeService:
                 subject_total_students = len(class_student_ids)
 
                 # Calculate average for each student in this subject
+                # Only calculate if this subject is in allowed subjects (or no filter)
                 student_subject_averages = []
                 for class_student_id in class_student_ids:
+                    subject_position_conditions = [
+                        Grade.student_id == class_student_id,
+                        Grade.subject_id == subject_id,
+                        Grade.term_id == term_id,
+                        Grade.school_id == school_id,
+                        Grade.is_deleted == False
+                    ]
+                    
+                    # Note: No need to filter by allowed_subject_ids here since we're already
+                    # looking at a specific subject_id that came from the filtered grades
+                    
                     student_subject_grades_result = await db.execute(
                         select(
                             func.sum(Grade.score).label('total_score'),
                             func.sum(Grade.total_marks).label('total_possible')
-                        ).where(
-                            Grade.student_id == class_student_id,
-                            Grade.subject_id == subject_id,
-                            Grade.term_id == term_id,
-                            Grade.school_id == school_id,
-                            Grade.is_deleted == False
-                        )
+                        ).where(and_(*subject_position_conditions))
                     )
                     result = student_subject_grades_result.first()
                     if result and result.total_possible and result.total_possible > 0:
@@ -933,7 +1171,7 @@ class GradeService:
             term_id=term_id,
             term_name=term.name,
             total_subjects=total_subjects,
-            graded_subjects=len(grades),
+            graded_subjects=len(consolidated_grades),  # Number of subjects with grades
             total_score=float(total_score),
             total_possible=float(total_possible),
             overall_percentage=float(overall_percentage),
@@ -1147,7 +1385,8 @@ class GradeService:
         db: AsyncSession,
         school_id: str,
         term_id: Optional[str] = None,
-        class_id: Optional[str] = None
+        class_id: Optional[str] = None,
+        allowed_subject_ids: Optional[List[str]] = None
     ) -> GradeStatistics:
         """Get comprehensive grade statistics"""
         # Base query conditions
@@ -1167,6 +1406,11 @@ class GradeService:
                     Student.is_deleted == False
                 )
             ))
+        
+        # Filter by allowed subjects for teachers
+        if allowed_subject_ids is not None:
+            exam_conditions.append(Exam.subject_id.in_(allowed_subject_ids))
+            grade_conditions.append(Grade.subject_id.in_(allowed_subject_ids))
 
         # Get exam counts
         total_exams_result = await db.execute(

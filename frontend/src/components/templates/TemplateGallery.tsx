@@ -33,202 +33,451 @@ const TEMPLATE_GALLERY = [
     layout: 'classic',
     elements: [
       {
+        id: '1',
         type: 'school_header',
-        content: 'ST. MARY\'S ACADEMY\nExcellentia et Virtus',
+        content: 'SCHOOL NAME\nAddress Line 1\nAddress Line 2',
         x: 50,
         y: 30,
         width: 694,
         height: 80,
         fontSize: 24,
-        fontFamily: 'Times New Roman',
         fontWeight: 'bold',
         textAlign: 'center',
         color: '#1f2937',
+        zIndex: 1,
+        visible: true,
       },
-    ],
+      {
+        id: '2',
+        type: 'line',
+        content: '',
+        x: 50,
+        y: 110,
+        width: 694,
+        height: 2,
+        backgroundColor: '#1f2937',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: '3',
+        type: 'student_info',
+        content: 'Student: [Student Name]\nClass: [Class Name]\nRoll No: [Roll Number]',
+        x: 50,
+        y: 130,
+        width: 694,
+        height: 60,
+        fontSize: 14,
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: '4',
+        type: 'grade_table',
+        content: 'Grades',
+        x: 50,
+        y: 200,
+        width: 694,
+        height: 400,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        zIndex: 1,
+        visible: true,
+        properties: {
+          showRemarks: true,
+          striped: true,
+          headerBackgroundColor: '#f3f4f6',
+          headerTextColor: '#374151',
+        }
+      },
+      {
+        id: '5',
+        type: 'attendance_table',
+        content: 'Attendance',
+        x: 50,
+        y: 620,
+        width: 694,
+        height: 200,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        zIndex: 1,
+        visible: true,
+        properties: {
+          striped: true,
+          headerBackgroundColor: '#f3f4f6',
+          headerTextColor: '#374151',
+        }
+      },
+      {
+        id: '6',
+        type: 'signature',
+        content: 'Principal Signature: ___________________',
+        x: 450,
+        y: 850,
+        width: 250,
+        height: 50,
+        fontSize: 12,
+        zIndex: 1,
+        visible: true,
+      }
+    ]
   },
   {
-    id: 'modern-minimalist',
-    name: 'Modern Minimalist',
-    description: 'Clean, minimal design with modern typography',
+    id: 'premium-modern',
+    name: 'Premium Modern',
+    description: 'Professional sidebar layout with card-style sections',
     category: 'Modern',
-    thumbnail: 'modern-minimalist',
-    color: 'purple',
+    thumbnail: 'premium-modern',
+    color: 'indigo',
     featured: true,
-    tags: ['Modern', 'Minimal', 'Clean'],
+    tags: ['Premium', 'Sidebar', 'Professional'],
     layout: 'modern',
     elements: [
+      // Sidebar Background
       {
+        id: 'bg-sidebar',
+        type: 'shape',
+        content: '',
+        x: 0,
+        y: 0,
+        width: 250,
+        height: 1122,
+        backgroundColor: '#1e1b4b', // Dark indigo
+        borderWidth: 0,
+        borderRadius: 0,
+        zIndex: 0,
+        visible: true,
+      },
+      // Sidebar Content
+      {
+        id: 'school-name-side',
+        type: 'text',
+        content: 'ACADEMIC\nEXCELLENCE',
+        x: 25,
+        y: 50,
+        width: 200,
+        height: 80,
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: 'student-photo-placeholder',
+        type: 'shape',
+        content: '',
+        x: 50,
+        y: 150,
+        width: 150,
+        height: 150,
+        backgroundColor: '#312e81',
+        borderRadius: 75, // Circle
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: 'student-info-side',
+        type: 'student_info',
+        content: '[Student Name]\n\nClass: [Class Name]\nRoll: [Roll Number]\nYear: [Academic Year]',
+        x: 25,
+        y: 330,
+        width: 200,
+        height: 200,
+        fontSize: 14,
+        color: '#e0e7ff',
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      // Main Content Area Background
+      {
+        id: 'header-card',
+        type: 'shape',
+        content: '',
+        x: 280,
+        y: 50,
+        width: 480,
+        height: 100,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        zIndex: 0,
+        visible: true,
+      },
+      {
+        id: 'report-title',
+        type: 'text',
+        content: 'STUDENT PROGRESS REPORT',
+        x: 300,
+        y: 70,
+        width: 440,
+        height: 60,
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#1e1b4b',
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      // Grades Card
+      {
+        id: 'grades-card-bg',
+        type: 'shape',
+        content: '',
+        x: 280,
+        y: 180,
+        width: 480,
+        height: 400,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        zIndex: 0,
+        visible: true,
+      },
+      {
+        id: 'grades-title',
+        type: 'text',
+        content: 'Academic Performance',
+        x: 300,
+        y: 200,
+        width: 440,
+        height: 40,
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#374151',
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: 'grade-table',
+        type: 'grade_table',
+        content: 'Grades',
+        x: 300,
+        y: 250,
+        width: 440,
+        height: 300,
+        borderWidth: 0,
+        zIndex: 1,
+        visible: true,
+        properties: {
+          showRemarks: true,
+          striped: true,
+          headerBackgroundColor: '#f3f4f6',
+          headerTextColor: '#374151',
+          compact: true,
+        }
+      },
+      // Attendance Card
+      {
+        id: 'attendance-card-bg',
+        type: 'shape',
+        content: '',
+        x: 280,
+        y: 610,
+        width: 480,
+        height: 250,
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+        zIndex: 0,
+        visible: true,
+      },
+      {
+        id: 'attendance-title',
+        type: 'text',
+        content: 'Attendance Record',
+        x: 300,
+        y: 630,
+        width: 440,
+        height: 40,
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#374151',
+        textAlign: 'left',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: 'attendance-table',
+        type: 'attendance_table',
+        content: 'Attendance',
+        x: 300,
+        y: 680,
+        width: 440,
+        height: 150,
+        borderWidth: 0,
+        zIndex: 1,
+        visible: true,
+        properties: {
+          striped: true,
+          headerBackgroundColor: '#f3f4f6',
+          headerTextColor: '#374151',
+          compact: true,
+        }
+      },
+      // Signature
+      {
+        id: 'signature-line',
+        type: 'line',
+        content: '',
+        x: 500,
+        y: 950,
+        width: 250,
+        height: 2,
+        backgroundColor: '#374151',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: 'signature-text',
+        type: 'text',
+        content: 'Principal Signature',
+        x: 500,
+        y: 960,
+        width: 250,
+        height: 30,
+        fontSize: 12,
+        textAlign: 'center',
+        zIndex: 1,
+        visible: true,
+      }
+    ]
+  },
+  {
+    id: 'creative-detailed',
+    name: 'Creative Detailed',
+    description: 'Comprehensive layout with detailed sections',
+    category: 'Creative',
+    thumbnail: 'creative-detailed',
+    color: 'emerald',
+    featured: false,
+    tags: ['Detailed', 'Colorful', 'Comprehensive'],
+    layout: 'creative',
+    elements: [
+      {
+        id: '1',
+        type: 'watermark',
+        content: 'OFFICIAL',
+        x: 100,
+        y: 300,
+        width: 600,
+        height: 400,
+        fontSize: 100,
+        fontWeight: 'bold',
+        color: '#10b981',
+        opacity: 0.05,
+        rotation: -30,
+        zIndex: 0,
+        visible: true,
+      },
+      {
+        id: '2',
         type: 'school_header',
-        content: 'FUTURE ACADEMY\nInnovation • Excellence • Growth',
+        content: 'ACADEMIC EXCELLENCE SCHOOL',
         x: 50,
         y: 40,
         width: 694,
-        height: 70,
-        fontSize: 28,
-        fontFamily: 'Arial',
-        fontWeight: '300',
-        textAlign: 'left',
-        color: '#6366f1',
-      },
-    ],
-  },
-  {
-    id: 'colorful-primary',
-    name: 'Colorful Primary',
-    description: 'Bright and engaging design perfect for primary schools',
-    category: 'Primary School',
-    thumbnail: 'colorful-primary',
-    color: 'green',
-    featured: false,
-    tags: ['Colorful', 'Primary', 'Fun'],
-    layout: 'playful',
-    elements: [
-      {
-        type: 'school_header',
-        content: '🌟 SUNSHINE ELEMENTARY 🌟\nWhere Learning is Fun!',
-        x: 50,
-        y: 20,
-        width: 694,
-        height: 100,
-        fontSize: 22,
-        fontFamily: 'Comic Sans MS',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#059669',
-      },
-    ],
-  },
-  {
-    id: 'elegant-secondary',
-    name: 'Elegant Secondary',
-    description: 'Sophisticated design for high school students',
-    category: 'Secondary School',
-    thumbnail: 'elegant-secondary',
-    color: 'indigo',
-    featured: false,
-    tags: ['Elegant', 'Secondary', 'Sophisticated'],
-    layout: 'elegant',
-    elements: [
-      {
-        type: 'school_header',
-        content: 'WESTFIELD HIGH SCHOOL\nPreparing Leaders of Tomorrow',
-        x: 50,
-        y: 25,
-        width: 694,
-        height: 90,
+        height: 60,
         fontSize: 26,
-        fontFamily: 'Georgia',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#4338ca',
+        elements: [
+          {
+            type: 'school_header',
+            content: '🎨 RENAISSANCE ARTS ACADEMY 🎭\nWhere Creativity Flourishes',
+            x: 50,
+            y: 25,
+            width: 694,
+            height: 90,
+            fontSize: 22,
+            fontFamily: 'Trebuchet MS',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            color: '#ec4899',
+          },
+        ],
       },
-    ],
-  },
-  {
-    id: 'international-style',
-    name: 'International Style',
-    description: 'Multi-language friendly design',
-    category: 'International',
-    thumbnail: 'international-style',
-    color: 'teal',
-    featured: false,
-    tags: ['International', 'Multi-language', 'Global'],
-    layout: 'international',
-    elements: [
       {
-        type: 'school_header',
-        content: 'GLOBAL INTERNATIONAL SCHOOL\n国际学校 • École Internationale • المدرسة الدولية',
+        id: '3',
+        type: 'line',
+        content: '',
+        x: 200,
+        y: 100,
+        width: 394,
+        height: 3,
+        backgroundColor: '#10b981',
+        zIndex: 1,
+        visible: true,
+      },
+      {
+        id: '4',
+        type: 'student_info',
+        content: 'Name: [Student Name]\nGrade: [Class Name]\nYear: [Academic Year]',
         x: 50,
-        y: 15,
+        y: 130,
         width: 694,
-        height: 110,
-        fontSize: 20,
-        fontFamily: 'Arial',
-        fontWeight: 'bold',
+        height: 60,
+        fontSize: 14,
         textAlign: 'center',
-        color: '#0f766e',
+        zIndex: 1,
+        visible: true,
       },
-    ],
-  },
-  {
-    id: 'sports-achievement',
-    name: 'Sports Achievement',
-    description: 'Designed for sports and athletics programs',
-    category: 'Specialized',
-    thumbnail: 'sports-achievement',
-    color: 'orange',
-    featured: false,
-    tags: ['Sports', 'Achievement', 'Athletics'],
-    layout: 'athletic',
-    elements: [
       {
-        type: 'school_header',
-        content: '🏆 CHAMPIONS SPORTS ACADEMY 🏆\nExcellence in Sports & Academics',
+        id: '5',
+        type: 'grade_table',
+        content: 'Subject Grades',
         x: 50,
-        y: 20,
+        y: 210,
         width: 694,
-        height: 100,
-        fontSize: 24,
-        fontFamily: 'Impact',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#ea580c',
+        height: 400,
+        borderWidth: 2,
+        borderColor: '#10b981',
+        zIndex: 1,
+        visible: true,
+        properties: {
+          showRemarks: true,
+          striped: true,
+          headerBackgroundColor: '#ecfdf5',
+          headerTextColor: '#065f46',
+        }
       },
-    ],
-  },
-  {
-    id: 'creative-arts',
-    name: 'Creative Arts',
-    description: 'Perfect for arts and creative programs',
-    category: 'Specialized',
-    thumbnail: 'creative-arts',
-    color: 'pink',
-    featured: false,
-    tags: ['Arts', 'Creative', 'Design'],
-    layout: 'artistic',
-    elements: [
       {
-        type: 'school_header',
-        content: '🎨 RENAISSANCE ARTS ACADEMY 🎭\nWhere Creativity Flourishes',
+        id: '6',
+        type: 'behavior_table',
+        content: 'Personal Development',
         x: 50,
-        y: 25,
+        y: 530,
         width: 694,
-        height: 90,
-        fontSize: 22,
-        fontFamily: 'Trebuchet MS',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        color: '#ec4899',
+        height: 150,
+        borderWidth: 1,
+        borderColor: '#10b981',
+        zIndex: 1,
+        visible: true,
+        properties: {
+          striped: true,
+          headerBackgroundColor: '#ecfdf5',
+          headerTextColor: '#065f46',
+        }
       },
-    ],
-  },
-  {
-    id: 'science-tech',
-    name: 'Science & Technology',
-    description: 'Modern design for STEM programs',
-    category: 'Specialized',
-    thumbnail: 'science-tech',
-    color: 'cyan',
-    featured: false,
-    tags: ['Science', 'Technology', 'STEM'],
-    layout: 'tech',
-    elements: [
       {
-        type: 'school_header',
-        content: '⚡ TESLA TECH INSTITUTE ⚡\nInnovating the Future Through STEM',
+        id: '7',
+        type: 'signature',
+        content: 'Class Teacher: ___________________\nPrincipal: ___________________',
         x: 50,
-        y: 30,
+        y: 750,
         width: 694,
         height: 80,
-        fontSize: 20,
-        fontFamily: 'Courier New',
-        fontWeight: 'bold',
+        fontSize: 12,
         textAlign: 'center',
-        color: '#0891b2',
-      },
-    ],
-  },
+        zIndex: 1,
+        visible: true,
+      }
+    ]
+  }
 ];
 
 const CATEGORIES = [
@@ -325,29 +574,27 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({
             <div className="space-y-1">
               {CATEGORIES.map(category => {
                 const IconComponent = getIconForCategory(category);
-                const count = category === 'All' 
-                  ? TEMPLATE_GALLERY.length 
+                const count = category === 'All'
+                  ? TEMPLATE_GALLERY.length
                   : TEMPLATE_GALLERY.filter(t => t.category === category).length;
-                
+
                 return (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all ${
-                      selectedCategory === category
-                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all ${selectedCategory === category
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 font-medium'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                      }`}
                   >
                     <div className="flex items-center space-x-2">
                       <IconComponent className="h-4 w-4" />
                       <span>{category}</span>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      selectedCategory === category
-                        ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${selectedCategory === category
+                      ? 'bg-blue-200 dark:bg-blue-800 text-blue-700 dark:text-blue-300'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                      }`}>
                       {count}
                     </span>
                   </button>
@@ -491,7 +738,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 dark:text-white mb-1">{template.name}</h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{template.description}</p>
-        
+
         {/* Tags */}
         <div className="flex flex-wrap gap-1 mb-3">
           {template.tags.slice(0, 3).map((tag: string) => (
@@ -557,7 +804,7 @@ const TemplatePreviewOverlay: React.FC<TemplatePreviewOverlayProps> = ({
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">REPORT CARD</h1>
                   <p className="text-gray-600">Academic Year 2024-2025</p>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-6 mb-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-600">Student Name</label>

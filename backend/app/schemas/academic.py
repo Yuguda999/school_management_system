@@ -16,6 +16,7 @@ class ClassBase(BaseModel):
 
 class ClassCreate(ClassBase):
     teacher_id: Optional[str] = None
+    report_card_template_id: Optional[str] = None
 
     @validator('teacher_id', pre=True)
     def empty_str_to_none(cls, v):
@@ -31,6 +32,7 @@ class ClassUpdate(BaseModel):
     capacity: Optional[int] = None
     teacher_id: Optional[str] = None
     description: Optional[str] = None
+    report_card_template_id: Optional[str] = None
     is_active: Optional[bool] = None
 
     @validator('teacher_id', pre=True)
@@ -45,6 +47,7 @@ class ClassResponse(ClassBase):
     teacher_id: Optional[str] = None
     teacher_name: Optional[str] = None
     student_count: Optional[int] = None
+    report_card_template_id: Optional[str] = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

@@ -74,10 +74,10 @@ class StudentService:
             )
         
         # Verify class exists
-        if student_data.class_id:
+        if student_data.current_class_id:
             class_result = await db.execute(
                 select(Class).where(
-                    Class.id == student_data.class_id,
+                    Class.id == student_data.current_class_id,
                     Class.school_id == school_id,
                     Class.is_deleted == False
                 )

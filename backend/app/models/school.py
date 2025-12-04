@@ -37,6 +37,7 @@ class School(BaseModel):
     
     # Settings
     settings = Column(JSON, nullable=True, default={})
+    default_template_id = Column(String(36), nullable=True)
     
     # Status
     is_active = Column(Boolean, default=True, nullable=False)
@@ -68,6 +69,7 @@ class School(BaseModel):
     terms = relationship("Term", back_populates="school", cascade="all, delete-orphan")
     fee_structures = relationship("FeeStructure", back_populates="school", cascade="all, delete-orphan")
     assets = relationship("Asset", back_populates="school", cascade="all, delete-orphan")
+    grade_templates = relationship("GradeTemplate", back_populates="school", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<School(id={self.id}, name={self.name}, code={self.code})>"

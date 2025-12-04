@@ -87,7 +87,8 @@ class ReportCardTemplateService:
     @staticmethod
     async def get_templates(
         db: AsyncSession,
-        school_owner_id: str,
+        school_owner_id: Optional[str],
+        school_id: str,
         is_active: Optional[bool] = None,
         is_published: Optional[bool] = None,
         search: Optional[str] = None,
@@ -97,9 +98,13 @@ class ReportCardTemplateService:
         """Get templates with filtering"""
         
         conditions = [
-            ReportCardTemplate.school_owner_id == school_owner_id,
+            ReportCardTemplate.school_id == school_id,
             ReportCardTemplate.is_deleted == False
         ]
+        
+        # Only filter by owner if specified (for school owners viewing their own templates)
+        if school_owner_id:
+            conditions.append(ReportCardTemplate.school_owner_id == school_owner_id)
         
         if is_active is not None:
             conditions.append(ReportCardTemplate.is_active == is_active)
@@ -117,7 +122,7 @@ class ReportCardTemplateService:
             select(ReportCardTemplate)
             .options(selectinload(ReportCardTemplate.fields))
             .where(and_(*conditions))
-            .order_by(desc(ReportCardTemplate.created_at))
+            .order_by(desc(ReportCardTemplate.updated_at))
             .offset(skip)
             .limit(limit)
         )
@@ -135,6 +140,7 @@ class ReportCardTemplateService:
         
         result = await db.execute(
             select(ReportCardTemplate)
+            .options(selectinload(ReportCardTemplate.fields))
             .where(
                 and_(
                     ReportCardTemplate.id == template_id,
@@ -150,8 +156,52 @@ class ReportCardTemplateService:
         
         # Update template fields
         update_data = template_data.dict(exclude_unset=True)
+        fields_data = update_data.pop('fields', None)
+        
         for field, value in update_data.items():
             setattr(template, field, value)
+            
+        # Handle fields synchronization if provided
+        if fields_data is not None:
+            # Get existing fields map
+            existing_fields = {f.id: f for f in template.fields}
+            existing_field_ids = set(existing_fields.keys())
+            
+            # Process incoming fields
+            incoming_field_ids = set()
+            
+            for field_data in fields_data:
+                # If field has an ID and exists, update it
+                field_id = field_data.get('id')
+                
+                if field_id and field_id in existing_fields:
+                    incoming_field_ids.add(field_id)
+                    field_obj = existing_fields[field_id]
+                    
+                    # Update field attributes
+                    for key, value in field_data.items():
+                        if key != 'id' and hasattr(field_obj, key):
+                            setattr(field_obj, key, value)
+                else:
+                    # Create new field
+                    # Remove id if present to let DB generate it
+                    if 'id' in field_data:
+                        del field_data['id']
+                        
+                    field_dict = field_data.copy()
+                    field_dict.update({
+                        'template_id': template.id,
+                        'school_id': template.school_id,
+                        'school_owner_id': school_owner_id
+                    })
+                    
+                    new_field = ReportCardTemplateField(**field_dict)
+                    db.add(new_field)
+            
+            # Delete fields that are not in incoming data
+            fields_to_delete = existing_field_ids - incoming_field_ids
+            for field_id in fields_to_delete:
+                await db.delete(existing_fields[field_id])
         
         await db.commit()
         await db.refresh(template)
@@ -343,31 +393,32 @@ class ReportCardTemplateService:
         warnings = []
         
         # Validate paper size and margins
+        # Validate paper size and margins (using 96 DPI pixels)
         paper_widths = {
-            'A4': 8.27,
-            'A3': 11.69,
-            'Letter': 8.5,
-            'Legal': 8.5,
-            'Tabloid': 11.0
+            'A4': 794,      # 8.27in * 96
+            'A3': 1123,     # 11.69in * 96
+            'Letter': 816,  # 8.5in * 96
+            'Legal': 816,   # 8.5in * 96
+            'Tabloid': 1056 # 11in * 96
         }
         
         paper_heights = {
-            'A4': 11.69,
-            'A3': 16.54,
-            'Letter': 11.0,
-            'Legal': 14.0,
-            'Tabloid': 17.0
+            'A4': 1123,     # 11.69in * 96
+            'A3': 1587,     # 16.54in * 96
+            'Letter': 1056, # 11in * 96
+            'Legal': 1344,  # 14in * 96
+            'Tabloid': 1632 # 17in * 96
         }
         
         paper_size = template_data.paper_size
         orientation = template_data.orientation
         
         if orientation.value == 'landscape':
-            max_width = paper_heights.get(paper_size.value, 11.69)
-            max_height = paper_widths.get(paper_size.value, 8.27)
+            max_width = paper_heights.get(paper_size.value, 1123)
+            max_height = paper_widths.get(paper_size.value, 794)
         else:
-            max_width = paper_widths.get(paper_size.value, 8.27)
-            max_height = paper_heights.get(paper_size.value, 11.69)
+            max_width = paper_widths.get(paper_size.value, 794)
+            max_height = paper_heights.get(paper_size.value, 1123)
         
         # Check margins
         total_margin_width = template_data.page_margin_left + template_data.page_margin_right

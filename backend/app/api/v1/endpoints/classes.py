@@ -27,6 +27,13 @@ async def create_class(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new class (School Admin only)"""
+    current_school = school_context.school
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+        
     new_class = await AcademicService.create_class(db, class_data, current_school.id)
 
     # Get teacher name if assigned - use eager loading to avoid lazy loading issues
@@ -89,6 +96,7 @@ async def get_classes(
             'academic_session': class_obj.academic_session,
             'teacher_id': class_obj.teacher_id,
             'capacity': class_obj.capacity,
+            'report_card_template_id': class_obj.report_card_template_id,
             'is_active': class_obj.is_active,
             'created_at': class_obj.created_at,
             'updated_at': class_obj.updated_at,
@@ -176,6 +184,13 @@ async def update_class(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update class information (School Admin only)"""
+    current_school = school_context.school
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+
     updated_class = await AcademicService.update_class(
         db, class_id, current_school.id, class_data
     )
