@@ -11,18 +11,24 @@ import {
   PlusIcon,
   MegaphoneIcon,
   ClipboardDocumentCheckIcon,
-  EnvelopeIcon
+  EnvelopeIcon,
+  ChevronUpIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
-import { DashboardStats } from '../../types';
+import { DashboardData } from '../../types/dashboard';
 import { reportsService } from '../../services/reportsService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StatsCard from '../../components/dashboard/StatsCard';
 import RecentActivity from '../../components/dashboard/RecentActivity';
 import EnrollmentChart from '../../components/dashboard/EnrollmentChart';
 import RevenueChart from '../../components/dashboard/RevenueChart';
+import FinanceAnalyticsPanel from '../../components/dashboard/FinanceAnalyticsPanel';
+import EnrollmentAnalyticsPanel from '../../components/dashboard/EnrollmentAnalyticsPanel';
+import ClassInsightsPanel from '../../components/dashboard/ClassInsightsPanel';
+import TeacherAnalyticsPanel from '../../components/dashboard/TeacherAnalyticsPanel';
 import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
 import PageHeader from '../../components/Layout/PageHeader';
 import Card from '../../components/ui/Card';
@@ -34,6 +40,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(true);
 
   // Get currency from school settings or default to USD
   const currency = user?.school?.settings?.currency || '$';
@@ -314,9 +321,48 @@ const DashboardPage: React.FC = () => {
         </div>
       )}
 
+      {/* Advanced Analytics Section - Admin Only */}
+      {isAdmin && (
+        <div className="space-y-6 animate-fade-in-up delay-600">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <ChartBarIcon className="h-5 w-5 mr-2 text-primary-500" />
+              Advanced Analytics
+            </h3>
+            <button
+              onClick={() => setIsAnalyticsOpen(!isAnalyticsOpen)}
+              className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              {isAnalyticsOpen ? (
+                <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+          </div>
+
+          {isAnalyticsOpen && (
+            <div className="grid grid-cols-1 gap-8">
+              <FinanceAnalyticsPanel termId={currentTerm?.id} />
+              <EnrollmentAnalyticsPanel />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Teacher Analytics - Teacher Only */}
+      {isTeacher && (
+        <div className="space-y-6 animate-fade-in-up delay-500">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <ClassInsightsPanel />
+            <TeacherAnalyticsPanel />
+          </div>
+        </div>
+      )}
+
       {/* Recent Activity - Admin Only */}
       {isAdmin && dashboardData && (
-        <div className="animate-fade-in-up delay-700">
+        <div className="animate-fade-in-up delay-800">
           <RecentActivity activities={dashboardData.recent_activities} />
         </div>
       )}

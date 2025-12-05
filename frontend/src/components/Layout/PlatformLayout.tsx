@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import PlatformSidebar from './PlatformSidebar';
 import PlatformHeader from './PlatformHeader';
 import PlatformMobileNavigation from './PlatformMobileNavigation';
+import Footer from './Footer';
 
 const PlatformLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -46,13 +47,18 @@ const PlatformLayout: React.FC = () => {
           <PlatformHeader onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Page content */}
-          <main className="flex-1 relative overflow-y-auto focus:outline-none custom-scrollbar">
-            <div className="py-8 pb-24 md:pb-8">
+          <main className="flex-1 relative overflow-y-auto focus:outline-none custom-scrollbar pb-24 md:pb-2">
+            <div className="py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 animate-fade-in">
                 <Outlet />
               </div>
             </div>
           </main>
+
+          {/* Footer - outside scroll container */}
+          <div className="hidden md:block border-t border-gray-200 dark:border-gray-700">
+            <Footer />
+          </div>
         </div>
       </div>
 

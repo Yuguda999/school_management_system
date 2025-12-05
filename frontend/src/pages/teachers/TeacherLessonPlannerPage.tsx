@@ -16,12 +16,13 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  FolderPlusIcon
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import PageHeader from '../../components/Layout/PageHeader';
 import { useToast } from '../../hooks/useToast';
 import { LessonPlannerService, LessonPlanRequest } from '../../services/lessonPlannerService';
 import { exportAsPDF, exportAsDOCX, exportAsTXT } from '../../utils/exportUtils';
+import CurriculumCoveragePanel from '../../components/dashboard/CurriculumCoveragePanel';
 
 
 interface LessonPlanFormData {
@@ -44,7 +45,6 @@ const TeacherLessonPlannerPage: React.FC = () => {
   const [formCollapsed, setFormCollapsed] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
-  const [lastFormData, setLastFormData] = useState<LessonPlanFormData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +90,6 @@ const TeacherLessonPlannerPage: React.FC = () => {
     setGeneratedPlan('');
     setStreamingText('');
     setFormCollapsed(true); // Auto-collapse form when generation starts
-    setLastFormData(data); // Save form data for later use
     let finalText = '';
 
     await LessonPlannerService.generateLessonPlanStream(
@@ -161,7 +160,6 @@ const TeacherLessonPlannerPage: React.FC = () => {
       <PageHeader
         title="AI Lesson Plan Generator"
         description="Create comprehensive, engaging lesson plans powered by AI"
-        icon={SparklesIcon}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -492,6 +490,14 @@ const TeacherLessonPlannerPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Curriculum Coverage Section */}
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+          <ChartBarIcon className="h-5 w-5 mr-2 text-primary-500" />
+          Curriculum Coverage Tracker
+        </h2>
+        <CurriculumCoveragePanel />
+      </div>
 
     </div>
   );

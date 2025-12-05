@@ -286,13 +286,23 @@ const SchoolLoginPage: React.FC = () => {
       {/* Right Side - Login Form */}
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-white dark:bg-gray-900 relative">
         {/* Mobile Header */}
-        <div className="lg:hidden absolute top-0 left-0 w-full p-6 flex items-center justify-between">
-          <div
-            className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold"
-            style={{ backgroundColor: schoolInfo?.primary_color || '#3B82F6' }}
-          >
-            {schoolInfo?.name?.charAt(0) || 'S'}
-          </div>
+        <div className="lg:hidden absolute top-0 left-0 w-full p-6 flex items-center justify-end">
+          {schoolInfo?.logo_url ? (
+            <div className="h-12 w-12 flex items-center justify-center">
+              <img
+                src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${schoolInfo.logo_url}`}
+                alt={`${schoolInfo.name} logo`}
+                className="h-full w-full object-contain"
+              />
+            </div>
+          ) : (
+            <div
+              className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: schoolInfo?.primary_color || '#3B82F6' }}
+            >
+              {schoolInfo?.name?.charAt(0) || 'S'}
+            </div>
+          )}
         </div>
 
         <div className="mx-auto w-full max-w-sm lg:w-96 animate-fade-in-up delay-100">
@@ -319,8 +329,8 @@ const SchoolLoginPage: React.FC = () => {
               type="button"
               onClick={() => setIsStudentLogin(false)}
               className={`flex-1 relative z-10 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center ${!isStudentLogin
-                  ? 'text-gray-900 dark:text-white'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-gray-900 dark:text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
             >
               <UserGroupIcon className="w-4 h-4 mr-2" />
@@ -330,8 +340,8 @@ const SchoolLoginPage: React.FC = () => {
               type="button"
               onClick={() => { setIsStudentLogin(true); setError(''); resetStudentForm(); }}
               className={`flex-1 relative z-10 py-2 text-sm font-medium rounded-lg transition-colors duration-200 flex items-center justify-center ${isStudentLogin
-                  ? 'text-gray-900 dark:text-white'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'text-gray-900 dark:text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
             >
               <AcademicCapIcon className="w-4 h-4 mr-2" />

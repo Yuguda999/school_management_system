@@ -54,10 +54,10 @@ class TestStudentsAPI:
     def test_get_students_success(self, client: TestClient, auth_headers: dict):
         """Test successful retrieval of students list."""
         response = client.get("/api/v1/students", headers=auth_headers)
-        
+
         assert response.status_code == 200
         data = response.json()
-        assert "students" in data
+        assert "items" in data
         assert "total" in data
         assert "page" in data
         assert "size" in data
@@ -388,9 +388,10 @@ class TestStudentsAPI:
         assert "students_by_gender" in data
         assert "students_by_class" in data
 
-    def test_student_permissions_teacher_access(
-        self, 
-        client: TestClient, 
+    @pytest.mark.asyncio
+    async def test_student_permissions_teacher_access(
+        self,
+        client: TestClient,
         db_session: AsyncSession,
         test_school
     ):
@@ -406,7 +407,7 @@ class TestStudentsAPI:
             is_active=True,
             is_verified=True
         )
-        
+
         db_session.add(teacher_user)
         await db_session.commit()
         

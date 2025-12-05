@@ -277,7 +277,8 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
               score: g.score,
               total: g.score, // Assuming score is total
               grade: g.grade || '-',
-              remark: g.remarks || ''
+              remark: g.remarks || '',
+              components: g.component_scores
             }));
           }
 

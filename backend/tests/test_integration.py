@@ -4,9 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.models.student import Student
-from app.models.teacher import Teacher
-from app.models.class_model import Class
-from app.models.attendance import Attendance
+from app.models.academic import Class, Attendance
 from app.models.fee import FeeStructure, FeeAssignment, FeePayment
 from app.core.security import get_password_hash
 
@@ -74,27 +72,18 @@ class TestIntegration:
         await db_session.refresh(teacher_user)
         await db_session.refresh(student_user)
         await db_session.refresh(parent_user)
-        
-        # Create teacher profile
-        teacher = Teacher(
-            user_id=teacher_user.id,
-            employee_id="TCH001",
-            department="Mathematics",
-            qualification="M.Sc Mathematics",
-            experience_years=5,
-            hire_date="2023-01-01",
-            salary=50000.00
-        )
-        db_session.add(teacher)
-        
+
+        # Import ClassLevel for class creation
+        from app.models.academic import ClassLevel
+
         # Create class
         class_obj = Class(
             name="Grade 10-A",
+            level=ClassLevel.SSS_1,
             academic_session="2023-2024",
             school_id=test_school.id,
-            class_teacher_id=teacher_user.id,
-            capacity=30,
-            room_number="101"
+            teacher_id=teacher_user.id,
+            capacity=30
         )
         db_session.add(class_obj)
         await db_session.commit()
@@ -156,7 +145,6 @@ class TestIntegration:
             "teacher_user": teacher_user,
             "student_user": student_user,
             "parent_user": parent_user,
-            "teacher": teacher,
             "student": student,
             "class": class_obj,
             "fee_structure": fee_structure,

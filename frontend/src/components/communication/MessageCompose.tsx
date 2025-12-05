@@ -15,7 +15,7 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
     subject: '',
     content: '',
     message_type: MessageType.EMAIL,
-    recipient_type: RecipientType.ALL,
+    recipient_type: RecipientType.ALL_STUDENTS,
     is_urgent: false,
   });
   const [classes, setClasses] = useState<Class[]>([]);
@@ -129,7 +129,9 @@ const MessageCompose: React.FC<MessageComposeProps> = ({ onClose, onMessageSent,
               className="input"
               required
             >
-              <option value={RecipientType.ALL}>All Users</option>
+              <option value={RecipientType.ALL_STUDENTS}>All Students</option>
+              <option value={RecipientType.ALL_TEACHERS}>All Teachers</option>
+              <option value={RecipientType.ALL_PARENTS}>All Parents</option>
               <option value={RecipientType.ROLE}>By Role</option>
               <option value={RecipientType.CLASS}>By Class</option>
             </select>

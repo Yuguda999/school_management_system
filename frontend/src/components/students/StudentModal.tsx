@@ -3,8 +3,9 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
-import { Student, CreateStudentForm } from '../../types';
+import { Student, CreateStudentForm, Class } from '../../types';
 import { studentService } from '../../services/studentService';
+import { academicService } from '../../services/academicService';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface StudentModalProps {
@@ -15,8 +16,9 @@ interface StudentModalProps {
 
 const StudentModal: React.FC<StudentModalProps> = ({ student, onClose, onSave }) => {
   const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [error, setError] = useState('');
-  
+
   const {
     register,
     handleSubmit,
@@ -31,11 +33,22 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, onClose, onSave })
       class_id: student.class_id || '',
       admission_date: student.admission_date.split('T')[0],
     } : {
+      class_id: '',
       admission_date: new Date().toISOString().split('T')[0],
     },
   });
 
   useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const data = await academicService.getClasses();
+        setClasses(data);
+      } catch (err) {
+        console.error('Failed to fetch classes:', err);
+      }
+    };
+    fetchClasses();
+
     if (student) {
       reset({
         first_name: student.user.first_name,
@@ -202,7 +215,11 @@ const StudentModal: React.FC<StudentModalProps> = ({ student, onClose, onSave })
                         className="mt-1 input"
                       >
                         <option value="">Select a class</option>
-                        {/* Add class options here */}
+                        {classes.map((cls) => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 

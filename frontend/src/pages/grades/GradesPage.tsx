@@ -5,10 +5,10 @@ import {
   UserGroupIcon,
   ClipboardDocumentListIcon,
   PlusIcon,
-  AdjustmentsHorizontalIcon
+  AdjustmentsHorizontalIcon,
+  TableCellsIcon
 } from '@heroicons/react/24/outline';
 import { Exam } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import PageHeader from '../../components/Layout/PageHeader';
 import ExamList from '../../components/grades/ExamList';
@@ -17,13 +17,13 @@ import GradeList from '../../components/grades/GradeList';
 import GradeStatistics from '../../components/grades/GradeStatistics';
 import StudentGradeSummary from '../../components/grades/StudentGradeSummary';
 import ComponentMapping from '../../components/grades/ComponentMapping'; // Main Grade Setup Dashboard
+import GradebookPanel from '../../components/grades/GradebookPanel';
 import Modal from '../../components/ui/Modal';
 import Card from '../../components/ui/Card';
 
-type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students';
+type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students' | 'gradebook';
 
 const GradesPage: React.FC = () => {
-  const { user } = useAuth();
   const { canManageGrades } = usePermissions();
   const [activeTab, setActiveTab] = useState<TabType>('exams');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
@@ -60,6 +60,12 @@ const GradesPage: React.FC = () => {
       name: 'Student Summary',
       icon: UserGroupIcon,
       description: 'Individual student grade summaries'
+    },
+    {
+      id: 'gradebook' as TabType,
+      name: 'Gradebook',
+      icon: TableCellsIcon,
+      description: 'Unified gradebook with automated calculations'
     }
   ];
 
@@ -146,7 +152,8 @@ const GradesPage: React.FC = () => {
       case 'students':
         return <StudentGradeSummary />;
 
-
+      case 'gradebook':
+        return <GradebookPanel />;
 
       default:
         return null;

@@ -1,94 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  Legend,
+  ResponsiveContainer
 } from 'recharts';
-import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import Card from '../ui/Card';
 
-const PerformanceChart: React.FC = () => {
-  const { currentTerm } = useCurrentTerm();
-  const [data, setData] = useState([
-    { subject: 'Math', average: 85, target: 90 },
-    { subject: 'Science', average: 78, target: 85 },
-    { subject: 'English', average: 92, target: 90 },
-    { subject: 'History', average: 76, target: 80 },
-    { subject: 'Art', average: 88, target: 85 },
-    { subject: 'PE', average: 95, target: 90 },
-  ]);
+interface PerformanceChartProps {
+  data: {
+    term_name: string;
+    average_score: number;
+  }[];
+}
 
-  useEffect(() => {
-    // In a real implementation, you would fetch performance data based on currentTerm
-    // For now, we'll use mock data that could vary by term
-    if (currentTerm) {
-      // Mock different data for different terms
-      const termBasedData = [
-        { subject: 'Math', average: 85 + (currentTerm.name.includes('First') ? 0 : 3), target: 90 },
-        { subject: 'Science', average: 78 + (currentTerm.name.includes('First') ? 0 : 4), target: 85 },
-        { subject: 'English', average: 92 + (currentTerm.name.includes('First') ? 0 : 2), target: 90 },
-        { subject: 'History', average: 76 + (currentTerm.name.includes('First') ? 0 : 3), target: 80 },
-        { subject: 'Art', average: 88 + (currentTerm.name.includes('First') ? 0 : 2), target: 85 },
-        { subject: 'PE', average: 95 + (currentTerm.name.includes('First') ? 0 : 1), target: 90 },
-      ];
-      setData(termBasedData);
-    }
-  }, [currentTerm]);
+const PerformanceChart: React.FC<PerformanceChartProps> = ({ data }) => {
   return (
-    <div className="card p-6">
-      <div className="mb-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-          Academic Performance
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          {currentTerm
-            ? `Average scores vs target for ${currentTerm.name} (${currentTerm.academic_session})`
-            : 'Average scores vs target performance by subject'
-          }
-        </p>
-      </div>
-      <div className="h-64">
+    <Card className="p-6 h-full">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Performance Trend
+      </h3>
+      <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-            <XAxis 
-              dataKey="subject" 
-              className="text-gray-600 dark:text-gray-400"
-              tick={{ fontSize: 12 }}
+          <AreaChart
+            data={data}
+            margin={{
+              top: 10,
+              right: 30,
+              left: 0,
+              bottom: 0,
+            }}
+          >
+            <defs>
+              <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis
+              dataKey="term_name"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              dy={10}
             />
-            <YAxis 
-              className="text-gray-600 dark:text-gray-400"
-              tick={{ fontSize: 12 }}
+            <YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#6b7280', fontSize: 12 }}
+              domain={[0, 100]}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: 'var(--tw-color-white)',
-                border: '1px solid var(--tw-color-gray-200)',
-                borderRadius: '0.5rem',
+                backgroundColor: '#fff',
+                borderRadius: '8px',
+                border: 'none',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
               }}
-              labelStyle={{ color: 'var(--tw-color-gray-900)' }}
             />
-            <Legend />
-            <Bar
-              dataKey="average"
-              fill="rgb(var(--color-primary-500))"
-              name="Current Average"
-              radius={[2, 2, 0, 0]}
+            <Area
+              type="monotone"
+              dataKey="average_score"
+              stroke="#3b82f6"
+              fillOpacity={1}
+              fill="url(#colorScore)"
             />
-            <Bar
-              dataKey="target"
-              fill="rgb(var(--color-secondary-500))"
-              name="Target"
-              radius={[2, 2, 0, 0]}
-            />
-          </BarChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   );
 };
 

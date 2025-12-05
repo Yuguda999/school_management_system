@@ -21,6 +21,7 @@ import TeacherToolsPage from './pages/teachers/TeacherToolsPage';
 import TeacherLessonPlannerPage from './pages/teachers/TeacherLessonPlannerPage';
 import AssignmentGeneratorPage from './pages/teachers/AssignmentGeneratorPage';
 import RubricBuilderPage from './pages/teachers/RubricBuilderPage';
+import ResourceLibraryPage from './pages/teachers/ResourceLibraryPage';
 import ClassAttendancePage from './pages/teachers/ClassAttendancePage';
 import SubjectAttendancePage from './pages/teachers/SubjectAttendancePage';
 import ClassAttendanceRecordsPage from './pages/teachers/ClassAttendanceRecordsPage';
@@ -196,6 +197,16 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['teacher']}>
                   <RubricBuilderPage />
+                </SchoolRoute>
+              }
+            />
+
+            {/* Teacher Resource Library */}
+            <Route
+              path="teacher/tools/resource-library"
+              element={
+                <SchoolRoute allowedRoles={['teacher']}>
+                  <ResourceLibraryPage />
                 </SchoolRoute>
               }
             />

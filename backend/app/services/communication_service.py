@@ -12,7 +12,7 @@ from app.models.communication import (
     MessageType, MessageStatus, RecipientType
 )
 from app.models.user import User, UserRole
-from app.models.student import Student
+from app.models.student import Student, StudentStatus
 from app.models.academic import Class
 from app.schemas.communication import (
     MessageCreate, MessageUpdate, BulkMessageCreate,
@@ -180,7 +180,7 @@ class CommunicationService:
                 ).where(
                     Student.school_id == school_id,
                     Student.is_deleted == False,
-                    Student.is_active == True
+                    Student.status == StudentStatus.ACTIVE
                 )
             )
             students = result.scalars().all()

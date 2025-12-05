@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import SchoolSidebar from './SchoolSidebar';
 import SchoolHeader from './SchoolHeader';
-import SchoolMobileNavigation from './SchoolMobileNavigation';
+
 import Footer from './Footer';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -48,25 +48,27 @@ const SchoolLayout: React.FC = () => {
           <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-primary-100/30 dark:bg-primary-900/10 rounded-full blur-3xl"></div>
         </div>
 
+
         <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
           <SchoolHeader key={`header-${schoolKey}`} onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Page content */}
-          <main className="flex-1 relative overflow-y-auto focus:outline-none custom-scrollbar">
-            <div className="py-8 pb-24 md:pb-8">
+          <main className="flex-1 relative overflow-y-auto focus:outline-none custom-scrollbar pb-24 md:pb-2">
+            <div className="py-8">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 animate-fade-in">
                 <Outlet key={`content-${schoolKey}`} />
               </div>
             </div>
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pb-6">
-              <Footer />
-            </div>
           </main>
+
+          {/* Footer - outside scroll container */}
+          <div className="hidden md:block border-t border-gray-200 dark:border-gray-700">
+            <Footer />
+          </div>
         </div>
       </div>
 
-      {/* Mobile bottom navigation */}
-      <SchoolMobileNavigation />
+
     </div>
   );
 };

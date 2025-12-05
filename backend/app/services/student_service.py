@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from datetime import date
 
-from app.models.student import Student, StudentClassHistory, ClassHistoryStatus
+from app.models.student import Student, StudentClassHistory, ClassHistoryStatus, StudentStatus
 from app.models.user import User, UserRole
 from app.models.academic import Class, Term
 from app.models.grade import Grade
@@ -159,7 +159,10 @@ class StudentService:
         if class_id:
             query = query.where(Student.current_class_id == class_id)
         if is_active is not None:
-            query = query.where(Student.is_active == is_active)
+            if is_active:
+                query = query.where(Student.status == StudentStatus.ACTIVE)
+            else:
+                query = query.where(Student.status != StudentStatus.ACTIVE)
         if search:
             search_term = f"%{search}%"
             query = query.where(
@@ -385,7 +388,10 @@ class StudentService:
         if class_id:
             query = query.where(Student.class_id == class_id)
         if is_active is not None:
-            query = query.where(Student.is_active == is_active)
+            if is_active:
+                query = query.where(Student.status == StudentStatus.ACTIVE)
+            else:
+                query = query.where(Student.status != StudentStatus.ACTIVE)
 
         result = await db.execute(query)
         return result.scalar() or 0

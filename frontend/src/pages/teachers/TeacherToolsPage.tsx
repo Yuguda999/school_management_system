@@ -220,12 +220,13 @@ const TeacherToolsPage: React.FC = () => {
     },
     {
       id: 'resource-library',
-      name: 'Resource Library',
-      description: 'Access curated teaching resources',
+      name: 'Smart Resource Library',
+      description: 'AI-powered search and organization of teaching materials',
       icon: BookOpenIcon,
       color: 'bg-stone-500',
       category: 'Advanced',
-      comingSoon: true
+      comingSoon: false,
+      action: () => navigate(`/${schoolCode}/teacher/tools/resource-library`)
     }
   ];
 

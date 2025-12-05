@@ -20,3 +20,7 @@ from .cbt import *  # noqa
 from .notification import *  # noqa
 from .audit_log import *  # noqa
 from .asset import *  # noqa
+from .student_goal import *  # noqa
+from .alert_rule import *  # noqa
+from .curriculum import *  # noqa
+from .teacher_material import *  # noqa

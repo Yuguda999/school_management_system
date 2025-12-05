@@ -20,7 +20,10 @@ export enum RecipientType {
   INDIVIDUAL = 'individual',
   CLASS = 'class',
   ROLE = 'role',
-  ALL = 'all',
+  ALL_PARENTS = 'all_parents',
+  ALL_TEACHERS = 'all_teachers',
+  ALL_STUDENTS = 'all_students',
+  CUSTOM_GROUP = 'custom_group',
 }
 
 export interface Message {

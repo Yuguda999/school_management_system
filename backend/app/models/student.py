@@ -91,6 +91,7 @@ class Student(TenantBaseModel):
     fee_assignments = relationship("FeeAssignment", back_populates="student")
     documents = relationship("Document", back_populates="student")
     class_history = relationship("StudentClassHistory", back_populates="student")
+    goals = relationship("StudentGoal", back_populates="student")
     
     def __repr__(self):
         return f"<Student(id={self.id}, admission_number={self.admission_number}, name={self.full_name})>"

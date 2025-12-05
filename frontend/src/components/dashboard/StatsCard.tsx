@@ -1,6 +1,8 @@
 import React from 'react';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@heroicons/react/24/solid';
 
+import Card from '../ui/Card';
+
 interface StatsCardProps {
   name: string;
   value: string;
@@ -37,7 +39,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
   const { bg, text } = getColorClasses(color);
 
   return (
-    <div className="card p-5 hover:shadow-lg transition-shadow duration-200">
+    <Card className="p-5 hover:shadow-lg transition-shadow duration-200">
       <div className="flex items-center">
         <div className="flex-shrink-0">
           <div className={`flex items-center justify-center h-12 w-12 rounded-xl ${bg} ${text} shadow-sm`}>
@@ -61,10 +63,10 @@ const StatsCard: React.FC<StatsCardProps> = ({
         <div className="mt-4">
           <div
             className={`flex items-center text-sm ${changeType === 'increase'
-                ? 'text-green-600 dark:text-green-400'
-                : changeType === 'decrease'
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-gray-500 dark:text-gray-400'
+              ? 'text-green-600 dark:text-green-400'
+              : changeType === 'decrease'
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-gray-500 dark:text-gray-400'
               }`}
           >
             {changeType === 'increase' ? (
@@ -79,7 +81,7 @@ const StatsCard: React.FC<StatsCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 
