@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../hooks/useToast';
@@ -11,6 +11,7 @@ import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 const CBTTestCreatePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { testId } = useParams<{ testId: string }>();
   const { showSuccess, showError } = useToast();
   const schoolCode = getSchoolCodeFromUrl();
@@ -38,6 +39,35 @@ const CBTTestCreatePage: React.FC = () => {
     loadSubjects();
     if (testId) {
       loadTest();
+    } else if (location.state?.generatedTest) {
+      // Pre-fill from AI generation
+      const generated = location.state.generatedTest;
+      reset({
+        title: generated.title,
+        description: generated.description,
+        instructions: generated.instructions,
+        duration_minutes: generated.duration_minutes || 60,
+        pass_percentage: 50,
+        randomize_questions: false,
+        randomize_options: false,
+        allow_multiple_attempts: false,
+        max_attempts: 1,
+        show_results_immediately: true,
+        show_correct_answers: true,
+      });
+
+      if (generated.questions) {
+        // Map questions to ensure they match the interface
+        const mappedQuestions = generated.questions.map((q: any, index: number) => ({
+          ...q,
+          order_number: index + 1,
+          options: q.options.map((opt: any, optIndex: number) => ({
+            ...opt,
+            order_number: optIndex + 1
+          }))
+        }));
+        setQuestions(mappedQuestions);
+      }
     }
   }, [testId]);
 
@@ -111,7 +141,7 @@ const CBTTestCreatePage: React.FC = () => {
   const updateOption = (qIndex: number, oIndex: number, field: keyof CBTQuestionOption, value: any) => {
     const updated = [...questions];
     const options = [...updated[qIndex].options];
-    
+
     // If setting is_correct to true, set all others to false
     if (field === 'is_correct' && value === true) {
       options.forEach((opt, i) => {
@@ -120,7 +150,7 @@ const CBTTestCreatePage: React.FC = () => {
     } else {
       options[oIndex] = { ...options[oIndex], [field]: value };
     }
-    
+
     updated[qIndex] = { ...updated[qIndex], options };
     setQuestions(updated);
   };
@@ -138,7 +168,7 @@ const CBTTestCreatePage: React.FC = () => {
         showError(`Question ${i + 1} is empty`);
         return;
       }
-      
+
       const hasCorrect = q.options.some(opt => opt.is_correct);
       if (!hasCorrect) {
         showError(`Question ${i + 1} must have a correct answer`);

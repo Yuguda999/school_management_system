@@ -16,7 +16,9 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  PencilSquareIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import PageHeader from '../../components/Layout/PageHeader';
 import { useToast } from '../../hooks/useToast';
@@ -43,7 +45,9 @@ const TeacherLessonPlannerPage: React.FC = () => {
   const [streamingText, setStreamingText] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [formCollapsed, setFormCollapsed] = useState(false);
+
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
@@ -420,6 +424,18 @@ const TeacherLessonPlannerPage: React.FC = () => {
                   <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
 
+                <button
+                  onClick={() => setIsEditing(!isEditing)}
+                  className={`btn btn-sm ${isEditing ? 'btn-primary' : 'btn-outline'}`}
+                  title={isEditing ? 'View Preview' : 'Edit Content'}
+                >
+                  {isEditing ? (
+                    <EyeIcon className="h-4 w-4" />
+                  ) : (
+                    <PencilSquareIcon className="h-4 w-4" />
+                  )}
+                </button>
+
 
 
                 {/* Download Dropdown */}
@@ -466,14 +482,23 @@ const TeacherLessonPlannerPage: React.FC = () => {
                 ref={outputRef}
                 className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 min-h-[600px] max-h-[600px] overflow-y-auto scroll-smooth"
               >
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {streamingText || generatedPlan}
-                  </ReactMarkdown>
-                  {generating && (
-                    <span className="inline-block w-0.5 h-5 bg-blue-600 dark:bg-blue-400 animate-pulse ml-0.5 align-middle"></span>
-                  )}
-                </div>
+                {isEditing ? (
+                  <textarea
+                    value={generatedPlan || streamingText}
+                    onChange={(e) => setGeneratedPlan(e.target.value)}
+                    className="w-full h-full min-h-[550px] p-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+                    placeholder="Edit your lesson plan here..."
+                  />
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {streamingText || generatedPlan}
+                    </ReactMarkdown>
+                    {generating && (
+                      <span className="inline-block w-0.5 h-5 bg-blue-600 dark:bg-blue-400 animate-pulse ml-0.5 align-middle"></span>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-12 min-h-[600px] flex flex-col items-center justify-center text-center">

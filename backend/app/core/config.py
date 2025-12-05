@@ -2,6 +2,9 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 
 class Settings(BaseSettings):
@@ -12,12 +15,8 @@ class Settings(BaseSettings):
     environment: str = "production"
     log_level: str = "WARNING"
     
-    model_config = SettingsConfigDict(
-        env_prefix="SMS_",  # Use SMS_ prefix to avoid conflicts with system env vars
-        case_sensitive=False,
-        # Ignore the system DEBUG environment variable
-        env_file_encoding='utf-8'
-    )
+    # model_config removed from here, defined at bottom
+
     
     def __init__(self, **kwargs):
         # Remove the system DEBUG environment variable to prevent conflicts
@@ -71,10 +70,14 @@ class Settings(BaseSettings):
     max_page_size: int = 100
 
     # AI Configuration
-    ai_provider: str = "gemini"  # Options: "gemini", "openrouter"
+    ai_provider: str = "asi"  # Options: "gemini", "openrouter", "asi"
     gemini_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
     openrouter_model: str = "openrouter/auto"  # Default to auto model selection
+    
+    # ASI Cloud
+    asi_api_key: Optional[str] = None
+    asi_model: str = "openai/gpt-oss-20b"  # Default model
 
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed origins as a list"""
@@ -85,11 +88,12 @@ class Settings(BaseSettings):
         return [i.strip() for i in self.allowed_extensions.split(",")]
 
 
-
     model_config = SettingsConfigDict(
         env_file=".env",
+        env_prefix="",  # No prefix for now since .env vars are mixed
         case_sensitive=False,
-        extra='allow'
+        extra='allow',
+        env_file_encoding='utf-8'
     )
 
 

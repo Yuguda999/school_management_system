@@ -31,6 +31,7 @@ import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import StudentGradesPage from './pages/students/StudentGradesPage';
 import CBTTestsPage from './pages/cbt/CBTTestsPage';
 import CBTTestCreatePage from './pages/cbt/CBTTestCreatePage';
+import CBTTestGeneratorPage from './pages/cbt/CBTTestGeneratorPage';
 import CBTTestDetailPage from './pages/cbt/CBTTestDetailPage';
 import TestSubmissionsPage from './pages/cbt/TestSubmissionsPage';
 import SubmissionDetailPage from './pages/cbt/SubmissionDetailPage';
@@ -259,6 +260,14 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
                   <CBTTestCreatePage />
+                </SchoolRoute>
+              }
+            />
+            <Route
+              path="cbt/tests/generate"
+              element={
+                <SchoolRoute allowedRoles={['teacher', 'school_admin', 'school_owner']}>
+                  <CBTTestGeneratorPage />
                 </SchoolRoute>
               }
             />

@@ -21,7 +21,7 @@ from app.models.academic import (
 )
 from app.models.fee import FeeStructure, FeePayment, FeeAssignment, PaymentStatus, FeeType
 from app.models.grade import Grade, Exam, ExamType
-from app.models.cbt import CBTTest, CBTSubmission
+from app.models.cbt import CBTTest, CBTSubmission, SubmissionStatus
 from app.schemas.dashboard import (
     ClassStats, AttendanceByClass, PerformanceByClass, FeesByClass,
     TeacherWorkloadStats, DrillDownFilters, DrillDownData, ExtendedDashboardStats,
@@ -1194,19 +1194,24 @@ class AnalyticsService:
     async def get_teacher_analytics(
         db: AsyncSession,
         school_id: str,
-        term_id: Optional[str] = None
+        term_id: Optional[str] = None,
+        teacher_id: Optional[str] = None
     ) -> TeacherAnalytics:
         """Get comprehensive teacher analytics"""
 
-        # Get all teachers
-        teachers_result = await db.execute(
-            select(User).where(
-                User.school_id == school_id,
-                User.role == UserRole.TEACHER,
-                User.is_deleted == False,
-                User.is_active == True
-            )
+        # Build query
+        query = select(User).where(
+            User.school_id == school_id,
+            User.role == UserRole.TEACHER,
+            User.is_deleted == False,
+            User.is_active == True
         )
+
+        if teacher_id:
+            query = query.where(User.id == teacher_id)
+
+        # Get teachers
+        teachers_result = await db.execute(query)
         teachers = teachers_result.scalars().all()
 
         teacher_metrics = []
@@ -1339,7 +1344,7 @@ class AnalyticsService:
             ).where(
                 CBTTest.created_by == teacher_id,
                 CBTTest.school_id == school_id,
-                CBTSubmission.is_graded == True
+                CBTSubmission.status == SubmissionStatus.GRADED
             )
         )
         cbt_tests_graded = cbt_graded.scalar() or 0

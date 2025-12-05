@@ -137,5 +137,16 @@ export const cbtService = {
       responseType: 'blob',
     });
   },
+
+  // AI Generation
+  async generateTest(data: {
+    subject: string;
+    topic: string;
+    difficulty_level: string;
+    question_count: number;
+    additional_context?: string;
+  }): Promise<any> {
+    return await apiService.post<any>('/api/v1/cbt/generate', data);
+  },
 };
 

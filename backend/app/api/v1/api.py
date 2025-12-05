@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import all endpoint routers
-from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, grade_templates, component_mappings, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance, analytics, goals, alerts, gradebook, curriculum, materials
+from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, grade_templates, component_mappings, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance, analytics, goals, alerts, gradebook, curriculum, materials, cbt_generator
 
 api_router = APIRouter()
 
@@ -27,6 +27,7 @@ api_router.include_router(documents.router, prefix="/documents", tags=["document
 
 api_router.include_router(teacher_tools.router, prefix="/teacher/tools", tags=["teacher-tools"])
 api_router.include_router(cbt.router, prefix="/cbt", tags=["cbt"])
+api_router.include_router(cbt_generator.router, prefix="/cbt", tags=["cbt-generator"])
 api_router.include_router(cbt_schedules.router, prefix="/cbt", tags=["cbt-schedules"])
 api_router.include_router(cbt_student.router, prefix="/cbt", tags=["cbt-student"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
@@ -59,6 +60,7 @@ api_router.include_router(documents.router, prefix="/school/{school_code}/docume
 
 api_router.include_router(teacher_tools.router, prefix="/school/{school_code}/teacher/tools", tags=["school-teacher-tools"])
 api_router.include_router(cbt.router, prefix="/school/{school_code}/cbt", tags=["school-cbt"])
+api_router.include_router(cbt_generator.router, prefix="/school/{school_code}/cbt", tags=["school-cbt-generator"])
 api_router.include_router(cbt_schedules.router, prefix="/school/{school_code}/cbt", tags=["school-cbt-schedules"])
 api_router.include_router(cbt_student.router, prefix="/school/{school_code}/cbt", tags=["school-cbt-student"])
 api_router.include_router(dashboard.router, prefix="/school/{school_code}/dashboard", tags=["school-dashboard"])

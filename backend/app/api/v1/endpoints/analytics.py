@@ -143,13 +143,17 @@ async def get_enrollment_analytics(
 @router.get("/teachers", response_model=TeacherAnalytics)
 async def get_teacher_analytics(
     term_id: Optional[str] = Query(None, description="Filter by term"),
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_teacher_or_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get teacher performance and workload analytics"""
+    teacher_id = None
+    if current_user.role == UserRole.TEACHER:
+        teacher_id = current_user.id
+
     return await AnalyticsService.get_teacher_analytics(
-        db, current_school.id, term_id
+        db, current_school.id, term_id, teacher_id
     )
 
 

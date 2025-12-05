@@ -22,7 +22,7 @@ interface TeacherAnalyticsPanelProps {
 
 const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId, termId }) => {
   const schoolCode = useSchoolCode();
-  const [analytics, setAnalytics] = useState<TeacherAnalytics | TeacherAnalytics[] | null>(null);
+  const [analytics, setAnalytics] = useState<TeacherAnalytics[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,13 +30,15 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
       if (!schoolCode) return;
       try {
         setLoading(true);
+        let data;
         if (teacherId) {
-          const data = await analyticsService.getTeacherAnalytics(schoolCode, teacherId, termId);
-          setAnalytics(data);
+          const response = await analyticsService.getTeacherAnalytics(schoolCode, teacherId, termId);
+          data = response.teacher_metrics;
         } else {
-          const data = await analyticsService.getAllTeachersAnalytics(schoolCode, termId);
-          setAnalytics(data);
+          const response = await analyticsService.getAllTeachersAnalytics(schoolCode, termId);
+          data = response.teacher_metrics;
         }
+        setAnalytics(data);
       } catch (err) {
         console.error('Failed to load teacher analytics:', err);
       } finally {
@@ -54,7 +56,7 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
     );
   }
 
-  if (!analytics) {
+  if (!analytics || analytics.length === 0) {
     return (
       <Card className="p-6 text-center text-gray-500">
         No analytics data available
@@ -63,8 +65,9 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
   }
 
   // Single teacher view
-  if (!Array.isArray(analytics)) {
-    const teacher = analytics;
+  if (teacherId) {
+    const teacher = analytics[0];
+    if (!teacher) return null;
     return (
       <div className="space-y-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center">
@@ -85,7 +88,7 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
           </Card>
           <Card className="p-4 text-center">
             <ChartBarIcon className="h-8 w-8 mx-auto text-purple-500 mb-2" />
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{teacher.average_class_performance.toFixed(1)}%</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{Number(teacher.average_class_performance || 0).toFixed(1)}%</p>
             <p className="text-sm text-gray-500">Avg Performance</p>
           </Card>
           <Card className="p-4 text-center">
@@ -109,7 +112,7 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Attendance Rate</span>
-                <span className="font-medium">{teacher.attendance_rate.toFixed(1)}%</span>
+                <span className="font-medium">{Number(teacher.attendance_rate || 0).toFixed(1)}%</span>
               </div>
             </div>
           </Card>
@@ -150,12 +153,11 @@ const TeacherAnalyticsPanel: React.FC<TeacherAnalyticsPanelProps> = ({ teacherId
                 <td className="px-4 py-3 text-center">{teacher.classes_count}</td>
                 <td className="px-4 py-3 text-center">{teacher.total_students}</td>
                 <td className="px-4 py-3 text-center">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    teacher.average_class_performance >= 70 ? 'bg-green-100 text-green-700' :
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${teacher.average_class_performance >= 70 ? 'bg-green-100 text-green-700' :
                     teacher.average_class_performance >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {teacher.average_class_performance.toFixed(1)}%
+                      'bg-red-100 text-red-700'
+                    }`}>
+                    {Number(teacher.average_class_performance || 0).toFixed(1)}%
                   </span>
                 </td>
                 <td className="px-4 py-3 text-center">{teacher.workload_hours}h/week</td>

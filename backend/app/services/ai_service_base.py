@@ -125,3 +125,26 @@ class AIServiceBase(ABC):
         """
         pass
 
+    @abstractmethod
+    async def generate_cbt_test_json(
+        self,
+        subject: str,
+        topic: str,
+        difficulty_level: str,
+        question_count: int,
+        additional_context: Optional[str] = None
+    ) -> str:
+        """
+        Generate a CBT test structure in JSON format
+
+        Args:
+            subject: Subject name
+            topic: Test topic
+            difficulty_level: Difficulty level
+            question_count: Number of questions
+            additional_context: Additional context
+
+        Returns:
+            str: JSON string containing the test structure
+        """
+        pass

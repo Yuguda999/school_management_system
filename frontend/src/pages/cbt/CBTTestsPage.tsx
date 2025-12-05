@@ -3,13 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   PlusIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   DocumentTextIcon,
   ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { cbtService } from '../../services/cbtService';
 import { CBTTest, TestStatus } from '../../types';
@@ -18,7 +15,6 @@ import { getSchoolCodeFromUrl } from '../../utils/schoolCode';
 
 const CBTTestsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { showSuccess, showError } = useToast();
   const schoolCode = getSchoolCodeFromUrl();
   const [tests, setTests] = useState<CBTTest[]>([]);
@@ -26,7 +22,6 @@ const CBTTestsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<TestStatus | ''>('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const pageSize = 20;
 
   useEffect(() => {
@@ -43,7 +38,6 @@ const CBTTestsPage: React.FC = () => {
         size: pageSize,
       });
       setTests(response.tests);
-      setTotal(response.total);
     } catch (error: any) {
       showError(error.response?.data?.detail || 'Failed to load tests');
     } finally {
@@ -56,17 +50,6 @@ const CBTTestsPage: React.FC = () => {
     loadTests();
   };
 
-  const handleDelete = async (testId: string) => {
-    if (!confirm('Are you sure you want to delete this test?')) return;
-
-    try {
-      await cbtService.deleteTest(testId);
-      showSuccess('Test deleted successfully');
-      loadTests();
-    } catch (error: any) {
-      showError(error.response?.data?.detail || 'Failed to delete test');
-    }
-  };
 
   const handlePublish = async (testId: string) => {
     try {
@@ -101,13 +84,22 @@ const CBTTestsPage: React.FC = () => {
             Create and manage computer-based tests
           </p>
         </div>
-        <button
-          onClick={() => navigate(`/${schoolCode}/cbt/tests/new`)}
-          className="btn btn-primary flex items-center gap-2"
-        >
-          <PlusIcon className="h-5 w-5" />
-          Create Test
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/${schoolCode}/cbt/tests/generate`)}
+            className="btn btn-secondary flex items-center gap-2"
+          >
+            <SparklesIcon className="h-5 w-5" />
+            Generate with AI
+          </button>
+          <button
+            onClick={() => navigate(`/${schoolCode}/cbt/tests/new`)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <PlusIcon className="h-5 w-5" />
+            Create Test
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
