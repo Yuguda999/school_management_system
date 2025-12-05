@@ -14,6 +14,7 @@ import TeacherSetupPage from './pages/auth/TeacherSetupPage';
 import FreemiumRegistrationPage from './pages/public/FreemiumRegistrationPage';
 import LandingPage from './pages/public/LandingPage';
 import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileCompletionPage';
+import ProfilePage from './pages/profile/ProfilePage';
 
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
@@ -116,6 +117,7 @@ function App() {
           >
             <Route index element={<RoleBasedRedirect />} />
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route path="student/fees" element={<StudentFeesPage />} />
 
 

@@ -1,15 +1,41 @@
-import React from 'react';
-import { Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bars3Icon, MagnifyingGlassIcon, UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import NotificationBell from '../Notifications/NotificationBell';
 import { useAuth } from '../../contexts/AuthContext';
 import ThemeToggle from '../ui/ThemeToggle';
+import { useNavigate } from 'react-router-dom';
 
 interface SchoolHeaderProps {
   onMenuClick: () => void;
 }
 
 const SchoolHeader: React.FC<SchoolHeaderProps> = ({ onMenuClick }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <div className="relative z-10 flex-shrink-0 flex h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-800 sticky top-0">
@@ -48,18 +74,45 @@ const SchoolHeader: React.FC<SchoolHeaderProps> = ({ onMenuClick }) => {
           {/* Separator */}
           <div className="h-6 w-px bg-gray-200 dark:bg-gray-700 mx-2"></div>
 
-          {/* User info (Simplified) */}
-          <div className="flex items-center">
-            <div className="hidden md:block text-right mr-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                {user?.first_name}
-              </p>
-            </div>
-            <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center shadow-sm ring-2 ring-white dark:ring-gray-800 cursor-pointer hover:ring-primary-500 transition-all">
-              <span className="text-xs font-bold text-white">
-                {user?.first_name?.[0]}{user?.last_name?.[0]}
-              </span>
-            </div>
+          {/* User info (Dropdown) */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex items-center focus:outline-none"
+            >
+              <div className="hidden md:block text-right mr-3">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {user?.first_name}
+                </p>
+              </div>
+              <div className="h-8 w-8 bg-gradient-to-br from-primary-500 to-secondary-600 rounded-full flex items-center justify-center shadow-sm ring-2 ring-white dark:ring-gray-800 cursor-pointer hover:ring-primary-500 transition-all">
+                <span className="text-xs font-bold text-white">
+                  {user?.first_name?.[0]}{user?.last_name?.[0]}
+                </span>
+              </div>
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none animate-fade-in-down">
+                <button
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    navigate(`/${user?.school?.code || user?.school_code}/profile`);
+                  }}
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <UserCircleIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  Your Profile
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <ArrowRightOnRectangleIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
