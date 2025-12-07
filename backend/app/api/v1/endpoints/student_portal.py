@@ -296,6 +296,7 @@ async def get_my_fees(
 
 @router.get("/payments", response_model=List[FeePaymentResponse])
 async def get_my_payments(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     student: Student = Depends(get_current_student),
@@ -305,7 +306,7 @@ async def get_my_payments(
     """Get authenticated student's payments"""
     skip = (page - 1) * size
     payments = await FeeService.get_student_payments(
-        db, student.id, current_school.id, skip, size
+        db, student.id, current_school.id, term_id, skip, size
     )
     
     # Enhance response with related data

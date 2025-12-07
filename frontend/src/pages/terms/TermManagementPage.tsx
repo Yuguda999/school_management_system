@@ -15,7 +15,11 @@ import PageHeader from '../../components/Layout/PageHeader';
 import TermList from '../../components/terms/TermList';
 import TermForm from '../../components/terms/TermForm';
 import CurrentTermIndicator from '../../components/terms/CurrentTermIndicator';
+import TermSwitcher from '../../components/terms/TermSwitcher';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import SessionManagement from '../../components/settings/SessionManagement';
+
+type TabType = 'terms' | 'sessions';
 
 const TermManagementPage: React.FC = () => {
   const { user } = useAuth();
@@ -28,6 +32,7 @@ const TermManagementPage: React.FC = () => {
     refresh
   } = useCurrentTerm();
 
+  const [activeTab, setActiveTab] = useState<TabType>('terms');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
@@ -88,174 +93,223 @@ const TermManagementPage: React.FC = () => {
       <PageHeader
         title="Term Management"
         description="Manage academic terms and sessions for your school"
-        action={
-          <button
-            onClick={handleCreateTerm}
-            className="btn btn-primary"
-          >
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Create Term
-          </button>
+        actions={
+          activeTab === 'terms' ? (
+            <button
+              onClick={handleCreateTerm}
+              className="btn btn-primary"
+            >
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Create Term
+            </button>
+          ) : null
         }
       />
 
-      {/* Current Term Indicator */}
-      <CurrentTermIndicator variant="banner" />
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <CalendarIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Terms</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.totalTerms}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <AcademicCapIcon className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Terms</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.activeTerms}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <ClockIcon className="h-6 w-6 text-amber-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Upcoming</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.upcomingTerms}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <ChartBarIcon className="h-6 w-6 text-gray-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.completedTerms}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <CalendarIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Sessions</p>
-              <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.academicSessions}</p>
-            </div>
-          </div>
-        </div>
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('terms')}
+            className={`${activeTab === 'terms'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+          >
+            <CalendarIcon className="h-5 w-5 inline-block mr-2 -mt-0.5" />
+            Terms
+          </button>
+          <button
+            onClick={() => setActiveTab('sessions')}
+            className={`${activeTab === 'sessions'
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+          >
+            <AcademicCapIcon className="h-5 w-5 inline-block mr-2 -mt-0.5" />
+            Sessions
+          </button>
+        </nav>
       </div>
 
-      {/* Terms by Academic Session */}
-      {Object.keys(termsBySession).length > 0 && (
+      {/* Sessions Tab Content */}
+      {activeTab === 'sessions' && (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            Terms by Academic Session
-          </h3>
-          <div className="space-y-4">
-            {Object.entries(termsBySession)
-              .sort(([a], [b]) => b.localeCompare(a)) // Sort sessions in descending order
-              .map(([session, terms]) => (
-                <div key={session} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                    {termUtils.formatAcademicSession(session)}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {termUtils.sortTerms(terms).map((term) => (
-                      <div
-                        key={term.id}
-                        className={`p-3 rounded-lg border ${
-                          currentTerm?.id === term.id
-                            ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-                            : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {term.name}
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {termUtils.formatDateRange(term.start_date, term.end_date)}
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end space-y-1">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${termUtils.getTermStatusColor(term)}`}>
-                              {termUtils.getTermStatusText(term)}
-                            </span>
-                            {currentTerm?.id === term.id && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-800 bg-green-100">
-                                Current
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </div>
+          <SessionManagement />
         </div>
       )}
 
-      {/* Terms List */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            All Terms
-          </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage all academic terms for your school
-          </p>
-        </div>
-        <div className="p-6">
-          {loading ? (
-            <LoadingSpinner />
-          ) : (
-            <TermList
-              onEdit={handleEditTerm}
-              onRefresh={refresh}
-            />
+      {/* Terms Tab Content */}
+      {activeTab === 'terms' && (
+        <>
+          {/* Current Term Section with Switcher */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1">
+                <CurrentTermIndicator variant="compact" />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Switch Term:</span>
+                <TermSwitcher compact={false} showLabel={false} />
+              </div>
+            </div>
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CalendarIcon className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Terms</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.totalTerms}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <AcademicCapIcon className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Terms</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.activeTerms}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ClockIcon className="h-6 w-6 text-amber-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Upcoming</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.upcomingTerms}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <ChartBarIcon className="h-6 w-6 text-gray-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.completedTerms}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CalendarIcon className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Sessions</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{stats.academicSessions}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Terms by Academic Session */}
+          {Object.keys(termsBySession).length > 0 && (
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Terms by Academic Session
+              </h3>
+              <div className="space-y-4">
+                {Object.entries(termsBySession)
+                  .sort(([a], [b]) => b.localeCompare(a)) // Sort sessions in descending order
+                  .map(([session, terms]) => (
+                    <div key={session} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                        {termUtils.formatAcademicSession(session)}
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {termUtils.sortTerms(terms).map((term) => (
+                          <div
+                            key={term.id}
+                            className={`p-3 rounded-lg border ${currentTerm?.id === term.id
+                              ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
+                              : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {term.name}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {termUtils.formatDateRange(term.start_date, term.end_date)}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end space-y-1">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${termUtils.getTermStatusColor(term)}`}>
+                                  {termUtils.getTermStatusText(term)}
+                                </span>
+                                {currentTerm?.id === term.id && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-800 bg-green-100">
+                                    Current
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
           )}
-        </div>
-      </div>
 
-      {/* Create Term Modal */}
-      <TermForm
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={handleFormSuccess}
-        mode="create"
-      />
+          {/* Terms List */}
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                All Terms
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Manage all academic terms for your school
+              </p>
+            </div>
+            <div className="p-6">
+              {loading ? (
+                <LoadingSpinner />
+              ) : (
+                <TermList
+                  onEdit={handleEditTerm}
+                  onRefresh={refresh}
+                />
+              )}
+            </div>
+          </div>
 
-      {/* Edit Term Modal */}
-      <TermForm
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSuccess={handleFormSuccess}
-        term={editingTerm}
-        mode="edit"
-      />
+          {/* Create Term Modal */}
+          <TermForm
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={handleFormSuccess}
+            mode="create"
+          />
+
+          {/* Edit Term Modal */}
+          <TermForm
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            onSuccess={handleFormSuccess}
+            term={editingTerm}
+            mode="edit"
+          />
+        </>
+      )}
     </div>
   );
 };

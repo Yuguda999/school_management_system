@@ -224,12 +224,12 @@ class TermBase(BaseModel):
             if v <= start_date:
                 raise ValueError('End date must be after start date')
 
-            # Term should be at least 30 days and at most 150 days
+            # Term should be at least 1 day and at most 365 days
             duration = (v - start_date).days
-            if duration < 30:
-                raise ValueError('Term duration must be at least 30 days')
-            if duration > 150:
-                raise ValueError('Term duration cannot exceed 150 days')
+            if duration < 1:
+                raise ValueError('Term duration must be at least 1 day')
+            if duration > 365:
+                raise ValueError('Term duration cannot exceed 365 days')
 
         if v < date(2020, 1, 1):
             raise ValueError('End date cannot be before 2020')
@@ -240,7 +240,9 @@ class TermBase(BaseModel):
 
 
 class TermCreate(TermBase):
-    pass
+    # Optional: Link term to a specific AcademicSession
+    # If provided, the system will validate term count limits
+    academic_session_id: Optional[str] = None
 
 
 class TermUpdate(BaseModel):

@@ -23,7 +23,8 @@ class ASIService(AIServiceBase):
         
         self.client = openai.AsyncOpenAI(
             api_key=api_key,
-            base_url="https://inference.asicloud.cudos.org/v1"
+            base_url="https://inference.asicloud.cudos.org/v1",
+            timeout=60.0  # Increase default timeout to 60 seconds
         )
         self._model = settings.asi_model
         self._fallback_model = "asi1-mini"
@@ -841,3 +842,97 @@ Ensure:
             logger.error(f"Error generating CBT test JSON: {str(e)}")
             # Fallback logic could be added here similar to other methods
             raise Exception(f"Failed to generate CBT test: {str(e)}")
+
+    async def generate_support_chat_stream(
+        self,
+        message: str,
+        history: List[dict],
+        user_role: str,
+        context: Optional[str] = None,
+        school_context_data: Optional[dict] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a support chat response using ASI Cloud with streaming
+        """
+        try:
+            # Construct messages
+            messages = []
+            
+            # Build school context string if available
+            school_info = ""
+            if school_context_data:
+                school_name = school_context_data.get('name', 'Unknown School')
+                school_id = school_context_data.get('id', 'Unknown ID')
+                school_info = f"\nSCHOOL CONTEXT:\n- School Name: {school_name}\n- School ID: {school_id}\n"
+
+            # System instruction
+            system_instruction = f"""You are the AI Support Assistant for the School Management System.
+Your goal is to help users ({user_role}) navigate and use the platform effectively.
+{school_info}
+PLATFORM KNOWLEDGE:
+- **Roles:** Admin, Teacher, Student, Parent.
+- **Features:**
+  - **Dashboard:** Overview of activities.
+  - **Teachers:** Lesson Planner, Assignment Generator, Rubric Builder, Grading, Attendance.
+  - **Students:** View grades, take CBT tests, view fees, download report cards.
+  - **Admins:** Manage users, settings, fees, classes, subjects.
+  - **CBT (Computer Based Testing):** Teachers create tests, students take them.
+  - **AI Tools:** Lesson Planner, Assignment Generator, Rubric Builder (powered by Gemini/OpenRouter/ASI).
+
+USER CONTEXT:
+- Current User Role: {user_role}
+- Current Context/Page: {context or 'Unknown'}
+
+GUIDELINES:
+1. **Be Helpful & Concise:** Provide direct answers.
+2. **Platform Specific:** Only answer questions related to the School Management System.
+3. **Escalation:** If a user reports a technical bug (e.g., "500 error", "page not loading") or a complex account issue you cannot solve, suggest they contact human support.
+4. **Tone:** Professional, friendly, and supportive.
+5. **Formatting:** Use Markdown for clarity (bold, lists).
+
+If you don't know the answer, admit it and suggest contacting support.
+"""
+            messages.append({"role": "system", "content": system_instruction})
+            
+            # Add history
+            for msg in history:
+                role = msg["role"]
+                if role == "model":
+                    role = "assistant"
+                messages.append({"role": role, "content": msg["content"]})
+            
+            # Add current message
+            messages.append({"role": "user", "content": message})
+
+            logger.info(f"Generating support chat response for {user_role} using ASI Cloud")
+
+            try:
+                stream = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    stream=True
+                )
+                
+                async for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+                        
+            except Exception as e:
+                logger.warning(f"Error with primary model {self.model}: {e}. Retrying with fallback {self._fallback_model}")
+                try:
+                    stream = await self.client.chat.completions.create(
+                        model=self._fallback_model,
+                        messages=messages,
+                        stream=True
+                    )
+                    
+                    async for chunk in stream:
+                        if chunk.choices and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                except Exception as fallback_error:
+                    logger.error(f"Fallback model failed: {fallback_error}")
+                    raise e
+
+        except Exception as e:
+            logger.error(f"Error generating support chat response: {str(e)}")
+            yield "I apologize, but I'm encountering technical difficulties. Please try again later or contact human support."

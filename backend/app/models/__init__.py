@@ -7,6 +7,7 @@ from .school_ownership import *  # noqa
 from .user import *  # noqa
 from .student import *  # noqa
 from .academic import *  # noqa
+from .academic_session import *  # noqa
 from .fee import *  # noqa
 from .grade import *  # noqa
 from .grade_template import *  # noqa

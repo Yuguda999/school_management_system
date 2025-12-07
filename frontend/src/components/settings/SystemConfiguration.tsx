@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import {
   Cog6ToothIcon,
   ClockIcon,
-  CalendarDaysIcon,
   AcademicCapIcon,
   CurrencyDollarIcon,
   ShieldCheckIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ServerIcon,
+  CloudArrowUpIcon,
+  KeyIcon
 } from '@heroicons/react/24/outline';
 import { usePermissions } from '../../hooks/usePermissions';
 import UserManagement from './UserManagement';
+import Card from '../ui/Card';
+import { useToast } from '../../hooks/useToast';
 
 interface SystemConfig {
   academic_year_start: string;
@@ -30,6 +34,7 @@ interface SystemConfig {
 
 const SystemConfiguration: React.FC = () => {
   const { canManagePlatform } = usePermissions();
+  const { showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<'config' | 'users'>('config');
   const [config, setConfig] = useState<SystemConfig>({
     academic_year_start: '2024-04-01',
@@ -70,6 +75,7 @@ const SystemConfiguration: React.FC = () => {
       // API call to save configuration would go here
       await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
       console.log('System configuration saved:', config);
+      showSuccess('System configuration saved successfully');
     } catch (error) {
       console.error('Error saving configuration:', error);
     } finally {
@@ -77,358 +83,367 @@ const SystemConfiguration: React.FC = () => {
     }
   };
 
+  const Toggle = ({ enabled, onChange }: { enabled: boolean; onChange: () => void }) => (
+    <button
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${enabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
+        }`}
+      role="switch"
+      aria-checked={enabled}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${enabled ? 'translate-x-5' : 'translate-x-0'
+          }`}
+      />
+    </button>
+  );
+
   return (
     <div className="space-y-6">
       {/* Tab Navigation for Platform Admin */}
       {canManagePlatform() && (
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('config')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'config'
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              <Cog6ToothIcon className="h-5 w-5 mr-2 inline" />
-              System Configuration
-            </button>
-            <button
-              onClick={() => setActiveTab('users')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'users'
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              <UserGroupIcon className="h-5 w-5 mr-2 inline" />
-              User Management
-            </button>
-          </nav>
-        </div>
+        <Card variant="glass" padding="none">
+          <div className="p-2">
+            <nav className="flex space-x-2">
+              <button
+                onClick={() => setActiveTab('config')}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === 'config'
+                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Cog6ToothIcon className="h-4 w-4 mr-2" />
+                System Configuration
+              </button>
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === 'users'
+                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <UserGroupIcon className="h-4 w-4 mr-2" />
+                User Management
+              </button>
+            </nav>
+          </div>
+        </Card>
       )}
 
       {/* Tab Content */}
       {activeTab === 'users' && canManagePlatform() ? (
         <UserManagement />
       ) : (
-        <>
+        <div className="space-y-6 animate-fade-in">
           {/* Academic Settings */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <AcademicCapIcon className="h-6 w-6 text-blue-600" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            Academic Settings
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Academic Year Start
-            </label>
-            <input
-              type="date"
-              value={config.academic_year_start}
-              onChange={(e) => handleInputChange('academic_year_start', e.target.value)}
-              className="input"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Academic Year End
-            </label>
-            <input
-              type="date"
-              value={config.academic_year_end}
-              onChange={(e) => handleInputChange('academic_year_end', e.target.value)}
-              className="input"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Max Students per Class
-            </label>
-            <input
-              type="number"
-              value={config.max_students_per_class}
-              onChange={(e) => handleInputChange('max_students_per_class', parseInt(e.target.value))}
-              className="input"
-              min="1"
-              max="100"
-            />
-          </div>
-        </div>
-      </div>
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+                  <AcademicCapIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Academic Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Configure academic year and class settings
+                  </p>
+                </div>
+              </div>
 
-      {/* School Timing */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <ClockIcon className="h-6 w-6 text-green-600" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            School Timing
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              School Start Time
-            </label>
-            <input
-              type="time"
-              value={config.school_start_time}
-              onChange={(e) => handleInputChange('school_start_time', e.target.value)}
-              className="input"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              School End Time
-            </label>
-            <input
-              type="time"
-              value={config.school_end_time}
-              onChange={(e) => handleInputChange('school_end_time', e.target.value)}
-              className="input"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Attendance Grace Period (minutes)
-            </label>
-            <input
-              type="number"
-              value={config.attendance_grace_period}
-              onChange={(e) => handleInputChange('attendance_grace_period', parseInt(e.target.value))}
-              className="input"
-              min="0"
-              max="60"
-            />
-          </div>
-        </div>
-      </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Academic Year Start
+                  </label>
+                  <input
+                    type="date"
+                    value={config.academic_year_start}
+                    onChange={(e) => handleInputChange('academic_year_start', e.target.value)}
+                    className="input"
+                  />
+                </div>
 
-      {/* Financial Settings */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <CurrencyDollarIcon className="h-6 w-6 text-yellow-600" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            Financial Settings
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Late Fee Percentage
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                value={config.late_fee_percentage}
-                onChange={(e) => handleInputChange('late_fee_percentage', parseFloat(e.target.value))}
-                className="input pr-8"
-                min="0"
-                max="100"
-                step="0.1"
-              />
-              <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Academic Year End
+                  </label>
+                  <input
+                    type="date"
+                    value={config.academic_year_end}
+                    onChange={(e) => handleInputChange('academic_year_end', e.target.value)}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Max Students per Class
+                  </label>
+                  <input
+                    type="number"
+                    value={config.max_students_per_class}
+                    onChange={(e) => handleInputChange('max_students_per_class', parseInt(e.target.value))}
+                    className="input"
+                    min="1"
+                    max="100"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Enable Online Payments
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Allow parents to pay fees online
-              </p>
+          </Card>
+
+          {/* School Timing */}
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+                  <ClockIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    School Timing
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Set school hours and attendance policies
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    School Start Time
+                  </label>
+                  <input
+                    type="time"
+                    value={config.school_start_time}
+                    onChange={(e) => handleInputChange('school_start_time', e.target.value)}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    School End Time
+                  </label>
+                  <input
+                    type="time"
+                    value={config.school_end_time}
+                    onChange={(e) => handleInputChange('school_end_time', e.target.value)}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Attendance Grace Period
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={config.attendance_grace_period}
+                      onChange={(e) => handleInputChange('attendance_grace_period', parseInt(e.target.value))}
+                      className="input pr-16"
+                      min="0"
+                      max="60"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">min</span>
+                  </div>
+                </div>
+              </div>
             </div>
+          </Card>
+
+          {/* Financial Settings */}
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
+                  <CurrencyDollarIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Financial Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Configure fee policies and payment options
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Late Fee Percentage
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={config.late_fee_percentage}
+                      onChange={(e) => handleInputChange('late_fee_percentage', parseFloat(e.target.value))}
+                      className="input pr-8"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Enable Online Payments
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Allow parents to pay fees online
+                    </p>
+                  </div>
+                  <Toggle
+                    enabled={config.enable_online_payments}
+                    onChange={() => handleToggle('enable_online_payments')}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Portal Settings */}
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white">
+                  <ShieldCheckIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Portal & Access Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Configure user access and permissions
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  {
+                    key: 'enable_parent_portal' as keyof SystemConfig,
+                    title: 'Enable Parent Portal',
+                    description: 'Allow parents to access the system',
+                  },
+                  {
+                    key: 'enable_student_portal' as keyof SystemConfig,
+                    title: 'Enable Student Portal',
+                    description: 'Allow students to access the system',
+                  },
+                  {
+                    key: 'require_parent_approval' as keyof SystemConfig,
+                    title: 'Require Parent Approval',
+                    description: 'Require parent approval for student actions',
+                  },
+                  {
+                    key: 'auto_generate_student_ids' as keyof SystemConfig,
+                    title: 'Auto-generate Student IDs',
+                    description: 'Automatically generate unique student IDs',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {item.title}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </p>
+                    </div>
+                    <Toggle
+                      enabled={config[item.key] as boolean}
+                      onChange={() => handleToggle(item.key)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {/* System Settings */}
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-gray-600 to-gray-800 text-white">
+                  <ServerIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    System Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Backup and security configuration
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <CloudArrowUpIcon className="h-4 w-4 inline mr-1" />
+                    Backup Frequency
+                  </label>
+                  <select
+                    value={config.backup_frequency}
+                    onChange={(e) => handleInputChange('backup_frequency', e.target.value)}
+                    className="input"
+                  >
+                    <option value="hourly">Hourly</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <KeyIcon className="h-4 w-4 inline mr-1" />
+                    Session Timeout
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={config.session_timeout}
+                      onChange={(e) => handleInputChange('session_timeout', parseInt(e.target.value))}
+                      className="input pr-16"
+                      min="5"
+                      max="480"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Save Button */}
+          <div className="flex justify-end">
             <button
-              onClick={() => handleToggle('enable_online_payments')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                config.enable_online_payments ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              }`}
+              onClick={handleSave}
+              disabled={loading}
+              className="btn btn-primary px-6 flex items-center space-x-2"
             >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.enable_online_payments ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              ) : (
+                <Cog6ToothIcon className="h-4 w-4" />
+              )}
+              <span>{loading ? 'Saving...' : 'Save Configuration'}</span>
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Portal Settings */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <ShieldCheckIcon className="h-6 w-6 text-purple-600" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            Portal & Access Settings
-          </h3>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Enable Parent Portal
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Allow parents to access the system
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggle('enable_parent_portal')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                config.enable_parent_portal ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.enable_parent_portal ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Enable Student Portal
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Allow students to access the system
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggle('enable_student_portal')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                config.enable_student_portal ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.enable_student_portal ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Require Parent Approval
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Require parent approval for student actions
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggle('require_parent_approval')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                config.require_parent_approval ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.require_parent_approval ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Auto-generate Student IDs
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Automatically generate unique student IDs
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggle('auto_generate_student_ids')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                config.auto_generate_student_ids ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-700'
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  config.auto_generate_student_ids ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* System Settings */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-3 mb-4">
-          <Cog6ToothIcon className="h-6 w-6 text-gray-600" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            System Settings
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Backup Frequency
-            </label>
-            <select
-              value={config.backup_frequency}
-              onChange={(e) => handleInputChange('backup_frequency', e.target.value)}
-              className="input"
-            >
-              <option value="hourly">Hourly</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Session Timeout (minutes)
-            </label>
-            <input
-              type="number"
-              value={config.session_timeout}
-              onChange={(e) => handleInputChange('session_timeout', parseInt(e.target.value))}
-              className="input"
-              min="5"
-              max="480"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="btn btn-primary flex items-center space-x-2"
-        >
-          {loading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-          ) : (
-            <Cog6ToothIcon className="h-4 w-4" />
-          )}
-          <span>{loading ? 'Saving...' : 'Save Configuration'}</span>
-        </button>
-      </div>
-        </>
       )}
     </div>
   );

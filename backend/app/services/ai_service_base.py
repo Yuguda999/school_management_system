@@ -148,3 +148,25 @@ class AIServiceBase(ABC):
             str: JSON string containing the test structure
         """
         pass
+
+    @abstractmethod
+    async def generate_support_chat_stream(
+        self,
+        message: str,
+        history: List[dict],
+        user_role: str,
+        context: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a support chat response with streaming
+
+        Args:
+            message: Current user message
+            history: Chat history (list of dicts with 'role' and 'content')
+            user_role: Role of the user (teacher, student, admin, etc.)
+            context: Additional context about the user's current page or state
+
+        Yields:
+            Chunks of the generated response
+        """
+        pass

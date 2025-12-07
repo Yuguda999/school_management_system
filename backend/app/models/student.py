@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, JSON
+from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, JSON, Numeric
 from sqlalchemy.orm import relationship
 from app.models.base import TenantBaseModel
 from app.models.user import Gender, UserRole
@@ -128,8 +128,10 @@ class StudentClassHistory(TenantBaseModel):
     term_id = Column(String(36), ForeignKey("terms.id"), nullable=False)
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
 
-    # Academic session
+    # Academic session - kept for backward compatibility
     academic_session = Column(String(20), nullable=False)  # e.g., "2023/2024"
+    # Link to AcademicSession model (nullable for backward compatibility)
+    academic_session_id = Column(String(36), ForeignKey("academic_sessions.id"), nullable=True)
 
     # Enrollment details
     enrollment_date = Column(Date, nullable=False)
@@ -143,12 +145,21 @@ class StudentClassHistory(TenantBaseModel):
     promoted_to_class_id = Column(String(36), ForeignKey("classes.id"), nullable=True)
     promotion_date = Column(Date, nullable=True)
     remarks = Column(Text, nullable=True)
+    
+    # Enhanced promotion tracking
+    final_average = Column(Numeric(5, 2), nullable=True)  # Average score at end of session
+    promotion_eligible = Column(Boolean, default=True, nullable=False)  # Eligible for promotion
+    promotion_decision = Column(String(20), nullable=True)  # "promoted", "repeated", "graduated", "transferred"
+    decided_by = Column(String(36), ForeignKey("users.id"), nullable=True)  # Who made the decision
+    decision_date = Column(Date, nullable=True)  # When the decision was made
 
     # Relationships
     student = relationship("Student", back_populates="class_history")
     class_ = relationship("Class", foreign_keys=[class_id])
     promoted_to_class = relationship("Class", foreign_keys=[promoted_to_class_id])
     term = relationship("Term")
+    academic_session_rel = relationship("AcademicSession", back_populates="class_history")
+    decision_maker = relationship("User", foreign_keys=[decided_by])
 
     def __repr__(self):
         return f"<StudentClassHistory(student_id={self.student_id}, class_id={self.class_id}, term_id={self.term_id}, status={self.status})>"

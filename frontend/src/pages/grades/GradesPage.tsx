@@ -6,68 +6,103 @@ import {
   ClipboardDocumentListIcon,
   PlusIcon,
   AdjustmentsHorizontalIcon,
-  TableCellsIcon
+  TableCellsIcon,
+  SwatchIcon
 } from '@heroicons/react/24/outline';
-import { Exam } from '../../types';
+import { Exam, Term } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuth } from '../../contexts/AuthContext';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import PageHeader from '../../components/Layout/PageHeader';
 import ExamList from '../../components/grades/ExamList';
 import BulkGradeEntry from '../../components/grades/BulkGradeEntry';
 import GradeList from '../../components/grades/GradeList';
 import GradeStatistics from '../../components/grades/GradeStatistics';
 import StudentGradeSummary from '../../components/grades/StudentGradeSummary';
-import ComponentMapping from '../../components/grades/ComponentMapping'; // Main Grade Setup Dashboard
+import ComponentMapping from '../../components/grades/ComponentMapping';
 import GradebookPanel from '../../components/grades/GradebookPanel';
+import ReportCardTemplatesPanel from '../../components/grades/ReportCardTemplatesPanel';
+import DataTermFilter from '../../components/terms/DataTermFilter';
 import Modal from '../../components/ui/Modal';
 import Card from '../../components/ui/Card';
 
-type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students' | 'gradebook';
+type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students' | 'gradebook' | 'templates';
 
 const GradesPage: React.FC = () => {
   const { canManageGrades } = usePermissions();
+  const { user } = useAuth();
+  const { rawCurrentTerm } = useCurrentTerm();
   const [activeTab, setActiveTab] = useState<TabType>('exams');
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [showBulkGradeEntry, setShowBulkGradeEntry] = useState(false);
   const [gradeListKey, setGradeListKey] = useState(0);
+
+  // Term filter state - defaults to current term
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(rawCurrentTerm?.id || null);
+  const [selectedTerm, setSelectedTerm] = useState<Term | null>(rawCurrentTerm || null);
+
+  const handleTermChange = (termId: string | null, term: Term | null) => {
+    setSelectedTermId(termId);
+    setSelectedTerm(term);
+    // Reset selected exam when term changes
+    setSelectedExam(null);
+  };
+
+  const isSchoolOwner = user?.role === 'school_owner';
 
   const tabs = [
     {
       id: 'exams' as TabType,
       name: 'Exams',
       icon: AcademicCapIcon,
-      description: 'Manage exams and assessments'
+      description: 'Manage exams and assessments',
+      show: true,
     },
     {
       id: 'grades' as TabType,
       name: 'Grades',
       icon: ClipboardDocumentListIcon,
-      description: 'View and manage student grades'
+      description: 'View and manage student grades',
+      show: true,
     },
     {
       id: 'mapping' as TabType,
       name: 'Grade Setup',
       icon: AdjustmentsHorizontalIcon,
-      description: 'Configure how your assessments count toward final grades'
+      description: 'Configure how your assessments count toward final grades',
+      show: true,
     },
     {
       id: 'statistics' as TabType,
       name: 'Statistics',
       icon: ChartBarIcon,
-      description: 'Grade analytics and performance metrics'
+      description: 'Grade analytics and performance metrics',
+      show: true,
     },
     {
       id: 'students' as TabType,
       name: 'Student Summary',
       icon: UserGroupIcon,
-      description: 'Individual student grade summaries'
+      description: 'Individual student grade summaries',
+      show: true,
     },
     {
       id: 'gradebook' as TabType,
       name: 'Gradebook',
       icon: TableCellsIcon,
-      description: 'Unified gradebook with automated calculations'
-    }
+      description: 'Unified gradebook with automated calculations',
+      show: true,
+    },
+    {
+      id: 'templates' as TabType,
+      name: 'Report Cards',
+      icon: SwatchIcon,
+      description: 'Manage report card templates',
+      show: isSchoolOwner,
+    },
   ];
+
+  const visibleTabs = tabs.filter(tab => tab.show);
 
   const handleExamSelect = (exam: Exam) => {
     setSelectedExam(exam);
@@ -155,6 +190,9 @@ const GradesPage: React.FC = () => {
       case 'gradebook':
         return <GradebookPanel />;
 
+      case 'templates':
+        return isSchoolOwner ? <ReportCardTemplatesPanel /> : null;
+
       default:
         return null;
     }
@@ -162,16 +200,37 @@ const GradesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader
-        title="Grade Management"
-        description="Comprehensive grade and assessment management system"
-      />
+      {/* Header with Term Filter */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <PageHeader
+          title="Grade Management"
+          description="Comprehensive grade and assessment management system"
+        />
+
+        {/* Term Filter */}
+        <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+          <DataTermFilter
+            selectedTermId={selectedTermId}
+            onTermChange={handleTermChange}
+            showAllOption={false}
+            label="Filter by Term"
+            showLabel={true}
+            size="md"
+            includeHistorical={true}
+          />
+          {selectedTerm && (
+            <div className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
+              Showing data for <span className="font-medium text-gray-700 dark:text-gray-300">{selectedTerm.name}</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Tab Navigation */}
       <Card variant="glass" padding="none">
         <div className="border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button

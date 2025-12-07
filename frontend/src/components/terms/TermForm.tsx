@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Term, TermType, CreateTermForm, UpdateTermForm } from '../../types';
+import { AcademicSession } from '../../types/session';
 import { academicService } from '../../services/academicService';
+import { sessionService } from '../../services/sessionService';
 import { termUtils } from '../../utils/termUtils';
 import { useToast } from '../../hooks/useToast';
 import Modal from '../ui/Modal';
@@ -15,6 +17,11 @@ interface TermFormProps {
   mode: 'create' | 'edit';
 }
 
+// Extend CreateTermForm to include academic_session_id
+interface ExtendedCreateTermForm extends CreateTermForm {
+  academic_session_id?: string;
+}
+
 const TermForm: React.FC<TermFormProps> = ({
   isOpen,
   onClose,
@@ -23,6 +30,8 @@ const TermForm: React.FC<TermFormProps> = ({
   mode
 }) => {
   const [loading, setLoading] = useState(false);
+  const [sessions, setSessions] = useState<AcademicSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const { showSuccess, showError } = useToast();
 
   const {
@@ -33,7 +42,7 @@ const TermForm: React.FC<TermFormProps> = ({
     watch,
     setValue,
     clearErrors
-  } = useForm<CreateTermForm | UpdateTermForm>();
+  } = useForm<ExtendedCreateTermForm | UpdateTermForm>();
 
   const watchedStartDate = watch('start_date');
   const watchedEndDate = watch('end_date');
@@ -56,13 +65,39 @@ const TermForm: React.FC<TermFormProps> = ({
           name: '',
           type: TermType.FIRST_TERM,
           academic_session: '',
+          academic_session_id: '',
           start_date: '',
           end_date: '',
           is_active: true,
         });
+        // Load sessions for dropdown
+        loadSessions();
       }
     }
   }, [isOpen, mode, term, reset]);
+
+  const loadSessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const data = await sessionService.getSessions();
+      setSessions(data);
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  // When session is selected, auto-fill academic_session field
+  const watchedSessionId = watch('academic_session_id');
+  useEffect(() => {
+    if (watchedSessionId && mode === 'create') {
+      const selectedSession = sessions.find(s => s.id === watchedSessionId);
+      if (selectedSession) {
+        setValue('academic_session', selectedSession.name);
+      }
+    }
+  }, [watchedSessionId, sessions, setValue, mode]);
 
   // Validate dates when they change
   useEffect(() => {
@@ -194,30 +229,40 @@ const TermForm: React.FC<TermFormProps> = ({
           </div>
         )}
 
-        {/* Academic Session */}
+        {/* Academic Session Dropdown */}
         {mode === 'create' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Academic Session *
             </label>
-            <input
-              type="text"
-              {...register('academic_session', {
-                required: 'Academic session is required',
-                pattern: {
-                  value: /^\d{4}[/-]\d{4}$/,
-                  message: 'Academic session must be in format YYYY/YYYY or YYYY-YYYY (e.g., 2023/2024)'
-                }
-              })}
-              className="input"
-              placeholder="e.g., 2023/2024"
-            />
-            {errors.academic_session && (
-              <p className="mt-1 text-sm text-red-600">{errors.academic_session.message}</p>
+            {loadingSessions ? (
+              <div className="flex items-center space-x-2">
+                <LoadingSpinner size="sm" />
+                <span className="text-sm text-gray-500">Loading sessions...</span>
+              </div>
+            ) : (
+              <select
+                {...register('academic_session_id', { required: 'Please select an academic session' })}
+                className="input"
+              >
+                <option value="">Select a session</option>
+                {sessions.map((session) => (
+                  <option key={session.id} value={session.id}>
+                    {session.name} ({session.term_count} terms)
+                  </option>
+                ))}
+              </select>
             )}
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Format: YYYY/YYYY (e.g., 2023/2024)
-            </p>
+            {(errors as any).academic_session_id && (
+              <p className="mt-1 text-sm text-red-600">{(errors as any).academic_session_id.message}</p>
+            )}
+            {sessions.length === 0 && !loadingSessions && (
+              <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">
+                No sessions available. Please create a session first.
+              </p>
+            )}
+            {/* Hidden input for academic_session (derived from selected session) */}
+            <input type="hidden" {...register('academic_session')} />
           </div>
         )}
 

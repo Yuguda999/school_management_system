@@ -28,6 +28,42 @@ async def create_term(
             detail="School not found"
         )
     
+    # If academic_session_id is provided, validate term count limit
+    if term_data.academic_session_id:
+        from app.models.academic_session import AcademicSession
+        
+        # Fetch the session
+        session_result = await db.execute(
+            select(AcademicSession).where(
+                AcademicSession.id == term_data.academic_session_id,
+                AcademicSession.school_id == current_school.id,
+                AcademicSession.is_deleted == False
+            )
+        )
+        session = session_result.scalar_one_or_none()
+        
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Academic session not found"
+            )
+        
+        # Count existing terms for this session
+        term_count_result = await db.execute(
+            select(Term).where(
+                Term.academic_session_id == term_data.academic_session_id,
+                Term.school_id == current_school.id,
+                Term.is_deleted == False
+            )
+        )
+        existing_terms = term_count_result.scalars().all()
+        
+        if len(existing_terms) >= session.term_count:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This session already has {len(existing_terms)} term(s). Maximum allowed: {session.term_count}"
+            )
+    
     term = await AcademicService.create_term(db, term_data, current_school.id)
     return TermResponse.from_orm(term)
 

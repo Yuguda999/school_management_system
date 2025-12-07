@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import PlatformLayout from './PlatformLayout';
 import SchoolLayout from './SchoolLayout';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import AISupport from '../support/AISupport';
 
 const RoleBasedLayout: React.FC = () => {
   const { user, loading } = useAuth();
@@ -55,14 +56,24 @@ const RoleBasedLayout: React.FC = () => {
   // Platform admin gets completely separate interface
   if (user.role === 'platform_super_admin') {
     console.log('🎨 Rendering PlatformLayout');
-    return <PlatformLayout />;
+    return (
+      <>
+        <PlatformLayout />
+        <AISupport />
+      </>
+    );
   }
 
   // All school-level users get school interface
   if (['school_owner', 'school_admin', 'teacher', 'student', 'parent'].includes(user.role)) {
     console.log('🎨 Rendering SchoolLayout for role:', user.role);
     // Use school ID as key to force re-render when school changes
-    return <SchoolLayout key={user.school?.id || user.school_id || 'no-school'} />;
+    return (
+      <>
+        <SchoolLayout key={user.school?.id || user.school_id || 'no-school'} />
+        <AISupport />
+      </>
+    );
   }
 
   // Fallback for unknown roles

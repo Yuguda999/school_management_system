@@ -131,17 +131,81 @@ class SchoolService {
   /**
    * Apply theme settings to document
    */
+  /**
+   * Helper function to convert hex to RGB
+   */
+  private hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  /**
+   * Helper function to generate color palette from base color
+   */
+  private generateColorPalette(baseColor: string) {
+    const rgb = this.hexToRgb(baseColor);
+    if (!rgb) return {};
+
+    const { r, g, b } = rgb;
+
+    return {
+      50: `${Math.min(255, r + 100)}, ${Math.min(255, g + 100)}, ${Math.min(255, b + 100)}`,
+      100: `${Math.min(255, r + 80)}, ${Math.min(255, g + 80)}, ${Math.min(255, b + 80)}`,
+      200: `${Math.min(255, r + 60)}, ${Math.min(255, g + 60)}, ${Math.min(255, b + 60)}`,
+      300: `${Math.min(255, r + 40)}, ${Math.min(255, g + 40)}, ${Math.min(255, b + 40)}`,
+      400: `${Math.min(255, r + 20)}, ${Math.min(255, g + 20)}, ${Math.min(255, b + 20)}`,
+      500: `${r}, ${g}, ${b}`,
+      600: `${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)}`,
+      700: `${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)}`,
+      800: `${Math.max(0, r - 60)}, ${Math.max(0, g - 60)}, ${Math.max(0, b - 60)}`,
+      900: `${Math.max(0, r - 80)}, ${Math.max(0, g - 80)}, ${Math.max(0, b - 80)}`,
+      950: `${Math.max(0, r - 100)}, ${Math.max(0, g - 100)}, ${Math.max(0, b - 100)}`,
+    };
+  }
+
+  /**
+   * Apply theme settings to document
+   */
   applyThemeToDocument(themeSettings: SchoolThemeSettings): void {
     const root = document.documentElement;
 
     if (themeSettings.primary_color) {
+      // Set legacy variable
       root.style.setProperty('--primary-color', themeSettings.primary_color);
+
+      // Generate and set full palette
+      const primaryPalette = this.generateColorPalette(themeSettings.primary_color);
+      Object.entries(primaryPalette).forEach(([shade, rgb]) => {
+        root.style.setProperty(`--color-primary-${shade}`, rgb);
+      });
     }
+
     if (themeSettings.secondary_color) {
+      // Set legacy variable
       root.style.setProperty('--secondary-color', themeSettings.secondary_color);
+
+      // Generate and set full palette
+      const secondaryPalette = this.generateColorPalette(themeSettings.secondary_color);
+      Object.entries(secondaryPalette).forEach(([shade, rgb]) => {
+        root.style.setProperty(`--color-secondary-${shade}`, rgb);
+      });
     }
+
     if (themeSettings.accent_color) {
       root.style.setProperty('--accent-color', themeSettings.accent_color);
+    }
+
+    // Apply dark mode if specified
+    if (themeSettings.dark_mode_enabled !== undefined) {
+      if (themeSettings.dark_mode_enabled) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
     }
   }
 

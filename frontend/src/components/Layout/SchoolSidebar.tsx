@@ -165,23 +165,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       href: `/${schoolCode}/settings`,
       icon: Cog6ToothIcon,
       roles: ['school_owner', 'school_admin'],
-      description: 'Configuration',
-      subItems: [
-        {
-          name: 'General',
-          href: `/${schoolCode}/settings`,
-          icon: Cog6ToothIcon,
-          roles: ['school_owner', 'school_admin'],
-          description: 'General settings'
-        },
-        {
-          name: 'Templates',
-          href: `/${schoolCode}/settings/templates`,
-          icon: DocumentTextIcon,
-          roles: ['school_owner'],
-          description: 'Report card templates'
-        }
-      ]
+      description: 'Configuration'
     },
   ];
 

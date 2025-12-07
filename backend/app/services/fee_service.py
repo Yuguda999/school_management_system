@@ -418,6 +418,7 @@ class FeeService:
         payment_method: Optional[PaymentMethod] = None,
         class_id: Optional[str] = None,
         status: Optional[PaymentStatus] = None,
+        term_id: Optional[str] = None,
         search: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
@@ -449,6 +450,9 @@ class FeeService:
             
         if status:
             query = query.where(FeeAssignment.status == status)
+
+        if term_id:
+            query = query.where(FeeAssignment.term_id == term_id)
             
         if search:
             search_term = f"%{search}%"
@@ -562,22 +566,28 @@ class FeeService:
         db: AsyncSession,
         student_id: str,
         school_id: str,
+        term_id: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
     ) -> List[FeePayment]:
         """Get payments for a student"""
-        result = await db.execute(
-            select(FeePayment).where(
-                FeePayment.student_id == student_id,
-                FeePayment.school_id == school_id,
-                FeePayment.is_deleted == False
-            ).options(
-                selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure),
-                selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.term),
-                selectinload(FeePayment.collector),
-                selectinload(FeePayment.student).selectinload(Student.current_class)
-            ).offset(skip).limit(limit)
+        query = select(FeePayment).where(
+            FeePayment.student_id == student_id,
+            FeePayment.school_id == school_id,
+            FeePayment.is_deleted == False
+        ).options(
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.fee_structure),
+            selectinload(FeePayment.fee_assignment).selectinload(FeeAssignment.term),
+            selectinload(FeePayment.collector),
+            selectinload(FeePayment.student).selectinload(Student.current_class)
         )
+        
+        if term_id:
+            query = query.join(FeePayment.fee_assignment).where(FeeAssignment.term_id == term_id)
+            
+        query = query.offset(skip).limit(limit).order_by(FeePayment.payment_date.desc())
+        
+        result = await db.execute(query)
         return list(result.scalars().all())
     
     @staticmethod

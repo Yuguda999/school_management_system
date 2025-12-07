@@ -152,17 +152,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       hasSettings: !!user?.school?.settings
     });
 
-    if (user?.school_id && user?.school?.id) {
+    if (user?.school_id) {
+      // loadSchoolTheme fetches fresh school data from API, so we only need school_id
       console.log('🎨 Loading school theme from useEffect...');
       loadSchoolTheme();
-    } else if (user?.school_id && !user?.school) {
-      console.log('⚠️ User has school_id but no school object, skipping theme load');
-      // Don't clear theme if user has school_id but school object is not loaded yet
     } else {
-      console.log('❌ No school data found, clearing theme...');
+      console.log('❌ No school_id found, clearing theme...');
       clearSchoolTheme();
     }
-  }, [user?.school_id, user?.school?.id, user?.school?.settings]);
+  }, [user?.school_id]);
 
   const login = async (credentials: LoginCredentials) => {
     try {
@@ -204,7 +202,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(user);
       setRequiresSchoolSelection(false);
       setAvailableSchools([]);
-      
+
       // Fetch complete user data with school information
       try {
         const completeUserData = await authService.getCurrentUser();
@@ -288,7 +286,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(user);
       setRequiresSchoolSelection(false);
       setAvailableSchools([]);
-      
+
       // Fetch complete user data with school information
       try {
         const completeUserData = await authService.getCurrentUser();
@@ -372,7 +370,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(user);
       setRequiresSchoolSelection(false);
       setAvailableSchools([]);
-      
+
       // Fetch complete user data with school information for students
       // This is important to get school theme, logo, and other school data
       try {
@@ -386,7 +384,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Continue with basic user data from login response
         console.log('🎓 AuthContext: Continuing with basic user data from login response');
       }
-      
+
       console.log('🎓 AuthContext: Student login completed successfully');
     } catch (error: any) {
       console.error('🎓 AuthContext: Student login failed:', error);

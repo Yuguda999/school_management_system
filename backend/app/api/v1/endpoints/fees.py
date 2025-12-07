@@ -250,6 +250,7 @@ async def get_payments(
     payment_method: Optional[PaymentMethod] = Query(None, description="Filter by payment method"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
     status: Optional[PaymentStatus] = Query(None, description="Filter by payment status"),
+    term_id: Optional[str] = Query(None, description="Filter by term"),
     search: Optional[str] = Query(None, description="Search term"),
     skip: int = Query(0, description="Skip results"),
     limit: int = Query(100, description="Limit results"),
@@ -273,6 +274,7 @@ async def get_payments(
         payment_method=payment_method,
         class_id=class_id,
         status=status,
+        term_id=term_id,
         search=search,
         skip=skip,
         limit=limit

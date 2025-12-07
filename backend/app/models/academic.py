@@ -22,9 +22,13 @@ class ClassLevel(str, enum.Enum):
 
 
 class TermType(str, enum.Enum):
+    # 3-term system
     FIRST_TERM = "first_term"
     SECOND_TERM = "second_term"
     THIRD_TERM = "third_term"
+    # 2-term (semester) system
+    FIRST_SEMESTER = "first_semester"
+    SECOND_SEMESTER = "second_semester"
 
 
 class AttendanceStatus(str, enum.Enum):
@@ -138,7 +142,7 @@ class Term(TenantBaseModel):
     
     name = Column(String(50), nullable=False)  # e.g., "First Term"
     type = Column(Enum(TermType), nullable=False)
-    academic_session = Column(String(20), nullable=False)  # e.g., "2023/2024"
+    academic_session = Column(String(20), nullable=False)  # e.g., "2023/2024" (kept for backward compatibility)
     
     # Term dates
     start_date = Column(Date, nullable=False)
@@ -148,11 +152,17 @@ class Term(TenantBaseModel):
     is_current = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     
+    # Term sequence within session (1, 2, or 3)
+    sequence_number = Column(Integer, nullable=False, default=1)
+    
     # Foreign Keys
     school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
+    # Link to AcademicSession model (nullable for backward compatibility)
+    academic_session_id = Column(String(36), ForeignKey("academic_sessions.id"), nullable=True)
     
     # Relationships
     school = relationship("School", back_populates="terms")
+    academic_session_rel = relationship("AcademicSession", back_populates="terms", foreign_keys=[academic_session_id])
     enrollments = relationship("Enrollment", back_populates="term")
     attendances = relationship("Attendance", back_populates="term")
     grades = relationship("Grade", back_populates="term")

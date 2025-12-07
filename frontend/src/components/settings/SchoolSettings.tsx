@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import {
-  CalendarIcon,
   AcademicCapIcon,
-  PlusIcon,
+  CalendarIcon,
   Cog6ToothIcon,
   BuildingOfficeIcon,
   BuildingStorefrontIcon,
-  DocumentTextIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { Term } from '../../types';
-import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+
+
 import { useAuth } from '../../contexts/AuthContext';
-import TermList from '../terms/TermList';
-import TermForm from '../terms/TermForm';
+
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import TermSwitcher from '../terms/TermSwitcher';
 import SchoolManagement from './SchoolManagement';
@@ -21,90 +19,80 @@ import { CURRENCY_OPTIONS } from '../../utils/currency';
 import { apiService } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 import { useEffect } from 'react';
-import { TemplateService, ReportCardTemplate } from '../../services/templateService';
 import GradeTemplateManagement from './GradeTemplateManagement';
+import SessionManagement from './SessionManagement';
+import { aiSupportService } from '../../services/aiSupportService';
+import Card from '../ui/Card';
 
-type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general' | 'report_cards';
+type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general';
+
+interface NavItem {
+  id: SchoolSettingsTab;
+  name: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  description: string;
+  show: boolean;
+}
 
 const SchoolSettings: React.FC = () => {
   const { user } = useAuth();
   const { currency, setCurrency } = useCurrency();
-  const { refresh } = useCurrentTerm();
+
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<SchoolSettingsTab>('overview');
-  const [showCreateTermModal, setShowCreateTermModal] = useState(false);
-  const [showEditTermModal, setShowEditTermModal] = useState(false);
-  const [editingTerm, setEditingTerm] = useState<Term | null>(null);
 
   // General Settings State
   const [schoolName, setSchoolName] = useState('');
   const [schoolType, setSchoolType] = useState('primary');
   const [loadingGeneral, setLoadingGeneral] = useState(false);
 
-  // Academic Settings State
-  const [academicYearFormat, setAcademicYearFormat] = useState('yyyy/yyyy');
-  const [termsPerYear, setTermsPerYear] = useState('3');
-  const [loadingAcademic, setLoadingAcademic] = useState(false);
 
-  // Report Card Settings State
-  const [templates, setTemplates] = useState<ReportCardTemplate[]>([]);
-  const [defaultTemplateId, setDefaultTemplateId] = useState<string>('');
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [savingTemplate, setSavingTemplate] = useState(false);
+  // AI Features Settings State
+  const [textToActionEnabled, setTextToActionEnabled] = useState(false);
+  const [loadingTextToAction, setLoadingTextToAction] = useState(false);
+  const [savingTextToAction, setSavingTextToAction] = useState(false);
 
   useEffect(() => {
     if (user?.school) {
       setSchoolName(user.school_name || '');
-      // Initialize other settings if available in user.school.settings
       if (user.school.settings?.general_settings?.school_type) {
         setSchoolType(user.school.settings.general_settings.school_type);
       }
-      if (user.school.settings?.academic_calendar?.format) {
-        setAcademicYearFormat(user.school.settings.academic_calendar.format);
-      }
-      if (user.school.settings?.academic_calendar?.terms_per_year) {
-        setTermsPerYear(String(user.school.settings.academic_calendar.terms_per_year));
-      }
-      if (user.school.default_template_id) {
-        setDefaultTemplateId(user.school.default_template_id);
-      }
+
     }
   }, [user]);
 
   useEffect(() => {
-    if (activeTab === 'report_cards') {
-      fetchTemplates();
+    if (activeTab === 'general' && user?.school?.code) {
+      fetchTextToActionStatus();
     }
   }, [activeTab]);
 
-  const fetchTemplates = async () => {
-    setLoadingTemplates(true);
+  const fetchTextToActionStatus = async () => {
+    if (!user?.school?.code) return;
+    setLoadingTextToAction(true);
     try {
-      const data = await TemplateService.getTemplates();
-      setTemplates(data);
+      const status = await aiSupportService.getTextToActionStatus(user.school.code);
+      setTextToActionEnabled(status.text_to_action_enabled);
     } catch (error) {
-      console.error('Failed to fetch templates:', error);
-      showError('Failed to load templates');
+      console.error('Failed to fetch text-to-action status:', error);
     } finally {
-      setLoadingTemplates(false);
+      setLoadingTextToAction(false);
     }
   };
 
-  const handleSaveReportCardTemplate = async (templateId: string) => {
-    setSavingTemplate(true);
+  const handleToggleTextToAction = async () => {
+    if (!user?.school?.code) return;
+    setSavingTextToAction(true);
     try {
-      await apiService.put('/api/v1/schools/me', {
-        default_template_id: templateId
-      });
-      setDefaultTemplateId(templateId);
-      showSuccess('Default report card template updated');
-      // Update user context if possible, or trigger a reload/refetch
-      // For now, local state update is enough for UI feedback
+      const result = await aiSupportService.toggleTextToAction(user.school.code, !textToActionEnabled);
+      setTextToActionEnabled(result.text_to_action_enabled);
+      showSuccess(result.message);
     } catch (error) {
-      console.error('Failed to save default template:', error);
-      showError('Failed to update default template');
+      console.error('Failed to toggle text-to-action:', error);
+      showError('Failed to update AI Data Query setting');
     } finally {
-      setSavingTemplate(false);
+      setSavingTextToAction(false);
     }
   };
 
@@ -128,154 +116,126 @@ const SchoolSettings: React.FC = () => {
     }
   };
 
-  const handleSaveAcademic = async () => {
-    setLoadingAcademic(true);
-    try {
-      await apiService.put('/api/v1/schools/me', {
-        settings: {
-          academic_calendar: {
-            format: academicYearFormat,
-            terms_per_year: parseInt(termsPerYear)
-          }
-        }
-      });
-      showSuccess('Academic settings saved successfully');
-    } catch (error) {
-      console.error('Failed to save academic settings:', error);
-      showError('Failed to save academic settings');
-    } finally {
-      setLoadingAcademic(false);
-    }
-  };
 
-  const handleCreateTerm = () => {
-    setEditingTerm(null);
-    setShowCreateTermModal(true);
-  };
 
-  const handleEditTerm = (term: Term) => {
-    setEditingTerm(term);
-    setShowEditTermModal(true);
-  };
-
-  const handleFormSuccess = () => {
-    refresh();
-  };
-
-  const tabs = [
+  const navItems: NavItem[] = [
     {
-      id: 'overview' as SchoolSettingsTab,
+      id: 'overview',
       name: 'Overview',
       icon: BuildingOfficeIcon,
-      description: 'School overview and current term'
+      description: 'School overview and current term',
+      show: true,
     },
-    ...(user?.role === 'school_owner' ? [{
-      id: 'schools' as SchoolSettingsTab,
+    {
+      id: 'schools',
       name: 'My Schools',
       icon: BuildingStorefrontIcon,
-      description: 'Manage your schools'
-    }] : []),
+      description: 'Manage your schools',
+      show: user?.role === 'school_owner',
+    },
     {
-      id: 'academic' as SchoolSettingsTab,
+      id: 'academic',
       name: 'Academic',
       icon: AcademicCapIcon,
-      description: 'Academic year and term settings'
+      description: 'Academic year and term settings',
+      show: true,
     },
     {
-      id: 'report_cards' as SchoolSettingsTab,
-      name: 'Report Cards',
-      icon: DocumentTextIcon,
-      description: 'Manage report card templates'
-    },
-    {
-      id: 'general' as SchoolSettingsTab,
+      id: 'general',
       name: 'General',
       icon: Cog6ToothIcon,
-      description: 'General school settings'
-    }
+      description: 'General school settings',
+      show: true,
+    },
   ];
+
+  const visibleNavItems = navItems.filter(item => item.show);
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
         return (
           <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                School Overview
-              </h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Current Term Section */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                      Current Term
-                    </h4>
-                    <TermSwitcher compact={true} showLabel={false} />
+            {/* School Information Card */}
+            <Card variant="glass">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  School Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">School Name</p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white">{user?.school_name || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">School Code</p>
+                        <code className="text-base font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-2 py-1 rounded">
+                          {user?.school_code || 'N/A'}
+                        </code>
+                      </div>
+                    </div>
                   </div>
-                  <CurrentTermIndicator variant="card" />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Your Role</p>
+                        <p className="text-base font-semibold text-gray-900 dark:text-white capitalize">{user?.role?.replace('_', ' ') || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Login URL</p>
+                        <code className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                          /{user?.school_code || 'SCHOOL_CODE'}/login
+                        </code>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                    Quick Actions
-                  </h4>
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleCreateTerm}
-                      className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Create New Term
-                    </button>
-                    <button
-                      onClick={() => window.location.href = `/${user?.school?.code}/terms`}
-                      className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      <CalendarIcon className="h-4 w-4 mr-2" />
-                      Manage All Terms
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* School Information */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                School Information
-              </h4>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-gray-900 dark:text-white">School Name:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400">{user?.school_name || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900 dark:text-white">School Code:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">
-                      {user?.school_code || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900 dark:text-white">Your Role:</span>
-                    <span className="ml-2 text-gray-600 dark:text-gray-400 capitalize">{user?.role?.replace('_', ' ') || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-900 dark:text-white">Login URL:</span>
-                    <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-xs">
-                      /{user?.school_code || 'SCHOOL_CODE'}/login
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>💡 Tip:</strong> Share your school code <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">{user?.school_code || 'SCHOOL_CODE'}</code> with teachers so they can login at <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">/{user?.school_code || 'SCHOOL_CODE'}/login</code>
+                    <span className="font-semibold">💡 Tip:</span> Share your school code <code className="bg-blue-100 dark:bg-blue-800 px-1.5 py-0.5 rounded font-mono text-xs">{user?.school_code || 'SCHOOL_CODE'}</code> with teachers so they can login at <code className="bg-blue-100 dark:bg-blue-800 px-1.5 py-0.5 rounded font-mono text-xs">/{user?.school_code || 'SCHOOL_CODE'}/login</code>
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
+
+            {/* Current Term Card */}
+            <Card variant="glass">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Current Term
+                  </h3>
+                  <TermSwitcher compact={true} showLabel={false} />
+                </div>
+                <CurrentTermIndicator variant="card" />
+              </div>
+            </Card>
+
+            {/* Quick Actions */}
+            <Card variant="glass">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                  <button
+                    onClick={() => window.location.href = `/${user?.school?.code}/terms`}
+                    className="flex items-center justify-center px-4 py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 transition-all duration-200"
+                  >
+                    <CalendarIcon className="h-5 w-5 mr-2" />
+                    Manage All Terms
+                  </button>
+                </div>
+              </div>
+            </Card>
           </div>
         );
 
@@ -285,110 +245,47 @@ const SchoolSettings: React.FC = () => {
       case 'academic':
         return (
           <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Academic Settings
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Configure academic year settings and term preferences
-              </p>
-            </div>
-
             {/* Current Academic Session */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                  Current Academic Session
-                </h4>
-                <button
-                  onClick={() => window.location.href = `/${user?.school?.code}/terms`}
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                >
-                  Manage Terms →
-                </button>
-              </div>
-              <CurrentTermIndicator variant="card" />
-              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> For comprehensive term management including creating, editing, and archiving terms,
-                  please use the dedicated <a href={`/${user?.school?.code}/terms`} className="underline font-medium">Term Management</a> page.
-                </p>
-              </div>
-            </div>
-
-            {/* Academic Year Configuration */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                Academic Year Configuration
-              </h4>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Academic Year Format
-                    </label>
-                    <select
-                      className="input"
-                      value={academicYearFormat}
-                      onChange={(e) => setAcademicYearFormat(e.target.value)}
-                    >
-                      <option value="yyyy/yyyy">YYYY/YYYY (e.g., 2023/2024)</option>
-                      <option value="yyyy-yyyy">YYYY-YYYY (e.g., 2023-2024)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Number of Terms per Year
-                    </label>
-                    <select
-                      className="input"
-                      value={termsPerYear}
-                      onChange={(e) => setTermsPerYear(e.target.value)}
-                    >
-                      <option value="2">2 Terms (Semester System)</option>
-                      <option value="3">3 Terms (Trimester System)</option>
-                    </select>
-                  </div>
+            <Card variant="glass">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Current Term
+                  </h3>
+                  <TermSwitcher compact={true} showLabel={false} />
                 </div>
-                <div className="flex justify-end">
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleSaveAcademic}
-                    disabled={loadingAcademic}
-                  >
-                    {loadingAcademic ? 'Saving...' : 'Save Academic Settings'}
-                  </button>
-                </div>
+                <CurrentTermIndicator variant="card" />
               </div>
-            </div>
+            </Card>
 
-            {/* Grade Templates Section */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <GradeTemplateManagement />
-            </div>
+            {/* Session Management */}
+            <Card variant="glass">
+              <div className="p-6">
+                <SessionManagement />
+              </div>
+            </Card>
+
+            {/* Grade Templates */}
+            <Card variant="glass">
+              <div className="p-6">
+                <GradeTemplateManagement />
+              </div>
+            </Card>
           </div>
         );
 
       case 'general':
         return (
           <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                General School Settings
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Configure general school preferences and settings
-              </p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                School Information
-              </h4>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* School Information */}
+            <Card variant="glass">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                  School Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       School Name
                     </label>
                     <input
@@ -400,7 +297,7 @@ const SchoolSettings: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       School Type
                     </label>
                     <select
@@ -414,7 +311,7 @@ const SchoolSettings: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Currency
                     </label>
                     <select
@@ -430,7 +327,7 @@ const SchoolSettings: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end mt-6">
                   <button
                     className="btn btn-primary"
                     onClick={handleSaveGeneral}
@@ -440,67 +337,76 @@ const SchoolSettings: React.FC = () => {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        );
+            </Card>
 
-      case 'report_cards':
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Report Card Settings
-              </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                Select the default report card template for your school. This template will be used for all classes unless overridden in class settings.
-              </p>
-            </div>
+            {/* AI Features Section - School Owner Only */}
+            {user?.role === 'school_owner' && (
+              <Card variant="glass">
+                <div className="p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white mr-3">
+                      <SparklesIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        AI Features
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Beta features powered by AI</p>
+                    </div>
+                  </div>
 
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                Available Templates
-              </h4>
-
-              {loadingTemplates ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {templates.map((template) => (
-                    <div
-                      key={template.id}
-                      className={`relative border rounded-lg p-4 cursor-pointer transition-all ${defaultTemplateId === template.id
-                        ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50 bg-blue-50 dark:bg-blue-900/20'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
-                        }`}
-                      onClick={() => handleSaveReportCardTemplate(template.id)}
-                    >
-                      <div className="aspect-[210/297] bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded mb-3 overflow-hidden relative group">
-                        {/* Placeholder for template preview */}
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800">
-                          <DocumentTextIcon className="h-12 w-12 opacity-20" />
-                        </div>
-                        {/* Overlay */}
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all" />
-                      </div>
-
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h5 className="font-medium text-gray-900 dark:text-white text-sm">{template.name}</h5>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{template.description}</p>
-                        </div>
-                        {defaultTemplateId === template.id && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Default
+                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 pr-4">
+                        <div className="flex items-center">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                            AI Data Query
+                          </h4>
+                          <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 rounded-full">
+                            Beta
                           </span>
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Allow users to query school data using natural language through the AI assistant.
+                          For example: "How many students are in JSS 1?" or "Show me the top performing students".
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                          <strong>Note:</strong> Only read-only queries are supported. School owners and teachers can use this feature when enabled.
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {loadingTextToAction ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600" />
+                        ) : (
+                          <button
+                            onClick={handleToggleTextToAction}
+                            disabled={savingTextToAction}
+                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${textToActionEnabled ? 'bg-purple-600' : 'bg-gray-200 dark:bg-gray-700'
+                              } ${savingTextToAction ? 'opacity-50 cursor-wait' : ''}`}
+                            role="switch"
+                            aria-checked={textToActionEnabled}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${textToActionEnabled ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                            />
+                          </button>
                         )}
                       </div>
                     </div>
-                  ))}
+
+                    {textToActionEnabled && (
+                      <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                        <p className="text-sm text-purple-800 dark:text-purple-200">
+                          <strong>💡 Tip:</strong> Users can now ask data-related questions in the AI Support chat widget.
+                          Try asking "How many students are enrolled?" or "What's the average attendance rate?"
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </Card>
+            )}
           </div>
         );
 
@@ -511,48 +417,39 @@ const SchoolSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center py-2 px-1 border-b-2 font-medium text-sm
-                ${activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-                }
-              `}
-            >
-              <tab.icon className="h-5 w-5 mr-2" />
-              {tab.name}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {/* Tab Navigation - Horizontal Pills */}
+      <Card variant="glass" padding="none">
+        <div className="p-2">
+          <nav className="flex space-x-2 overflow-x-auto">
+            {visibleNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 ${isActive
+                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    }`}
+                >
+                  <Icon className={`h-4 w-4 mr-2 ${isActive ? 'text-white' : ''}`} />
+                  {item.name}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </Card>
 
       {/* Tab Content */}
-      <div>
+      <div className="animate-fade-in">
         {renderTabContent()}
       </div>
 
       {/* Modals */}
-      <TermForm
-        isOpen={showCreateTermModal}
-        onClose={() => setShowCreateTermModal(false)}
-        onSuccess={handleFormSuccess}
-        mode="create"
-      />
 
-      <TermForm
-        isOpen={showEditTermModal}
-        onClose={() => setShowEditTermModal(false)}
-        onSuccess={handleFormSuccess}
-        term={editingTerm}
-        mode="edit"
-      />
     </div>
   );
 };

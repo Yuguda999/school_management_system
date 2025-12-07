@@ -10,20 +10,21 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import { useAuth } from '../../contexts/AuthContext';
 import { useCurrency } from '../../contexts/CurrencyContext';
+import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import PageHeader from '../../components/Layout/PageHeader';
 import FeeStructureManager from '../../components/fees/FeeStructureManager';
 import FeeAssignmentManager from '../../components/fees/FeeAssignmentManager';
 import PaymentTracker from '../../components/fees/PaymentTracker';
 import FinancialReports from '../../components/fees/FinancialReports';
+import DataTermFilter from '../../components/terms/DataTermFilter';
 import Card from '../../components/ui/Card';
 import { apiService } from '../../services/api';
 import { useToast } from '../../hooks/useToast';
 
 const FeesPage: React.FC = () => {
-  const { user } = useAuth();
   const { formatCurrency } = useCurrency();
+  const { rawCurrentTerm } = useCurrentTerm();
   const [activeTab, setActiveTab] = useState('structures');
   const [feeStats, setFeeStats] = useState({
     totalRevenue: 0,
@@ -32,15 +33,23 @@ const FeesPage: React.FC = () => {
     overduePayments: 0,
   });
 
+  // Term filter state
+  const [selectedTermId, setSelectedTermId] = useState<string | null>(rawCurrentTerm?.id || null);
+
+  const handleTermChange = (termId: string | null, _term: unknown) => {
+    setSelectedTermId(termId);
+  };
+
   const { showError } = useToast();
 
   useEffect(() => {
     fetchFeeStats();
-  }, []);
+  }, [selectedTermId]); // Re-fetch when term changes
 
   const fetchFeeStats = async () => {
     try {
-      const data = await apiService.get<any>('/api/v1/fees/stats');
+      const params = selectedTermId ? `?term_id=${selectedTermId}` : '';
+      const data = await apiService.get<any>(`/api/v1/fees/stats${params}`);
 
       setFeeStats({
         totalRevenue: data.total_expected || 0,
@@ -106,10 +115,26 @@ const FeesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <PageHeader
-        title="Fee Management"
-        description="Manage fee structures, track payments, and generate financial reports"
-      />
+      {/* Header with Term Filter */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <PageHeader
+          title="Fee Management"
+          description="Manage fee structures, track payments, and generate financial reports"
+        />
+
+        {/* Term Filter */}
+        <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+          <DataTermFilter
+            selectedTermId={selectedTermId}
+            onTermChange={handleTermChange}
+            showAllOption={true}
+            label="Filter by Term"
+            showLabel={true}
+            size="md"
+            includeHistorical={true}
+          />
+        </div>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

@@ -54,6 +54,7 @@ import CommunicationPage from './pages/communication/CommunicationPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import ReportCardTemplatesPage from './pages/templates/ReportCardTemplatesPage';
 import TermManagementPage from './pages/terms/TermManagementPage';
+import PromotionManagementPage from './pages/sessions/PromotionManagementPage';
 import AssetsPage from './pages/assets/AssetsPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ActivityLogPage from './pages/settings/ActivityLogPage';
@@ -426,6 +427,16 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
                   <TermManagementPage />
+                </SchoolRoute>
+              }
+            />
+
+            {/* Promotions (accessed from Settings > Academic > Sessions) */}
+            <Route
+              path="sessions/:sessionId/promotions"
+              element={
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                  <PromotionManagementPage />
                 </SchoolRoute>
               }
             />

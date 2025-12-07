@@ -884,3 +884,144 @@ def get_gemini_service() -> GeminiService:
         _gemini_service = GeminiService()
     return _gemini_service
 
+    async def generate_cbt_test_json(
+        self,
+        subject: str,
+        topic: str,
+        difficulty_level: str,
+        question_count: int,
+        additional_context: Optional[str] = None
+    ) -> str:
+        """
+        Generate a CBT test structure in JSON format using Gemini
+        """
+        try:
+            prompt = f"""Create a Computer Based Test (CBT) in JSON format with the following specifications:
+
+**Subject:** {subject}
+**Topic:** {topic}
+**Difficulty:** {difficulty_level}
+**Number of Questions:** {question_count}
+"""
+            if additional_context:
+                prompt += f"**Additional Context:** {additional_context}\n"
+
+            prompt += """
+The JSON output must strictly follow this schema:
+{
+  "title": "Test Title",
+  "description": "Test Description",
+  "duration_minutes": 60,
+  "total_marks": 100,
+  "questions": [
+    {
+      "text": "Question text",
+      "type": "multiple_choice",  // or "true_false", "short_answer"
+      "options": ["Option A", "Option B", "Option C", "Option D"], // Only for multiple_choice
+      "correct_answer": "Option A", // The correct option text or answer
+      "marks": 5,
+      "explanation": "Explanation for the correct answer"
+    }
+  ]
+}
+
+Return ONLY the valid JSON string. Do not include markdown formatting (like ```json ... ```).
+"""
+            
+            logger.info(f"Generating CBT test JSON for {subject} - {topic}")
+
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.5,
+                    max_output_tokens=8192,
+                    response_mime_type="application/json"
+                )
+            )
+
+            return response.text
+
+        except Exception as e:
+            logger.error(f"Error generating CBT test JSON: {str(e)}")
+            raise Exception(f"Failed to generate CBT test: {str(e)}")
+
+    async def generate_support_chat_stream(
+        self,
+        message: str,
+        history: List[dict],
+        user_role: str,
+        context: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a support chat response using Gemini AI with streaming
+        """
+        try:
+            # Construct the conversation history for Gemini
+            # Gemini uses 'user' and 'model' roles
+            contents = []
+            
+            # Add system instruction as the first part of the prompt context if possible, 
+            # or rely on the system_instruction config.
+            
+            # Convert history to Gemini format
+            for msg in history:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append(types.Content(
+                    role=role,
+                    parts=[types.Part.from_text(text=msg["content"])]
+                ))
+            
+            # Add current message
+            contents.append(types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=message)]
+            ))
+
+            # System instruction for the AI Support Agent
+            system_instruction = f"""You are the AI Support Assistant for the School Management System.
+Your goal is to help users ({user_role}) navigate and use the platform effectively.
+
+PLATFORM KNOWLEDGE:
+- **Roles:** Admin, Teacher, Student, Parent.
+- **Features:**
+  - **Dashboard:** Overview of activities.
+  - **Teachers:** Lesson Planner, Assignment Generator, Rubric Builder, Grading, Attendance.
+  - **Students:** View grades, take CBT tests, view fees, download report cards.
+  - **Admins:** Manage users, settings, fees, classes, subjects.
+  - **CBT (Computer Based Testing):** Teachers create tests, students take them.
+  - **AI Tools:** Lesson Planner, Assignment Generator, Rubric Builder (powered by Gemini/OpenRouter).
+
+USER CONTEXT:
+- Current User Role: {user_role}
+- Current Context/Page: {context or 'Unknown'}
+
+GUIDELINES:
+1. **Be Helpful & Concise:** Provide direct answers.
+2. **Platform Specific:** Only answer questions related to the School Management System.
+3. **Escalation:** If a user reports a technical bug (e.g., "500 error", "page not loading") or a complex account issue you cannot solve, suggest they contact human support.
+4. **Tone:** Professional, friendly, and supportive.
+5. **Formatting:** Use Markdown for clarity (bold, lists).
+
+If you don't know the answer, admit it and suggest contacting support.
+"""
+
+            logger.info(f"Generating support chat response for {user_role}")
+
+            response = self.client.models.generate_content_stream(
+                model=self.model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.7,
+                    max_output_tokens=1024,
+                )
+            )
+
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+
+        except Exception as e:
+            logger.error(f"Error generating support chat response: {str(e)}")
+            yield "I apologize, but I'm encountering technical difficulties. Please try again later or contact human support."

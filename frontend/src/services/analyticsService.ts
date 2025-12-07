@@ -167,6 +167,18 @@ const analyticsService = {
     return await api.get<BenchmarkData[]>(`/api/v1/school/${schoolCode}/analytics/benchmark/student/${studentId}`, { params });
   },
 
+  // Finance Analytics
+  getFinanceAnalytics: async (schoolCode: string, termId?: string) => {
+    const params = termId ? { term_id: termId } : {};
+    return await api.get<FinanceAnalytics>(`/api/v1/school/${schoolCode}/analytics/financial`, { params });
+  },
+
+  // Enrollment Analytics
+  getEnrollmentAnalytics: async (schoolCode: string, termId?: string) => {
+    const params = termId ? { term_id: termId } : {};
+    return await api.get<EnrollmentAnalytics>(`/api/v1/school/${schoolCode}/analytics/enrollment`, { params });
+  },
+
   getClassBenchmark: async (schoolCode: string, classId: string, subjectId?: string, termId?: string) => {
     const params: Record<string, string> = {};
     if (subjectId) params.subject_id = subjectId;

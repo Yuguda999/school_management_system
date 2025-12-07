@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   BuildingOfficeIcon,
   PlusIcon,
@@ -22,7 +21,6 @@ import EditSchoolModal from './EditSchoolModal';
 const SchoolManagement: React.FC = () => {
   const { user, selectSchool, updateUser } = useAuth();
   const { showSuccess, showError } = useToast();
-  const navigate = useNavigate();
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [switchingSchool, setSwitchingSchool] = useState<string | null>(null);
@@ -57,17 +55,18 @@ const SchoolManagement: React.FC = () => {
         throw new Error('School not found');
       }
 
+      // selectSchool() saves the new access_token to localStorage and fetches updated user data
       await selectSchool(schoolId);
 
-      console.log('✅ SchoolManagement: School switch completed');
+      console.log('✅ SchoolManagement: School switch completed, reloading page...');
       showSuccess('School switched successfully');
 
-      // Wait a moment for state to update, then navigate to the new school's dashboard
-      setTimeout(() => {
-        console.log('🔄 SchoolManagement: Navigating to new school dashboard...');
-        // Use the school code from the selected school
-        navigate(`/${targetSchool.code}/dashboard`);
-      }, 200);
+      // Perform full page reload immediately after selectSchool completes
+      // This ensures:
+      // 1. The new access_token is already in localStorage
+      // 2. All React components reset their state (no data mixing)
+      // 3. AI Support chat clears old conversation history
+      window.location.href = `/${targetSchool.code}/dashboard`;
 
     } catch (error: any) {
       console.error('❌ SchoolManagement: Failed to switch school:', error);
@@ -145,7 +144,7 @@ const SchoolManagement: React.FC = () => {
                   </p>
                 </div>
               </div>
-              
+
               {/* Current School Indicator */}
               {user?.school_id === school.id && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
@@ -157,17 +156,16 @@ const SchoolManagement: React.FC = () => {
             {/* Subscription Info */}
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                  school.subscription_status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : school.subscription_status === 'trial'
+                <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${school.subscription_status === 'active'
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                  : school.subscription_status === 'trial'
                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                }`}>
+                  }`}>
                   {school.subscription_plan === 'trial' ? 'Trial' : school.subscription_plan}
                 </span>
               </div>
-              
+
               {school.is_trial && school.trial_expires_at && (
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
                   <ClockIcon className="h-3 w-3 mr-1" />

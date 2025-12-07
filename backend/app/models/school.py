@@ -67,6 +67,7 @@ class School(BaseModel):
     classes = relationship("Class", back_populates="school", cascade="all, delete-orphan")
     subjects = relationship("Subject", back_populates="school", cascade="all, delete-orphan")
     terms = relationship("Term", back_populates="school", cascade="all, delete-orphan")
+    academic_sessions = relationship("AcademicSession", back_populates="school", cascade="all, delete-orphan")
     fee_structures = relationship("FeeStructure", back_populates="school", cascade="all, delete-orphan")
     assets = relationship("Asset", back_populates="school", cascade="all, delete-orphan")
     grade_templates = relationship("GradeTemplate", back_populates="school", cascade="all, delete-orphan")
@@ -95,6 +96,13 @@ class School(BaseModel):
             return False
 
         return datetime.now(timezone.utc) > self.trial_expires_at
+
+    @property
+    def text_to_action_enabled(self) -> bool:
+        """Check if text-to-action feature is enabled for this school"""
+        if not self.settings or not isinstance(self.settings, dict):
+            return False
+        return self.settings.get("text_to_action_enabled", False)
 
     def start_trial(self, days: int = 30):
         """Start a trial period"""

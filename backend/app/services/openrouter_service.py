@@ -842,3 +842,182 @@ def get_openrouter_service() -> OpenRouterService:
     return _openrouter_service
 
 
+    async def generate_cbt_test_json(
+        self,
+        subject: str,
+        topic: str,
+        difficulty_level: str,
+        question_count: int,
+        additional_context: Optional[str] = None
+    ) -> str:
+        """
+        Generate a CBT test structure in JSON format using OpenRouter
+        """
+        try:
+            prompt = f"""Create a Computer Based Test (CBT) in JSON format with the following specifications:
+
+**Subject:** {subject}
+**Topic:** {topic}
+**Difficulty:** {difficulty_level}
+**Number of Questions:** {question_count}
+"""
+            if additional_context:
+                prompt += f"**Additional Context:** {additional_context}\n"
+
+            prompt += """
+The JSON output must strictly follow this schema:
+{
+  "title": "Test Title",
+  "description": "Test Description",
+  "duration_minutes": 60,
+  "total_marks": 100,
+  "questions": [
+    {
+      "text": "Question text",
+      "type": "multiple_choice",  // or "true_false", "short_answer"
+      "options": ["Option A", "Option B", "Option C", "Option D"], // Only for multiple_choice
+      "correct_answer": "Option A", // The correct option text or answer
+      "marks": 5,
+      "explanation": "Explanation for the correct answer"
+    }
+  ]
+}
+
+Return ONLY the valid JSON string. Do not include markdown formatting (like ```json ... ```).
+"""
+            
+            logger.info(f"Generating CBT test JSON for {subject} - {topic} using OpenRouter")
+
+            # For JSON generation, we don't stream
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.5,
+                "max_tokens": 8192,
+                "response_format": {"type": "json_object"}  # Some models support this
+            }
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+                
+                if "choices" in data and len(data["choices"]) > 0:
+                    content = data["choices"][0]["message"]["content"]
+                    return content
+                else:
+                    raise Exception("No content in response")
+
+        except Exception as e:
+            logger.error(f"Error generating CBT test JSON: {str(e)}")
+            raise Exception(f"Failed to generate CBT test: {str(e)}")
+
+    async def generate_support_chat_stream(
+        self,
+        message: str,
+        history: List[dict],
+        user_role: str,
+        context: Optional[str] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate a support chat response using OpenRouter AI with streaming
+        """
+        try:
+            # Construct messages for OpenRouter
+            messages = []
+            
+            # System instruction
+            system_instruction = f"""You are the AI Support Assistant for the School Management System.
+Your goal is to help users ({user_role}) navigate and use the platform effectively.
+
+PLATFORM KNOWLEDGE:
+- **Roles:** Admin, Teacher, Student, Parent.
+- **Features:**
+  - **Dashboard:** Overview of activities.
+  - **Teachers:** Lesson Planner, Assignment Generator, Rubric Builder, Grading, Attendance.
+  - **Students:** View grades, take CBT tests, view fees, download report cards.
+  - **Admins:** Manage users, settings, fees, classes, subjects.
+  - **CBT (Computer Based Testing):** Teachers create tests, students take them.
+  - **AI Tools:** Lesson Planner, Assignment Generator, Rubric Builder (powered by Gemini/OpenRouter).
+
+USER CONTEXT:
+- Current User Role: {user_role}
+- Current Context/Page: {context or 'Unknown'}
+
+GUIDELINES:
+1. **Be Helpful & Concise:** Provide direct answers.
+2. **Platform Specific:** Only answer questions related to the School Management System.
+3. **Escalation:** If a user reports a technical bug (e.g., "500 error", "page not loading") or a complex account issue you cannot solve, suggest they contact human support.
+4. **Tone:** Professional, friendly, and supportive.
+5. **Formatting:** Use Markdown for clarity (bold, lists).
+
+If you don't know the answer, admit it and suggest contacting support.
+"""
+            messages.append({"role": "system", "content": system_instruction})
+            
+            # Add history
+            for msg in history:
+                role = msg["role"]
+                if role == "model":
+                    role = "assistant"
+                messages.append({"role": role, "content": msg["content"]})
+            
+            # Add current message
+            messages.append({"role": "user", "content": message})
+
+            logger.info(f"Generating support chat response for {user_role} using OpenRouter")
+
+            # Stream the response
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 1024,
+                "stream": True
+            }
+
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            
+                            if data_str.strip() == "[DONE]":
+                                break
+                            
+                            try:
+                                data = json.loads(data_str)
+                                if "choices" in data and len(data["choices"]) > 0:
+                                    delta = data["choices"][0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        yield content
+                            except json.JSONDecodeError:
+                                continue
+
+        except Exception as e:
+            logger.error(f"Error generating support chat response: {str(e)}")
+            yield "I apologize, but I'm encountering technical difficulties. Please try again later or contact human support."

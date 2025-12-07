@@ -147,6 +147,7 @@ async def create_schedule(
 async def get_schedules(
     test_id: Optional[str] = Query(None, description="Filter by test"),
     class_id: Optional[str] = Query(None, description="Filter by class"),
+    term_id: Optional[str] = Query(None, description="Filter by term"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     school_context: SchoolContext = Depends(get_current_school_context),
@@ -170,6 +171,30 @@ async def get_schedules(
         query = query.where(CBTTestSchedule.test_id == test_id)
     if class_id:
         query = query.where(CBTTestSchedule.class_id == class_id)
+        
+    if term_id:
+        # Get term dates
+        from app.models.academic import Term
+        term_result = await db.execute(
+            select(Term).where(
+                Term.id == term_id,
+                Term.school_id == school_context.school_id
+            )
+        )
+        term = term_result.scalar_one_or_none()
+        
+        if term:
+            # Filter schedules that start within the term
+            # Convert date to datetime for comparison
+            term_start = datetime.combine(term.start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            term_end = datetime.combine(term.end_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+            
+            query = query.where(
+                and_(
+                    CBTTestSchedule.start_datetime >= term_start,
+                    CBTTestSchedule.start_datetime <= term_end
+                )
+            )
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
@@ -239,6 +264,7 @@ async def delete_schedule(
 
 @router.get("/student/available-tests", response_model=List[dict])
 async def get_available_tests_for_student(
+    term_id: Optional[str] = Query(None, description="Filter by term"),
     school_context: SchoolContext = Depends(get_current_school_context),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -252,20 +278,44 @@ async def get_available_tests_for_student(
 
     student = school_context.user
     current_time = datetime.now(timezone.utc)
+    
+    # Build base query
+    query = select(CBTSubmission).options(
+        selectinload(CBTSubmission.test).selectinload(CBTTest.subject),
+        selectinload(CBTSubmission.schedule)
+    ).where(
+        CBTSubmission.student_id == student.id,
+        CBTSubmission.school_id == school_context.school_id,
+        CBTSubmission.is_deleted == False
+    )
+    
+    # Apply term filter if provided
+    if term_id:
+        from app.models.academic import Term
+        from sqlalchemy import and_
+        
+        term_result = await db.execute(
+            select(Term).where(
+                Term.id == term_id,
+                Term.school_id == school_context.school_id
+            )
+        )
+        term = term_result.scalar_one_or_none()
+        
+        if term:
+            # Filter submissions where schedule starts within the term
+            term_start = datetime.combine(term.start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            term_end = datetime.combine(term.end_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+            
+            query = query.join(CBTSubmission.schedule).where(
+                and_(
+                    CBTTestSchedule.start_datetime >= term_start,
+                    CBTTestSchedule.start_datetime <= term_end
+                )
+            )
 
     # Get all submissions for this student
-    result = await db.execute(
-        select(CBTSubmission)
-        .options(
-            selectinload(CBTSubmission.test).selectinload(CBTTest.subject),
-            selectinload(CBTSubmission.schedule)
-        )
-        .where(
-            CBTSubmission.student_id == student.id,
-            CBTSubmission.school_id == school_context.school_id,
-            CBTSubmission.is_deleted == False
-        )
-    )
+    result = await db.execute(query)
     submissions = result.scalars().all()
 
     # Build response with test availability info
