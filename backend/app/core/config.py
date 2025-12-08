@@ -64,10 +64,10 @@ class Settings(BaseSettings):
 
 
     # CORS
-    allowed_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8080"
+    allowed_origins: str = "*"
     
     # Trusted Hosts
-    allowed_hosts: str = "localhost,127.0.0.1"
+    allowed_hosts: str = "*"
 
     # Pagination
     default_page_size: int = 20
