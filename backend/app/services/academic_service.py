@@ -4,7 +4,7 @@ from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 from app.models.academic import Class, Subject, Term, Enrollment, TimetableEntry, Attendance
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.student import Student
 from app.schemas.academic import (
     ClassCreate, ClassUpdate, SubjectCreate, SubjectUpdate,
