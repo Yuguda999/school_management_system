@@ -1,5 +1,6 @@
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 from functools import lru_cache
 import os
 from dotenv import load_dotenv
@@ -86,6 +87,26 @@ class Settings(BaseSettings):
     def get_allowed_extensions_list(self) -> List[str]:
         """Get allowed extensions as a list"""
         return [i.strip() for i in self.allowed_extensions.split(",")]
+
+    @model_validator(mode='after')
+    def compute_database_urls(self) -> 'Settings':
+        """
+        Ensure correct async and sync database URLs are generated.
+        1. Convert standard postgresql:// to postgresql+asyncpg:// for the async engine.
+        2. Derive postgresql:// sync URL for Alembic migrations.
+        """
+        if self.database_url:
+            # Handle Supabase/Standard Postgres URLs for Async Engine
+            if self.database_url.startswith("postgresql://"):
+                # Force asyncpg driver for the main async database_url
+                self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://")
+            
+            # Derive Sync URL for Alembic/Migrations
+            if self.database_url.startswith("postgresql+asyncpg://"):
+                if not self.database_url_sync or self.database_url_sync.startswith("sqlite"):
+                    self.database_url_sync = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+                    
+        return self
 
 
     model_config = SettingsConfigDict(
