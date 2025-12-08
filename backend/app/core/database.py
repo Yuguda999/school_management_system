@@ -13,8 +13,9 @@ logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 # Async engine for FastAPI
 async_engine = create_async_engine(
     settings.database_url,
-    echo=False,  # Disable SQL echo to reduce logs
-    future=True
+    echo=False,
+    future=True,
+    connect_args={"statement_cache_size": 0}  # Required for Supabase Transaction Pooler (PgBouncer)
 )
 
 # Sync engine for Alembic migrations
