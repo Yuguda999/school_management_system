@@ -15,7 +15,7 @@ export const PREDEFINED_THEMES: PredefinedTheme[] = [
   {
     id: 'platform_default',
     name: 'Platform Default',
-    description: 'Default School Management System theme',
+    description: 'Default Edix theme',
     primary_color: '#0ea5e9',
     secondary_color: '#8b5cf6',
     preview_colors: {

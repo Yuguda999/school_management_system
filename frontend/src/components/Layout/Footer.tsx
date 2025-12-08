@@ -11,9 +11,9 @@ const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
 
         {/* Copyright */}
-          <p className="text-xs text-center text-gray-400 dark:text-gray-500">
-            © {currentYear} School Management System Platform. All rights reserved.
-          </p>
+        <p className="text-xs text-center text-gray-400 dark:text-gray-500">
+          © {currentYear} Edix. All rights reserved.
+        </p>
       </div>
     </footer>
   );

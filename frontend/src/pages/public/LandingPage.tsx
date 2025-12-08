@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AcademicCapIcon,
-  UserGroupIcon,
   CurrencyDollarIcon,
   ChatBubbleLeftRightIcon,
   ChartBarIcon,
@@ -10,8 +9,10 @@ import {
   CheckIcon,
   ArrowRightIcon,
   GlobeAltIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import Hero3D from '../../components/landing/Hero3D';
 
 const LandingPage: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -32,10 +33,16 @@ const LandingPage: React.FC = () => {
       color: 'bg-blue-500',
     },
     {
-      name: 'Teacher Portal',
-      description: 'Dedicated portal for teachers to manage classes, assignments, and student progress.',
-      icon: UserGroupIcon,
+      name: 'AI-Powered Insights',
+      description: 'Leverage artificial intelligence to predict student performance and identify at-risk students.',
+      icon: SparklesIcon,
       color: 'bg-purple-500',
+    },
+    {
+      name: 'Advanced Analytics',
+      description: 'Deep dive into school data with interactive dashboards and comprehensive reports.',
+      icon: ChartBarIcon,
+      color: 'bg-indigo-500',
     },
     {
       name: 'Fee Management',
@@ -50,14 +57,8 @@ const LandingPage: React.FC = () => {
       color: 'bg-pink-500',
     },
     {
-      name: 'Analytics & Reports',
-      description: 'Data-driven insights to improve school performance and student outcomes.',
-      icon: ChartBarIcon,
-      color: 'bg-orange-500',
-    },
-    {
       name: 'Mobile First',
-      description: 'Access your school management system from any device, anywhere, anytime.',
+      description: 'Access Edix from any device, anywhere, anytime.',
       icon: DevicePhoneMobileIcon,
       color: 'bg-teal-500',
     },
@@ -123,12 +124,7 @@ const LandingPage: React.FC = () => {
       <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-md shadow-sm py-4' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <div className="flex items-center space-x-2">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary-600 to-secondary-600 flex items-center justify-center shadow-lg shadow-primary-500/20">
-              <AcademicCapIcon className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300">
-              SchoolSync
-            </span>
+            <img src="/logo.png" alt="Edix" className="h-10 w-auto" />
           </div>
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Features</a>
@@ -153,22 +149,22 @@ const LandingPage: React.FC = () => {
       <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
         {/* Background Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
+          <Hero3D />
           <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-primary-500/10 rounded-full blur-3xl animate-float"></div>
           <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary-500/10 rounded-full blur-3xl animate-float delay-1000"></div>
-          <div className="absolute top-[20%] left-[15%] w-24 h-24 bg-yellow-400/20 rounded-full blur-xl animate-pulse"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
 
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-8 leading-tight animate-fade-in-up delay-100">
-            Manage Your School <br />
+            The Intelligent Way to <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400">
-              With Excellence
+              Manage Your School
             </span>
           </h1>
 
           <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600 dark:text-gray-300 mb-10 animate-fade-in-up delay-200">
-            Streamline administration, empower teachers, and engage parents with the most intuitive school management platform.
+            Empower your institution with AI-driven insights, advanced analytics, and seamless administration. The future of education management is here.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up delay-300">
@@ -195,8 +191,6 @@ const LandingPage: React.FC = () => {
                 <div className="aspect-[16/9] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1584697964358-3e14ca57658b?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80')] bg-cover bg-center opacity-20"></div>
                   <div className="text-center p-10">
-                    <ChartBarIcon className="h-24 w-24 text-primary-500 mx-auto mb-4 opacity-50" />
-                    <p className="text-gray-400 font-medium">Interactive Dashboard Preview</p>
                   </div>
                 </div>
               </div>
@@ -220,6 +214,98 @@ const LandingPage: React.FC = () => {
                 <div className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{stat.label}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* AI & Analytics Showcase */}
+      <div className="py-24 bg-gray-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary-600/20 rounded-full blur-3xl animate-pulse-slow"></div>
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-secondary-600/20 rounded-full blur-3xl animate-pulse-slow delay-1000"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div>
+
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                Unlock the Power of <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-secondary-400">
+                  AI-Driven Insights
+                </span>
+              </h2>
+              <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+                Go beyond basic reporting. Edix uses advanced artificial intelligence to analyze student performance trends, predict potential learning gaps, and provide actionable recommendations for teachers and administrators.
+              </p>
+
+              <ul className="space-y-4 mb-10">
+                {[
+                  'Predictive performance modeling',
+                  'At-risk student identification',
+                  'Personalized learning path recommendations',
+                  'Automated administrative insights'
+                ].map((item, i) => (
+                  <li key={i} className="flex items-center text-gray-200">
+                    <div className="h-6 w-6 rounded-full bg-primary-500/30 flex items-center justify-center mr-3">
+                      <CheckIcon className="h-4 w-4 text-primary-300" />
+                    </div>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                to="/register"
+                className="inline-flex items-center px-8 py-4 text-lg font-bold rounded-2xl bg-white text-gray-900 hover:bg-gray-100 transition-all shadow-lg hover:-translate-y-1"
+              >
+                Try AI Features
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Link>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-3xl blur-2xl opacity-30 transform rotate-3"></div>
+              <div className="relative bg-gray-800 border border-gray-700 rounded-3xl p-6 shadow-2xl">
+                {/* Abstract representation of AI Analytics UI */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <div className="h-4 w-32 bg-gray-600 rounded mb-2"></div>
+                      <div className="h-3 w-24 bg-gray-700 rounded"></div>
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-primary-500/20 flex items-center justify-center">
+                      <SparklesIcon className="h-6 w-6 text-primary-400" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-gray-700/50 rounded-xl p-4">
+                        <div className="h-8 w-8 rounded-full bg-gray-600 mb-3"></div>
+                        <div className="h-3 w-16 bg-gray-600 rounded mb-2"></div>
+                        <div className="h-5 w-12 bg-primary-500/40 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="bg-gray-700/30 rounded-xl p-4">
+                    <div className="flex items-center mb-4">
+                      <div className="h-3 w-3 rounded-full bg-green-400 mr-2"></div>
+                      <div className="h-3 w-40 bg-gray-600 rounded"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2 w-full bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full w-3/4 bg-gradient-to-r from-primary-500 to-secondary-500"></div>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Performance Trend</span>
+                        <span>+12% vs Last Term</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -357,10 +443,7 @@ const LandingPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center space-x-2 mb-6">
-                <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center">
-                  <AcademicCapIcon className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold">SchoolSync</span>
+                <img src="/logo.png" alt="Edix" className="h-8 w-auto" />
               </div>
               <p className="text-gray-400 leading-relaxed">
                 Empowering education through technology. The most comprehensive school management platform.
@@ -399,7 +482,7 @@ const LandingPage: React.FC = () => {
 
           <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-500 text-sm mb-4 md:mb-0">
-              &copy; {new Date().getFullYear()} SchoolSync Inc. All rights reserved.
+              &copy; {new Date().getFullYear()} Edix. All rights reserved.
             </p>
             <div className="flex space-x-6">
               <a href="#" className="text-gray-500 hover:text-white transition-colors">

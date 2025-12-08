@@ -125,8 +125,17 @@ const LoginPage: React.FC = () => {
 
         <div className="relative z-10 flex flex-col justify-center px-12 text-white w-full">
           <div className="mb-8 animate-fade-in-up">
-            <div className="h-16 w-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6 shadow-xl border border-white/30">
-              <span className="text-3xl font-bold">S</span>
+            <div className="flex justify-center mb-8 animate-fade-in-up relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-64 h-64 opacity-20 text-white fill-current animate-pulse-slow">
+                  <path d="M44.7,-76.4C58.9,-69.2,71.8,-59.1,81.6,-46.6C91.4,-34.1,98.1,-19.2,95.8,-5.3C93.5,8.6,82.2,21.5,70.6,31.7C59,41.9,47.1,49.5,35.4,55.9C23.7,62.3,12.2,67.5,-0.5,68.4C-13.2,69.3,-27.6,65.9,-39.9,58.6C-52.2,51.3,-62.4,40.1,-70.3,27.2C-78.2,14.3,-83.8,-0.3,-80.6,-13.3C-77.4,-26.3,-65.4,-37.7,-53.2,-45.6C-41,-53.5,-28.6,-57.9,-16.2,-60.9C-3.8,-63.9,8.6,-65.5,21.5,-68.5" transform="translate(100 100)" />
+                </svg>
+              </div>
+              <img
+                src="/logo.png"
+                alt="Edix"
+                className="h-48 w-auto object-contain relative z-10"
+              />
             </div>
             <h1 className="text-5xl font-bold mb-6 leading-tight">
               Manage Your School <br />
@@ -157,8 +166,8 @@ const LoginPage: React.FC = () => {
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24 bg-white dark:bg-gray-900 relative">
         {/* Mobile Header (visible only on small screens) */}
         <div className="lg:hidden absolute top-0 left-0 w-full p-6 flex items-center justify-between">
-          <div className="h-10 w-10 bg-primary-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">S</span>
+          <div className="h-10 w-10 bg-primary-600 rounded-lg flex items-center justify-center p-1">
+            <img src="/logo.png" alt="Edix" className="w-full h-full object-contain" />
           </div>
         </div>
 
@@ -296,7 +305,7 @@ const LoginPage: React.FC = () => {
 
           <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              &copy; {new Date().getFullYear()} School Management System. All rights reserved.
+              &copy; {new Date().getFullYear()} Edix. All rights reserved.
             </p>
           </div>
         </div>

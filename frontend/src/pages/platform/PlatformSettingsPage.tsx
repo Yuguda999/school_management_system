@@ -43,13 +43,13 @@ interface PlatformSettings {
 
 const PlatformSettingsPage: React.FC = () => {
   const { canManagePlatform } = usePermissions();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState<PlatformSettings>({
     general: {
-      platform_name: 'School Management System',
+      platform_name: 'Edix',
       support_email: 'support@schoolms.com',
       maintenance_mode: false,
       registration_enabled: true,
@@ -99,10 +99,10 @@ const PlatformSettingsPage: React.FC = () => {
       setSaving(true);
       // In a real app, this would save to the API
       // await platformAdminService.updatePlatformSettings(settings);
-      showToast('Platform settings updated successfully', 'success');
+      showSuccess('Platform settings updated successfully');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      showToast('Failed to save platform settings', 'error');
+      showError('Failed to save platform settings');
     } finally {
       setSaving(false);
     }
@@ -164,11 +164,10 @@ const PlatformSettingsPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
+              className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                }`}
             >
               <tab.icon className="mr-2 h-5 w-5" />
               {tab.name}
@@ -197,7 +196,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Support Email
@@ -209,7 +208,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Max Schools per Owner
@@ -223,7 +222,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center">
                   <input
@@ -237,7 +236,7 @@ const PlatformSettingsPage: React.FC = () => {
                     Maintenance Mode
                   </label>
                 </div>
-                
+
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -275,7 +274,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Session Timeout (minutes)
@@ -289,7 +288,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Failed Login Attempts Limit
@@ -303,7 +302,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center">
                   <input
@@ -317,7 +316,7 @@ const PlatformSettingsPage: React.FC = () => {
                     Require Two-Factor Authentication
                   </label>
                 </div>
-                
+
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -358,7 +357,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="checkbox"
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -375,7 +374,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="checkbox"
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -392,7 +391,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="checkbox"
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -435,7 +434,7 @@ const PlatformSettingsPage: React.FC = () => {
                   <option value="NGN">NGN - Nigerian Naira</option>
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Tax Rate (%)
@@ -450,7 +449,7 @@ const PlatformSettingsPage: React.FC = () => {
                   className="input"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Trial Period (days)
@@ -490,7 +489,7 @@ const PlatformSettingsPage: React.FC = () => {
                 Reset Settings
               </button>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
               <div>
                 <h4 className="text-sm font-medium text-red-900 dark:text-red-100">

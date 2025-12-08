@@ -247,18 +247,23 @@ const SchoolLoginPage: React.FC = () => {
 
         <div className="relative z-10 flex flex-col justify-center items-center px-12 text-white w-full text-center">
           <div className="mb-8 animate-fade-in-up">
-            <div className="h-32 w-32 bg-white rounded-2xl flex items-center justify-center mb-8 shadow-2xl mx-auto overflow-hidden p-2">
+            <div className="flex justify-center mb-8 relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-64 h-64 opacity-20 text-white fill-current animate-pulse-slow">
+                  <path d="M42.7,-72.8C56.1,-66.3,68.3,-57.8,77.8,-46.7C87.3,-35.6,94.1,-21.9,93.3,-8.4C92.5,5.1,84.1,18.4,74.1,29.8C64.1,41.2,52.5,50.7,40.2,57.1C27.9,63.5,14.9,66.8,1.4,64.4C-12.1,62,-26.1,53.9,-38.1,45.2C-50.1,36.5,-60.1,27.2,-66.8,15.7C-73.5,4.2,-76.9,-9.5,-72.9,-21.8C-68.9,-34.1,-57.5,-45,-45.3,-52.1C-33.1,-59.2,-20.1,-62.5,-7.2,-61.4" transform="translate(100 100)" />
+                </svg>
+              </div>
               {schoolInfo?.logo_url ? (
                 <img
                   src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${schoolInfo.logo_url}`}
                   alt={`${schoolInfo.name} logo`}
-                  className="h-full w-full object-contain"
+                  className="h-48 w-auto object-contain relative z-10"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
               ) : (
-                <span className="text-4xl font-bold text-gray-800">
+                <span className="text-6xl font-bold text-white drop-shadow-lg">
                   {schoolInfo?.name?.charAt(0) || 'S'}
                 </span>
               )}
@@ -525,7 +530,7 @@ const SchoolLoginPage: React.FC = () => {
               </p>
             )}
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Powered by School Management System
+              Powered by Edix
             </p>
           </div>
         </div>

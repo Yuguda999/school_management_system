@@ -173,9 +173,7 @@ const PlatformSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false 
           {!isCollapsed && (
             <>
               <div className="flex-shrink-0">
-                <div className="h-9 w-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-3">
-                  <span className="text-white font-bold text-lg">P</span>
-                </div>
+                <img src="/logo.png" alt="Edix" className="h-9 w-auto" />
               </div>
               <div className="flex-1 min-w-0">
                 <h1 className="text-sm font-bold text-gray-900 dark:text-white truncate leading-tight">
@@ -189,9 +187,7 @@ const PlatformSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false 
           )}
           {isCollapsed && (
             <div className="flex-shrink-0">
-              <div className="h-9 w-9 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-3">
-                <span className="text-white font-bold text-lg">P</span>
-              </div>
+              <img src="/logo.png" alt="Edix" className="h-9 w-auto" />
             </div>
           )}
           {onClose && (

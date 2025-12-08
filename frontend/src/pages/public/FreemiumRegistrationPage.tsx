@@ -6,7 +6,6 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   CheckCircleIcon,
-  SparklesIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   MapPinIcon
@@ -340,8 +339,17 @@ const FreemiumRegistrationPage: React.FC = () => {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1509062522246-3755977927d7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')] bg-cover bg-center mix-blend-overlay"></div>
 
         <div className="relative z-10">
-          <div className="h-12 w-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-8 border border-white/30">
-            <SparklesIcon className="h-6 w-6 text-white" />
+          <div className="flex justify-start mb-8 relative">
+            <div className="absolute -left-10 -top-10 flex items-center justify-center">
+              <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-64 h-64 opacity-20 text-white fill-current animate-pulse-slow">
+                <path d="M45.7,-76.3C58.9,-69.3,69.1,-56.3,77.1,-42.6C85.1,-28.9,90.9,-14.4,88.5,-0.8C86.1,12.8,75.5,25.6,65.1,36.2C54.7,46.8,44.5,55.2,33.1,61.6C21.7,68,9.1,72.4,-2.8,77.2C-14.7,82,-25.9,87.2,-36.8,84.4C-47.7,81.6,-58.3,70.8,-66.4,58.4C-74.5,46,-80.1,32,-81.9,17.6C-83.7,3.2,-81.7,-11.6,-74.6,-24.2C-67.5,-36.8,-55.3,-47.2,-42.9,-54.5C-30.5,-61.8,-17.9,-66,-4.8,-65.2" transform="translate(100 100)" />
+              </svg>
+            </div>
+            <img
+              src="/logo.png"
+              alt="Edix"
+              className="h-32 w-auto object-contain relative z-10"
+            />
           </div>
           <h1 className="text-4xl font-bold mb-6 leading-tight">
             Start Your Digital Transformation
@@ -366,7 +374,7 @@ const FreemiumRegistrationPage: React.FC = () => {
             </div>
           </div>
           <p className="text-xs text-primary-300">
-            &copy; {new Date().getFullYear()} School Management System
+            &copy; {new Date().getFullYear()} Edix
           </p>
         </div>
       </div>
@@ -397,8 +405,8 @@ const FreemiumRegistrationPage: React.FC = () => {
                 <div key={item.num} className="flex flex-col items-center bg-white dark:bg-gray-900 px-2">
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${step >= item.num
-                        ? 'bg-primary-600 border-primary-600 text-white shadow-lg scale-110'
-                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
+                      ? 'bg-primary-600 border-primary-600 text-white shadow-lg scale-110'
+                      : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
                       }`}
                   >
                     <item.icon className="h-5 w-5" />

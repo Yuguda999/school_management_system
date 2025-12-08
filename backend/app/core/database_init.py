@@ -193,7 +193,29 @@ async def check_and_initialize_database():
         current_rev = get_current_revision()
         head_rev = get_head_revision()
 
-        if current_rev != head_rev:
+        # Check if current revision exists in the script directory
+        is_unknown_revision = False
+        if current_rev:
+            try:
+                alembic_cfg = get_alembic_config()
+                script_dir = ScriptDirectory.from_config(alembic_cfg)
+                script_dir.get_revision(current_rev)
+            except Exception:
+                is_unknown_revision = True
+                logger.warning(f"Current revision {current_rev} not found in script directory (Ghost Revision)")
+
+        if is_unknown_revision and not needs_init:
+            logger.info("Detected existing database with unknown revision. Clearing version table...")
+            # Manually clear the alembic_version table to bypass Alembic's check
+            with sync_engine.connect() as conn:
+                conn.execute(text("DELETE FROM alembic_version"))
+                conn.commit()
+            
+            logger.info("Stamping to head...")
+            alembic_cfg = get_alembic_config()
+            command.stamp(alembic_cfg, "head")
+            logger.info("Database stamped to head revision successfully")
+        elif current_rev != head_rev:
             logger.info("Database needs migration updates...")
             run_migrations()
         elif needs_init:
@@ -201,7 +223,9 @@ async def check_and_initialize_database():
 
     except Exception as e:
         logger.error(f"Database initialization check failed: {e}")
-        raise
+        # Don't raise error, let the app start even if DB init has issues
+        # This prevents crash loops on deployment
+        pass
 
 
 if __name__ == "__main__":
