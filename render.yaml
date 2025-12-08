@@ -25,6 +25,8 @@ services:
         value: false
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: ALLOWED_HOSTS
+        value: "*"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

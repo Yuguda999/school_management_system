@@ -65,6 +65,9 @@ class Settings(BaseSettings):
 
     # CORS
     allowed_origins: str = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:8080"
+    
+    # Trusted Hosts
+    allowed_hosts: str = "localhost,127.0.0.1"
 
     # Pagination
     default_page_size: int = 20
@@ -83,6 +86,10 @@ class Settings(BaseSettings):
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed origins as a list"""
         return [i.strip() for i in self.allowed_origins.split(",")]
+
+    def get_allowed_hosts_list(self) -> List[str]:
+        """Get allowed hosts as a list"""
+        return [i.strip() for i in self.allowed_hosts.split(",")]
 
     def get_allowed_extensions_list(self) -> List[str]:
         """Get allowed extensions as a list"""

@@ -70,7 +70,7 @@ app.add_middleware(
 if not settings.debug:
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1"]
+        allowed_hosts=settings.get_allowed_hosts_list()
     )
 
 # Include API router
