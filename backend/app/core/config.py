@@ -108,11 +108,7 @@ class Settings(BaseSettings):
                 # Force asyncpg driver for the main async database_url
                 self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://")
             
-            # Append statement_cache_size=0 to disable prepared statements for PgBouncer
-            if "statement_cache_size" not in self.database_url:
-                separator = "&" if "?" in self.database_url else "?"
-                self.database_url = f"{self.database_url}{separator}statement_cache_size=0"
-            
+
             # Derive Sync URL for Alembic/Migrations
             if self.database_url.startswith("postgresql+asyncpg://"):
                 if not self.database_url_sync or self.database_url_sync.startswith("sqlite"):

@@ -16,7 +16,7 @@ async_engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
-    connect_args={},  # statement_cache_size is now passed in URL
+    connect_args={"statement_cache_size": 0},  # Required for Supabase Transaction Pooler (PgBouncer)
     pool_pre_ping=True,
     pool_recycle=300,  # Recycle connections every 5 minutes
 )
