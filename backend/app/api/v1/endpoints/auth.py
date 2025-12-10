@@ -36,6 +36,9 @@ from app.schemas.auth import StudentLoginRequest
 from app.services.notification_service import NotificationService
 from app.schemas.notification import NotificationCreate
 from app.models.notification import NotificationType
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -70,7 +73,7 @@ async def login(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Unexpected error during login: {e}")
+        logger.exception(f"❌ Unexpected error during login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
@@ -218,7 +221,7 @@ async def school_login(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Unexpected error during school login: {e}")
+        logger.exception(f"❌ Unexpected error during school login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
@@ -513,12 +516,12 @@ async def request_password_reset(
                 detail="Failed to send password reset email. Please try again later."
             )
         
-        print(f"✅ Password reset email sent to {user.email}")
+        logger.info(f"✅ Password reset email sent to {user.email}")
     
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error sending password reset email: {e}")
+        logger.exception(f"❌ Error sending password reset email: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send password reset email. Please try again later."

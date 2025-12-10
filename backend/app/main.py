@@ -1,33 +1,31 @@
 import logging
 import os
+import traceback
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.database_init import check_and_initialize_database
 from app.api.v1.api import api_router
 
-# Configure logging
-log_level = getattr(logging, settings.log_level.upper(), logging.WARNING)
+# Configure logging - Force DEBUG to capture everything
 logging.basicConfig(
-    level=log_level,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    force=True  # Override any existing configuration
 )
 logger = logging.getLogger(__name__)
 
-# Configure specific loggers
-# Reduce uvicorn access logging (HTTP requests)
-# logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-
-# Reduce SQLAlchemy logging (database queries)
-# Reduce SQLAlchemy logging (database queries)
-# logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-# logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
-
-# Keep application logs at configured level
-logging.getLogger("app").setLevel(log_level)
+# Enable all loggers at DEBUG level for comprehensive logging
+logging.getLogger("app").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.access").setLevel(logging.DEBUG)
+logging.getLogger("uvicorn.error").setLevel(logging.DEBUG)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)  # INFO for SQL queries
+logging.getLogger("sqlalchemy.pool").setLevel(logging.DEBUG)
 
 
 @asynccontextmanager
@@ -73,6 +71,17 @@ if not settings.debug:
     app.add_middleware(
         TrustedHostMiddleware,
         allowed_hosts=settings.get_allowed_hosts_list()
+    )
+
+
+# Global exception handler to log all unhandled exceptions
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions and log them."""
+    logger.exception(f"Unhandled exception for {request.method} {request.url}: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
     )
 
 # Include API router
