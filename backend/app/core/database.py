@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from app.core.config import settings
 import logging
 
@@ -17,8 +18,7 @@ async_engine = create_async_engine(
     echo=False,
     future=True,
     connect_args={"statement_cache_size": 0},  # Required for Supabase Transaction Pooler (PgBouncer)
-    pool_pre_ping=True,
-    pool_recycle=300,  # Recycle connections every 5 minutes
+    poolclass=NullPool,
 )
 # Sync engine for Alembic migrations
 sync_engine = create_engine(

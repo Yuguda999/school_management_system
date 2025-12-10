@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager for startup and shutdown events."""
     # Startup
     logger.info("Starting up School Management System...")
+    logger.info(f"Allowed Origins: {settings.get_allowed_origins_list()}")
     try:
         await check_and_initialize_database()
         logger.info("Database initialization completed")
