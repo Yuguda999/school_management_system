@@ -1,10 +1,12 @@
 import React from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
   CalendarIcon,
   ClockIcon,
   AcademicCapIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
 import { termUtils } from '../../utils/termUtils';
@@ -22,6 +24,10 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
   className = ''
 }) => {
   const { currentTerm, loading, error, hasCurrentTerm } = useCurrentTerm();
+  const { schoolCode } = useParams<{ schoolCode: string }>();
+
+  // Build the link to the sessions page where terms can be managed
+  const sessionsLink = schoolCode ? `/school/${schoolCode}/sessions` : '/sessions';
 
   if (loading) {
     return (
@@ -44,14 +50,20 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
   if (!hasCurrentTerm || !currentTerm) {
     const noTermContent = (
       <>
-        <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
+        <ExclamationTriangleIcon className="h-5 w-5 text-amber-500 flex-shrink-0" />
         <div>
           <div className="text-sm font-medium text-amber-800 dark:text-amber-200">
             No Current Term Set
           </div>
           {showDetails && (
             <div className="text-xs text-amber-600 dark:text-amber-300">
-              Please set a current term in settings to continue.
+              <Link
+                to={sessionsLink}
+                className="inline-flex items-center gap-1 underline hover:text-amber-800 dark:hover:text-amber-100 transition-colors"
+              >
+                Set up academic sessions and terms
+                <ArrowRightIcon className="h-3 w-3" />
+              </Link>
             </div>
           )}
         </div>
@@ -117,7 +129,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
             {termInfo.statusText}
           </span>
         </div>
-        
+
         {showDetails && (
           <div className="mt-1 space-y-1">
             <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
@@ -127,7 +139,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
               </span>
               <span>{termInfo.formattedSession}</span>
             </div>
-            
+
             <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400">
               <span className="flex items-center space-x-1">
                 <ClockIcon className="h-3 w-3" />
@@ -185,13 +197,13 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
           <div className="flex items-start space-x-3">
             {termContent}
           </div>
-          
+
           {showDetails && termInfo.status !== 'current' && (
             <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div className="flex items-center space-x-2">
                 <InformationCircleIcon className="h-4 w-4 text-primary-500" />
                 <span className="text-xs text-gray-600 dark:text-gray-400">
-                  {termInfo.status === 'upcoming' 
+                  {termInfo.status === 'upcoming'
                     ? 'This term has not started yet.'
                     : 'This term has ended.'
                   }

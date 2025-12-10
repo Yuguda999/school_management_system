@@ -78,7 +78,7 @@ export const TermProvider: React.FC<TermProviderProps> = ({ children }) => {
       if (error.response?.status === 404) {
         // No current term set
         setCurrentTermState(null);
-        setError('No current term is set. Please set a current term in settings.');
+        setError('No current term is set. Click below to set up your academic sessions.');
       } else {
         setError('Failed to load current term');
       }
