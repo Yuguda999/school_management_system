@@ -227,6 +227,10 @@ async def school_login(
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ [SCHOOL_LOGIN] ACTUAL ERROR: {type(e).__name__}: {e}", flush=True)
+        print(f"❌ [SCHOOL_LOGIN] TRACEBACK:\n{error_trace}", flush=True)
         logger.exception(f"❌ Unexpected error during school login: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
