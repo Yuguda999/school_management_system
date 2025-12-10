@@ -150,7 +150,12 @@ async def school_login(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """School-specific login endpoint"""
+    import sys
+    print(f"🔐 [SCHOOL_LOGIN] Request received for school: {school_code}, email: {login_data.email}", flush=True)
+    sys.stdout.flush()
+    
     try:
+        print(f"🔐 [SCHOOL_LOGIN] Executing database query...", flush=True)
         # First, verify the school exists and is active
         school_result = await db.execute(
             select(School).where(
@@ -162,6 +167,7 @@ async def school_login(
             )
         )
         school = school_result.scalar_one_or_none()
+        print(f"🔐 [SCHOOL_LOGIN] School query complete. Found: {school is not None}", flush=True)
         
         if not school:
             raise HTTPException(

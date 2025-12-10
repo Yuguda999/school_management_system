@@ -46,11 +46,17 @@ Base = declarative_base()
 
 # Dependency to get async database session
 async def get_db() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    print("[get_db] Creating async session...", flush=True)
+    try:
+        async with AsyncSessionLocal() as session:
+            print("[get_db] Session created successfully", flush=True)
+            try:
+                yield session
+            finally:
+                await session.close()
+    except Exception as e:
+        print(f"[get_db] ERROR creating session: {type(e).__name__}: {e}", flush=True)
+        raise
 
 
 # Dependency to get sync database session (for migrations)

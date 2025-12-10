@@ -78,6 +78,10 @@ if not settings.debug:
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Catch all unhandled exceptions and log them."""
+    import traceback
+    error_trace = traceback.format_exc()
+    print(f"[GLOBAL_EXCEPTION] {request.method} {request.url}: {type(exc).__name__}: {exc}", flush=True)
+    print(f"[TRACEBACK]\n{error_trace}", flush=True)
     logger.exception(f"Unhandled exception for {request.method} {request.url}: {exc}")
     return JSONResponse(
         status_code=500,
