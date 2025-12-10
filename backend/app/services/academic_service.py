@@ -461,7 +461,7 @@ class AcademicService:
         
         # Notify Admins
         # Get all admins
-        admins_res = await db.execute(select(User).where(User.school_id == school_id, User.role == UserRole.ADMIN, User.is_active == True))
+        admins_res = await db.execute(select(User).where(User.school_id == school_id, User.role == UserRole.SCHOOL_ADMIN, User.is_active == True))
         admins = admins_res.scalars().all()
         
         for admin in admins:
