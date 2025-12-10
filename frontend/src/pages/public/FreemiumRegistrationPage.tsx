@@ -31,8 +31,7 @@ interface FreemiumRegistration {
   description?: string;
   motto?: string;
   established_year?: string;
-  current_session: string;
-  current_term: string;
+
 
   // Admin Information
   admin_first_name: string;
@@ -64,8 +63,7 @@ const FreemiumRegistrationPage: React.FC = () => {
     description: '',
     motto: '',
     established_year: '',
-    current_session: '2024/2025',
-    current_term: 'First Term',
+
 
     // Admin Information
     admin_first_name: '',
@@ -224,8 +222,7 @@ const FreemiumRegistrationPage: React.FC = () => {
         state: formData.state,
         country: formData.country,
         postal_code: formData.postal_code,
-        current_session: formData.current_session,
-        current_term: formData.current_term,
+
         admin_name: `${formData.admin_first_name} ${formData.admin_last_name}`.trim(),
         admin_email: formData.admin_email,
         admin_password: formData.admin_password,
@@ -476,22 +473,7 @@ const FreemiumRegistrationPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Current Session <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="current_session"
-                      value={formData.current_session}
-                      onChange={handleInputChange}
-                      className="input py-3 rounded-xl"
-                      required
-                    >
-                      <option value="2024/2025">2024/2025</option>
-                      <option value="2023/2024">2023/2024</option>
-                      <option value="2025/2026">2025/2026</option>
-                    </select>
-                  </div>
+
 
                   <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

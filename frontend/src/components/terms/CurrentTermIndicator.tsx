@@ -26,8 +26,8 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
   const { currentTerm, loading, error, hasCurrentTerm } = useCurrentTerm();
   const { schoolCode } = useParams<{ schoolCode: string }>();
 
-  // Build the link to the sessions page where terms can be managed
-  const sessionsLink = schoolCode ? `/school/${schoolCode}/sessions` : '/sessions';
+  // Build the link to the terms page where terms can be managed
+  const termsLink = schoolCode ? `/${schoolCode}/terms` : '/terms';
 
   if (loading) {
     return (
@@ -40,10 +40,13 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
 
   if (error) {
     return (
-      <div className={`flex items-center space-x-2 text-red-600 ${className}`}>
-        <ExclamationTriangleIcon className="h-5 w-5" />
-        <span className="text-sm">{error}</span>
-      </div>
+      <Link
+        to={termsLink}
+        className={`flex items-center space-x-2 text-red-600 hover:text-red-800 underline ${className}`}
+      >
+        <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0" />
+        <span className="text-sm">No current term set. Click to set up →</span>
+      </Link>
     );
   }
 
@@ -58,7 +61,7 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
           {showDetails && (
             <div className="text-xs text-amber-600 dark:text-amber-300">
               <Link
-                to={sessionsLink}
+                to={termsLink}
                 className="inline-flex items-center gap-1 underline hover:text-amber-800 dark:hover:text-amber-100 transition-colors"
               >
                 Set up academic sessions and terms
@@ -81,17 +84,23 @@ const CurrentTermIndicator: React.FC<CurrentTermIndicatorProps> = ({
         );
       case 'compact':
         return (
-          <div className={`flex items-center space-x-2 text-amber-600 ${className}`}>
+          <Link
+            to={termsLink}
+            className={`flex items-center space-x-2 text-amber-600 hover:text-amber-800 dark:hover:text-amber-400 transition-colors underline ${className}`}
+          >
             <ExclamationTriangleIcon className="h-4 w-4" />
-            <span className="text-sm">No current term</span>
-          </div>
+            <span className="text-sm">Set current term →</span>
+          </Link>
         );
       case 'inline':
         return (
-          <span className={`inline-flex items-center space-x-1 text-amber-600 ${className}`}>
+          <Link
+            to={termsLink}
+            className={`inline-flex items-center space-x-1 text-amber-600 hover:text-amber-800 transition-colors underline ${className}`}
+          >
             <ExclamationTriangleIcon className="h-4 w-4" />
-            <span className="text-sm">No current term</span>
-          </span>
+            <span className="text-sm">No current term →</span>
+          </Link>
         );
       default:
         return (
