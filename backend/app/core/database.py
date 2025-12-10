@@ -7,17 +7,29 @@ from app.core.config import settings
 import logging
 
 # Configure SQLAlchemy logging
-# Configure SQLAlchemy logging
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
 # logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
 # logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
+# Build async database URL with statement_cache_size=0 for PgBouncer compatibility
+# This MUST be passed via URL for asyncpg to properly disable prepared statements
+async_db_url = settings.database_url
+if "?" in async_db_url:
+    async_db_url += "&prepared_statement_cache_size=0"
+else:
+    async_db_url += "?prepared_statement_cache_size=0"
+
+print(f"[database.py] Using async DB URL: {async_db_url.split('@')[0]}@****", flush=True)
+
 # Async engine for FastAPI
 async_engine = create_async_engine(
-    settings.database_url,
+    async_db_url,
     echo=False,
     future=True,
-    connect_args={"statement_cache_size": 0},  # Required for Supabase Transaction Pooler (PgBouncer)
+    connect_args={
+        "statement_cache_size": 0,  # Disable statement cache for PgBouncer
+        "prepared_statement_cache_size": 0,  # Also disable prepared statement cache
+    },
     poolclass=NullPool,
 )
 # Sync engine for Alembic migrations
