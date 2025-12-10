@@ -264,7 +264,7 @@ class SchoolService:
     async def _send_trial_welcome_email(school: School, admin_user: User):
         """Send welcome email for trial users"""
         try:
-            from app.core.email import send_email
+            from app.services.email_service import EmailService
 
             subject = f"Welcome to School Management Platform - Your 30-Day Trial Starts Now!"
 
@@ -323,8 +323,8 @@ class SchoolService:
             The School Management Platform Team</p>
             """
 
-            await send_email(
-                to_email=admin_user.email,
+            await EmailService.send_email(
+                to_emails=[admin_user.email],
                 subject=subject,
                 html_content=html_content
             )

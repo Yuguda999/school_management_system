@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.schemas.public import SchoolRegistrationRequest, SchoolRegistrationRequestResponse
 from app.models.school_registration_request import SchoolRegistrationRequest as SchoolRegistrationRequestModel
-from app.core.email import send_email
+from app.services.email_service import EmailService
 from app.core.config import settings
 
 router = APIRouter()
@@ -158,8 +158,8 @@ async def send_registration_request_notification(request: SchoolRegistrationRequ
         </p>
         """
         
-        await send_email(
-            to_email=settings.admin_email,
+        await EmailService.send_email(
+            to_emails=[settings.admin_email],
             subject=subject,
             html_content=html_content
         )
@@ -211,8 +211,8 @@ async def send_registration_request_confirmation(request: SchoolRegistrationRequ
         The School Management Platform Team</p>
         """
         
-        await send_email(
-            to_email=request.email,
+        await EmailService.send_email(
+            to_emails=[request.email],
             subject=subject,
             html_content=html_content
         )

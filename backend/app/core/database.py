@@ -15,9 +15,10 @@ async_engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
-    connect_args={"statement_cache_size": 0}  # Required for Supabase Transaction Pooler (PgBouncer)
+    connect_args={"statement_cache_size": 0},  # Required for Supabase Transaction Pooler (PgBouncer)
+    pool_pre_ping=True,
+    pool_recycle=300,  # Recycle connections every 5 minutes
 )
-
 # Sync engine for Alembic migrations
 sync_engine = create_engine(
     settings.database_url_sync,
