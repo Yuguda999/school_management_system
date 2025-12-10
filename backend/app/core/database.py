@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -11,27 +11,22 @@ import logging
 # logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
 # logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
-# Build async database URL with statement_cache_size=0 for PgBouncer compatibility
-# This MUST be passed via URL for asyncpg to properly disable prepared statements
-async_db_url = settings.database_url
-if "?" in async_db_url:
-    async_db_url += "&prepared_statement_cache_size=0"
-else:
-    async_db_url += "?prepared_statement_cache_size=0"
+print(f"[database.py] Using DB URL scheme: {settings.database_url.split('://')[0]}", flush=True)
 
-print(f"[database.py] Using async DB URL: {async_db_url.split('@')[0]}@****", flush=True)
+# Using psycopg (psycopg3) driver instead of asyncpg for PgBouncer compatibility
+# psycopg handles PgBouncer transaction mode much better than asyncpg
+# NullPool ensures we don't do any pooling on SQLAlchemy side (let PgBouncer handle it)
 
 # Async engine for FastAPI
 async_engine = create_async_engine(
-    async_db_url,
+    settings.database_url,
     echo=False,
     future=True,
-    connect_args={
-        "statement_cache_size": 0,  # Disable statement cache for PgBouncer
-        "prepared_statement_cache_size": 0,  # Also disable prepared statement cache
-    },
-    poolclass=NullPool,
+    poolclass=NullPool,  # Let PgBouncer handle connection pooling
 )
+
+print(f"[database.py] Async engine created with psycopg driver and NullPool", flush=True)
+
 # Sync engine for Alembic migrations
 sync_engine = create_engine(
     settings.database_url_sync,
@@ -78,3 +73,4 @@ def get_sync_db():
         yield db
     finally:
         db.close()
+

@@ -99,20 +99,25 @@ class Settings(BaseSettings):
     def compute_database_urls(self) -> 'Settings':
         """
         Ensure correct async and sync database URLs are generated.
-        1. Convert standard postgresql:// to postgresql+asyncpg:// for the async engine.
+        1. Convert standard postgresql:// to postgresql+psycopg:// for the async engine.
+           (psycopg works better with PgBouncer transaction mode than asyncpg)
         2. Derive postgresql:// sync URL for Alembic migrations.
         """
         if self.database_url:
             # Handle Supabase/Standard Postgres URLs for Async Engine
+            # Use psycopg instead of asyncpg for PgBouncer compatibility
             if self.database_url.startswith("postgresql://"):
-                # Force asyncpg driver for the main async database_url
-                self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://")
+                # Force psycopg driver for the main async database_url
+                self.database_url = self.database_url.replace("postgresql://", "postgresql+psycopg://")
+            elif self.database_url.startswith("postgresql+asyncpg://"):
+                # Convert asyncpg to psycopg for PgBouncer compatibility
+                self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
             
 
             # Derive Sync URL for Alembic/Migrations
-            if self.database_url.startswith("postgresql+asyncpg://"):
+            if self.database_url.startswith("postgresql+psycopg://"):
                 if not self.database_url_sync or self.database_url_sync.startswith("sqlite"):
-                    self.database_url_sync = self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+                    self.database_url_sync = self.database_url.replace("postgresql+psycopg://", "postgresql://")
                     
         return self
 
