@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
 
     # CORS
-    allowed_origins: str = "*"
+    allowed_origins: str = "http://localhost:3000,http://localhost:5173,https://edix-iota.vercel.app"
     
     # Trusted Hosts
     allowed_hosts: str = "*"
@@ -107,6 +107,11 @@ class Settings(BaseSettings):
             if self.database_url.startswith("postgresql://"):
                 # Force asyncpg driver for the main async database_url
                 self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://")
+            
+            # Append statement_cache_size=0 to disable prepared statements for PgBouncer
+            if "statement_cache_size" not in self.database_url:
+                separator = "&" if "?" in self.database_url else "?"
+                self.database_url = f"{self.database_url}{separator}statement_cache_size=0"
             
             # Derive Sync URL for Alembic/Migrations
             if self.database_url.startswith("postgresql+asyncpg://"):

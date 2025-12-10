@@ -6,16 +6,17 @@ from app.core.config import settings
 import logging
 
 # Configure SQLAlchemy logging
-logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
-logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+# Configure SQLAlchemy logging
+# logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+# logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+# logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
 # Async engine for FastAPI
 async_engine = create_async_engine(
     settings.database_url,
     echo=False,
     future=True,
-    connect_args={"statement_cache_size": 0},  # Required for Supabase Transaction Pooler (PgBouncer)
+    connect_args={},  # statement_cache_size is now passed in URL
     pool_pre_ping=True,
     pool_recycle=300,  # Recycle connections every 5 minutes
 )
