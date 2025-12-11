@@ -94,20 +94,20 @@ const CommunicationStats: React.FC = () => {
     },
   ];
 
-  const deliveryRate = stats.sent_messages > 0 
+  const deliveryRate = stats.sent_messages > 0
     ? ((stats.delivered_messages / stats.sent_messages) * 100).toFixed(1)
     : '0';
 
-  const readRate = stats.delivered_messages > 0 
+  const readRate = stats.delivered_messages > 0
     ? ((stats.read_messages / stats.delivered_messages) * 100).toFixed(1)
     : '0';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 h-full flex flex-col">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">Communication Statistics</h3>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Statistics</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Overview of messaging activity
           </p>

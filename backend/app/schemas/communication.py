@@ -239,3 +239,19 @@ class MessageFilter(BaseModel):
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
     search_query: Optional[str] = None
+
+
+class PaginatedMessageResponse(BaseModel):
+    items: List[MessageResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class PaginatedAnnouncementResponse(BaseModel):
+    items: List[AnnouncementResponse]
+    total: int
+    page: int
+    size: int
+    pages: int

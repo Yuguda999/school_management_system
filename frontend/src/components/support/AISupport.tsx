@@ -156,14 +156,23 @@ const AISupport: React.FC = () => {
     if (!user) return null;
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+        <div
+            className={`
+                z-50 flex flex-col items-end
+                ${isOpen && !isMinimized
+                    ? 'fixed inset-0 pointer-events-none'
+                    : 'fixed bottom-6 right-6 pointer-events-auto'}
+            `}
+        >
             {/* Chat Window */}
             {isOpen && (
                 <div
                     className={`
-            bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-700
-            transition-all duration-300 ease-in-out overflow-hidden mb-4
-            ${isMinimized ? 'w-72 h-14' : 'w-80 sm:w-96 h-[500px]'}
+            bg-white dark:bg-gray-800 shadow-2xl border-gray-200 dark:border-gray-700
+            transition-all duration-300 ease-in-out overflow-hidden pointer-events-auto
+            ${isMinimized
+                            ? 'w-72 h-14 rounded-lg border mb-4'
+                            : 'w-full h-full md:w-[45vw] md:max-w-[600px] rounded-none md:rounded-l-2xl border-l'}
           `}
                 >
                     {/* Header */}
@@ -335,6 +344,7 @@ const AISupport: React.FC = () => {
             bg-primary-600 hover:bg-primary-700 text-white 
             rounded-full shadow-lg hover:shadow-xl 
             transition-all duration-300 transform hover:scale-110
+            pointer-events-auto
           "
                     aria-label="Open Support Chat"
                 >

@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc, asc
 from sqlalchemy.orm import selectinload, joinedload
@@ -415,7 +415,7 @@ class CommunicationService:
         is_urgent: Optional[bool] = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Message]:
+    ) -> Tuple[List[Message], int]:
         """Get messages with filtering"""
         query = select(Message).options(
             selectinload(Message.sender),
@@ -438,9 +438,14 @@ class CommunicationService:
         if is_urgent is not None:
             query = query.where(Message.is_urgent == is_urgent)
 
+        # Get total count
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query) or 0
+
+        # Get items
         query = query.order_by(desc(Message.created_at)).offset(skip).limit(limit)
         result = await db.execute(query)
-        return list(result.scalars().all())
+        return list(result.scalars().all()), total
 
     @staticmethod
     async def get_message_by_id(
@@ -517,7 +522,7 @@ class CommunicationService:
         category: Optional[str] = None,
         skip: int = 0,
         limit: int = 100
-    ) -> List[Announcement]:
+    ) -> Tuple[List[Announcement], int]:
         """Get announcements with filtering"""
         query = select(Announcement).options(
             selectinload(Announcement.publisher)
@@ -547,9 +552,14 @@ class CommunicationService:
             )
         )
 
+        # Get total count
+        count_query = select(func.count()).select_from(query.subquery())
+        total = await db.scalar(count_query) or 0
+
+        # Get items
         query = query.order_by(desc(Announcement.created_at)).offset(skip).limit(limit)
         result = await db.execute(query)
-        return list(result.scalars().all())
+        return list(result.scalars().all()), total
 
     @staticmethod
     async def publish_announcement(

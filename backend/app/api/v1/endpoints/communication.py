@@ -1,10 +1,12 @@
 from typing import Any, Optional, List
+import math
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
     get_current_active_user,
     require_school_admin,
+    require_school_admin_user,
     require_teacher_or_admin_user,
     get_current_school,
     get_current_school_context,
@@ -27,7 +29,9 @@ from app.schemas.communication import (
     NotificationTemplateResponse,
     MessageStatistics,
     SendMessageRequest,
-    MarkAsReadRequest
+    MarkAsReadRequest,
+    PaginatedMessageResponse,
+    PaginatedAnnouncementResponse
 )
 from app.services.communication_service import CommunicationService
 
@@ -100,12 +104,13 @@ async def create_bulk_messages(
     return response_messages
 
 
-@router.get("/messages", response_model=List[MessageResponse])
+@router.get("/messages", response_model=PaginatedMessageResponse)
 async def get_messages(
     message_type: Optional[MessageType] = Query(None, description="Filter by message type"),
     status: Optional[MessageStatus] = Query(None, description="Filter by status"),
     is_urgent: Optional[bool] = Query(None, description="Filter by urgent messages"),
     sender_id: Optional[str] = Query(None, description="Filter by sender"),
+    recipient_id: Optional[str] = Query(None, description="Filter by recipient"),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
     school_context: SchoolContext = Depends(get_current_school_context),
@@ -116,12 +121,11 @@ async def get_messages(
     current_school = school_context.school
 
     # Students and parents can only see messages sent to them
-    recipient_id = None
     if current_user.role in [UserRole.STUDENT, UserRole.PARENT]:
         recipient_id = current_user.id
     
     skip = (page - 1) * size
-    messages = await CommunicationService.get_messages(
+    messages, total = await CommunicationService.get_messages(
         db, current_school.id, sender_id, recipient_id, message_type, 
         status, is_urgent, skip, size
     )
@@ -137,7 +141,16 @@ async def get_messages(
         
         response_messages.append(message_response)
     
-    return response_messages
+    import math
+    pages = math.ceil(total / size) if size > 0 else 0
+    
+    return {
+        "items": response_messages,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": pages
+    }
 
 
 @router.get("/messages/{message_id}", response_model=MessageResponse)
@@ -224,7 +237,7 @@ async def mark_messages_as_read(
 @router.post("/announcements", response_model=AnnouncementResponse)
 async def create_announcement(
     announcement_data: AnnouncementCreate,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -240,7 +253,7 @@ async def create_announcement(
     return response
 
 
-@router.get("/announcements", response_model=List[AnnouncementResponse])
+@router.get("/announcements", response_model=PaginatedAnnouncementResponse)
 async def get_announcements(
     is_published: Optional[bool] = Query(None, description="Filter by published status"),
     is_public: Optional[bool] = Query(None, description="Filter by public announcements"),
@@ -259,7 +272,7 @@ async def get_announcements(
         is_published = True
     
     skip = (page - 1) * size
-    announcements = await CommunicationService.get_announcements(
+    announcements, total = await CommunicationService.get_announcements(
         db, current_school.id, is_published, is_public, category, skip, size
     )
     
@@ -271,13 +284,22 @@ async def get_announcements(
         
         response_announcements.append(announcement_response)
     
-    return response_announcements
+    import math
+    pages = math.ceil(total / size) if size > 0 else 0
+    
+    return {
+        "items": response_announcements,
+        "total": total,
+        "page": page,
+        "size": size,
+        "pages": pages
+    }
 
 
 @router.post("/announcements/{announcement_id}/publish")
 async def publish_announcement(
     announcement_id: str,
-    current_user: User = Depends(require_school_admin()),
+    current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:

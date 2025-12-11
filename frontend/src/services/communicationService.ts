@@ -66,7 +66,7 @@ export interface Announcement {
   category: string;
   is_published: boolean;
   is_public: boolean;
-  priority: 'low' | 'medium' | 'high';
+  is_urgent: boolean;
   publisher_id: string;
   publisher_name: string;
   published_at?: string;
@@ -81,7 +81,7 @@ export interface AnnouncementCreate {
   category: string;
   is_published?: boolean;
   is_public?: boolean;
-  priority?: 'low' | 'medium' | 'high';
+  is_urgent?: boolean;
   published_at?: string;
   expires_at?: string;
 }
@@ -108,6 +108,7 @@ class CommunicationService {
     status?: MessageStatus;
     is_urgent?: boolean;
     sender_id?: string;
+    recipient_id?: string;
     page?: number;
     size?: number;
   }): Promise<PaginatedResponse<Message>> {
@@ -117,6 +118,7 @@ class CommunicationService {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.is_urgent !== undefined) queryParams.append('is_urgent', params.is_urgent.toString());
     if (params?.sender_id) queryParams.append('sender_id', params.sender_id);
+    if (params?.recipient_id) queryParams.append('recipient_id', params.recipient_id);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
