@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  PlusIcon,
   EnvelopeIcon,
   ClockIcon,
   CheckCircleIcon,
@@ -9,7 +8,6 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
   TrashIcon,
-  EyeIcon
 } from '@heroicons/react/24/outline';
 import { TeacherInvitation, InvitationStatus } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,13 +33,12 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
   const { canManageTeachers } = usePermissions();
   const { showSuccess, showError } = useToast();
   const navigate = useNavigate();
-  
+
   const [invitations, setInvitations] = useState<TeacherInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvitation, setSelectedInvitation] = useState<TeacherInvitation | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
   const [recentlyAccepted, setRecentlyAccepted] = useState<Set<string>>(new Set());
 
   const fetchInvitations = async (silent = false) => {
@@ -72,8 +69,8 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
       newInvitations.forEach(invitation => {
         const previousInvitation = previousInvitations.find(prev => prev.id === invitation.id);
         if (previousInvitation &&
-            previousInvitation.status === 'pending' &&
-            invitation.status === 'accepted') {
+          previousInvitation.status === 'pending' &&
+          invitation.status === 'accepted') {
           newlyAccepted.add(invitation.id);
         }
       });
@@ -128,16 +125,14 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
     fetchInvitations();
   }, [user, navigate]);
 
-  // Auto-refresh effect
+  // Auto-refresh effect - always on
   useEffect(() => {
-    if (!autoRefresh) return;
-
     const interval = setInterval(() => {
       fetchInvitations(true); // Silent refresh
     }, 30000); // Refresh every 30 seconds
 
     return () => clearInterval(interval);
-  }, [autoRefresh, invitations]);
+  }, [invitations]); // Keep invitations dependency to ensure we have latest state for comparison
 
   const handleResendInvitation = async (invitation: TeacherInvitation) => {
     console.log('Resending invitation for:', invitation);
@@ -236,7 +231,7 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
 
   const getStatusBadge = (status: InvitationStatus) => {
     const baseClasses = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium";
-    
+
     switch (status) {
       case 'pending':
         return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200`;
@@ -340,27 +335,6 @@ const TeacherInvitationsPage: React.FC<TeacherInvitationsPageProps> = ({
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Teacher Invitations
           </h2>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                autoRefresh
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
-              }`}
-            >
-              <ArrowPathIcon className={`h-4 w-4 mr-1 ${autoRefresh ? 'animate-spin' : ''}`} />
-              Auto-refresh {autoRefresh ? 'ON' : 'OFF'}
-            </button>
-            <button
-              onClick={() => fetchInvitations()}
-              disabled={loading}
-              className="btn btn-outline btn-sm"
-            >
-              <ArrowPathIcon className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Now
-            </button>
-          </div>
         </div>
         {recentlyAccepted.size > 0 && (
           <div className="text-sm text-green-600 dark:text-green-400 font-medium">

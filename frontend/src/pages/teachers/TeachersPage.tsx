@@ -13,7 +13,8 @@ import {
   UsersIcon,
   BriefcaseIcon,
   IdentificationIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 import { Teacher, User, TeacherSubjectAssignment } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -284,7 +285,7 @@ const TeachersPage: React.FC = () => {
   const inactiveTeachers = teachers.filter(t => t.status === 'inactive').length;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-20">
       <PageHeader
         title="Teacher Management"
         description="Manage teaching staff and invitations"
@@ -292,58 +293,64 @@ const TeachersPage: React.FC = () => {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card variant="glass" className="border-l-4 border-l-blue-500">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30">
-              <UsersIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+        <Card variant="glass" className="relative overflow-hidden border-l-4 border-l-blue-500 group hover:shadow-lg transition-all duration-300">
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition-all duration-300"></div>
+          <div className="flex items-center space-x-4 relative z-10">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/40 dark:to-blue-800/40 shadow-inner">
+              <UsersIcon className="h-8 w-8 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Teachers</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{teachers.length}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Teachers</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{teachers.length}</p>
             </div>
           </div>
         </Card>
-        <Card variant="glass" className="border-l-4 border-l-green-500">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-green-100 dark:bg-green-900/30">
-              <BriefcaseIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+
+        <Card variant="glass" className="relative overflow-hidden border-l-4 border-l-green-500 group hover:shadow-lg transition-all duration-300">
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-green-500/10 rounded-full blur-xl group-hover:bg-green-500/20 transition-all duration-300"></div>
+          <div className="flex items-center space-x-4 relative z-10">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900/40 dark:to-green-800/40 shadow-inner">
+              <BriefcaseIcon className="h-8 w-8 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeTeachers}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Active</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{activeTeachers}</p>
             </div>
           </div>
         </Card>
-        <Card variant="glass" className="border-l-4 border-l-red-500">
-          <div className="flex items-center space-x-3">
-            <div className="p-3 rounded-xl bg-red-100 dark:bg-red-900/30">
-              <IdentificationIcon className="h-6 w-6 text-red-600 dark:text-red-400" />
+
+        <Card variant="glass" className="relative overflow-hidden border-l-4 border-l-red-500 group hover:shadow-lg transition-all duration-300">
+          <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-red-500/10 rounded-full blur-xl group-hover:bg-red-500/20 transition-all duration-300"></div>
+          <div className="flex items-center space-x-4 relative z-10">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 shadow-inner">
+              <IdentificationIcon className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{inactiveTeachers}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Inactive</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{inactiveTeachers}</p>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <Card variant="glass">
-        <div className="flex items-center justify-between">
-          <nav className="flex space-x-8">
+      {/* Tabs & Actions */}
+      <Card variant="glass" className="p-1">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-2">
+          {/* Tabs */}
+          <nav className="flex space-x-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group inline-flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                className={`group inline-flex items-center px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300 shadow-sm ring-1 ring-primary-200 dark:ring-primary-800'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800/50'
                   }`}
               >
                 <tab.icon
-                  className={`-ml-0.5 mr-2 h-5 w-5 ${activeTab === tab.id
-                    ? 'text-primary-500 dark:text-primary-400'
-                    : 'text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300'
+                  className={`-ml-0.5 mr-2 h-5 w-5 transition-colors ${activeTab === tab.id
+                    ? 'text-primary-600 dark:text-primary-400'
+                    : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300'
                     }`}
                 />
                 {tab.name}
@@ -351,29 +358,30 @@ const TeachersPage: React.FC = () => {
             ))}
           </nav>
 
+          {/* Actions */}
           {canManageTeachers() && (
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap items-center gap-2">
               {activeTab === 'teachers' && (
                 <>
                   <button
                     onClick={handleExportTeachers}
-                    className="btn btn-outline"
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-                    Export CSV
+                    <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                    Export
                   </button>
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    className="btn btn-secondary"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm transition-all duration-200"
                   >
-                    <PaperAirplaneIcon className="h-5 w-5 mr-2" />
-                    Invite Teacher
+                    <PaperAirplaneIcon className="h-4 w-4 mr-2" />
+                    Invite
                   </button>
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="btn btn-primary"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-lg text-white bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-700 hover:to-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 shadow-sm transition-all duration-200"
                   >
-                    <PlusIcon className="h-5 w-5 mr-2" />
+                    <PlusIcon className="h-4 w-4 mr-2" />
                     Add Teacher
                   </button>
                 </>
@@ -381,7 +389,7 @@ const TeachersPage: React.FC = () => {
               {activeTab === 'invitations' && (
                 <button
                   onClick={() => setShowInviteModal(true)}
-                  className="btn btn-primary"
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
                 >
                   <PaperAirplaneIcon className="h-5 w-5 mr-2" />
                   Send Invitation
@@ -394,46 +402,48 @@ const TeachersPage: React.FC = () => {
 
       {/* Tab Content */}
       {activeTab === 'teachers' && (
-        <DataTable
-          data={teachers}
-          columns={columns}
-          loading={loading}
-          searchable={true}
-          searchPlaceholder="Search teachers by name, email, or employee ID..."
-          emptyMessage="No teachers found"
-          actions={(teacher) => (
-            <>
-              <button
-                onClick={() => handleViewTeacher(teacher)}
-                className="p-1 rounded-full text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                title="View Details"
-              >
-                <EyeIcon className="h-5 w-5" />
-              </button>
-              {(user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin') && (
-                <>
-                  <button
-                    onClick={() => {
-                      setSelectedTeacher(teacher);
-                      setShowEditModal(true);
-                    }}
-                    className="p-1 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                    title="Edit Teacher"
-                  >
-                    <PencilIcon className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteTeacher(teacher)}
-                    className="p-1 rounded-full text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    title="Delete Teacher"
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </>
-              )}
-            </>
-          )}
-        />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <DataTable
+            data={teachers}
+            columns={columns}
+            loading={loading}
+            searchable={true}
+            searchPlaceholder="Search teachers..."
+            emptyMessage="No teachers found"
+            actions={(teacher) => (
+              <div className="flex items-center justify-end space-x-2">
+                <button
+                  onClick={() => handleViewTeacher(teacher)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                  title="View Details"
+                >
+                  <EyeIcon className="h-5 w-5" />
+                </button>
+                {(user?.role === 'platform_super_admin' || user?.role === 'school_owner' || user?.role === 'school_admin') && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setSelectedTeacher(teacher);
+                        setShowEditModal(true);
+                      }}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                      title="Edit Teacher"
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTeacher(teacher)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Delete Teacher"
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          />
+        </div>
       )}
 
       {activeTab === 'invitations' && (
