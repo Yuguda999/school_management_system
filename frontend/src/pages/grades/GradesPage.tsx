@@ -7,7 +7,8 @@ import {
   PlusIcon,
   AdjustmentsHorizontalIcon,
   TableCellsIcon,
-  SwatchIcon
+  SwatchIcon,
+  DocumentChartBarIcon
 } from '@heroicons/react/24/outline';
 import { Exam, Term } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -22,11 +23,12 @@ import StudentGradeSummary from '../../components/grades/StudentGradeSummary';
 import ComponentMapping from '../../components/grades/ComponentMapping';
 import GradebookPanel from '../../components/grades/GradebookPanel';
 import ReportCardTemplatesPanel from '../../components/grades/ReportCardTemplatesPanel';
+import ClassGradeSummarySheet from '../../components/grades/ClassGradeSummarySheet';
 import DataTermFilter from '../../components/terms/DataTermFilter';
 import Modal from '../../components/ui/Modal';
 import Card from '../../components/ui/Card';
 
-type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students' | 'gradebook' | 'templates';
+type TabType = 'exams' | 'grades' | 'mapping' | 'statistics' | 'students' | 'gradebook' | 'templates' | 'summary';
 
 const GradesPage: React.FC = () => {
   const { canManageGrades } = usePermissions();
@@ -98,6 +100,13 @@ const GradesPage: React.FC = () => {
       name: 'Report Cards',
       icon: SwatchIcon,
       description: 'Manage report card templates',
+      show: isSchoolOwner,
+    },
+    {
+      id: 'summary' as TabType,
+      name: 'Summary Sheet',
+      icon: DocumentChartBarIcon,
+      description: 'Class grades summary with totals and positions',
       show: isSchoolOwner,
     },
   ];
@@ -192,6 +201,9 @@ const GradesPage: React.FC = () => {
 
       case 'templates':
         return isSchoolOwner ? <ReportCardTemplatesPanel /> : null;
+
+      case 'summary':
+        return isSchoolOwner ? <ClassGradeSummarySheet selectedTermId={selectedTermId || undefined} /> : null;
 
       default:
         return null;

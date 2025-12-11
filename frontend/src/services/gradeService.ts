@@ -513,6 +513,29 @@ class GradeService {
     return await apiService.get<SubjectConsolidatedGradesResponse>(`/api/v1/grades/subject/${subjectId}/consolidated?${params.toString()}`);
   }
 
+  // Class Summary Sheet Methods
+  static async getClassSummarySheet(classId: string, termId: string): Promise<import('../types').ClassGradesSummarySheet> {
+    return await apiService.get<import('../types').ClassGradesSummarySheet>(
+      `/api/v1/grades/summary-sheet?class_id=${classId}&term_id=${termId}`
+    );
+  }
+
+  static async exportSummarySheet(classId: string, termId: string, format: 'csv' | 'pdf'): Promise<Blob> {
+    const response = await fetch(
+      `/api/v1/grades/summary-sheet/export?class_id=${classId}&term_id=${termId}&format=${format}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+    return await response.blob();
+  }
+
   static getGradeColor(grade?: keyof GradeScale): string {
     if (!grade) return 'text-gray-500';
 

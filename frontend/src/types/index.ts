@@ -806,6 +806,34 @@ export interface GradeStatistics {
   grade_distribution: Record<string, number>;
 }
 
+// Class Grades Summary Sheet Types
+export interface StudentSummaryRow {
+  student_id: string;
+  student_name: string;
+  admission_number: string;
+  subject_scores: Record<string, number | null>;
+  total_score: number;
+  position: number;
+}
+
+export interface SubjectInfo {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface ClassGradesSummarySheet {
+  class_id: string;
+  class_name: string;
+  term_id: string;
+  term_name: string;
+  academic_session: string;
+  subjects: SubjectInfo[];
+  students: StudentSummaryRow[];
+  total_students: number;
+  generated_at: string;
+}
+
 // Fee Types
 export interface FeeStructure {
   id: string;

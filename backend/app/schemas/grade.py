@@ -288,3 +288,34 @@ class SubjectConsolidatedGradesResponse(BaseModel):
     term_name: str
     template_components: List[str]
     students: List[ConsolidatedStudentGrade]
+
+
+# Class Grades Summary Sheet Schemas
+class StudentSummaryRow(BaseModel):
+    """Single student row in the class summary sheet"""
+    student_id: str
+    student_name: str
+    admission_number: str
+    subject_scores: Dict[str, Optional[float]]  # subject_id -> consolidated score
+    total_score: float
+    position: int
+
+
+class SubjectInfo(BaseModel):
+    """Subject information for summary sheet header"""
+    id: str
+    name: str
+    code: str
+
+
+class ClassGradesSummarySheetResponse(BaseModel):
+    """Complete class grades summary sheet response"""
+    class_id: str
+    class_name: str
+    term_id: str
+    term_name: str
+    academic_session: str
+    subjects: List[SubjectInfo]
+    students: List[StudentSummaryRow]
+    total_students: int
+    generated_at: datetime

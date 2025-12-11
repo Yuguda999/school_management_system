@@ -857,6 +857,144 @@ async def get_class_grades_summary(
     return summary
 
 
+@router.get("/summary-sheet")
+async def get_class_summary_sheet(
+    class_id: str = Query(..., description="Class ID"),
+    term_id: str = Query(..., description="Term ID"),
+    current_user: User = Depends(require_school_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Get comprehensive grades summary sheet for a class.
+    Shows all students with their consolidated scores per subject, total, and position.
+    (School Admin only)
+    """
+    summary = await GradeService.get_class_summary_sheet(
+        db, class_id, term_id, current_school.id
+    )
+    return summary
+
+
+@router.get("/summary-sheet/export")
+async def export_class_summary_sheet(
+    class_id: str = Query(..., description="Class ID"),
+    term_id: str = Query(..., description="Term ID"),
+    format: str = Query("csv", regex="^(csv|pdf)$", description="Export format: csv or pdf"),
+    current_user: User = Depends(require_school_admin()),
+    current_school: School = Depends(get_current_school),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Export class summary sheet as CSV or PDF.
+    (School Admin only)
+    """
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+    
+    # Get the summary data
+    summary = await GradeService.get_class_summary_sheet(
+        db, class_id, term_id, current_school.id
+    )
+    
+    if format == "csv":
+        # Generate CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header row
+        headers = ["S/N", "Name", "Admission No."]
+        for subject in summary["subjects"]:
+            headers.append(subject["name"])
+        headers.extend(["Total", "Position"])
+        writer.writerow(headers)
+        
+        # Data rows
+        for i, student in enumerate(summary["students"], 1):
+            row = [i, student["student_name"], student["admission_number"]]
+            for subject in summary["subjects"]:
+                score = student["subject_scores"].get(subject["id"])
+                row.append(score if score is not None else "-")
+            row.extend([student["total_score"], student["position"]])
+            writer.writerow(row)
+        
+        output.seek(0)
+        filename = f"{summary['class_name']}_{summary['term_name']}_Summary.csv"
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    
+    else:  # PDF
+        # For PDF, we'll use reportlab if available, otherwise return error
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet
+            
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
+            elements = []
+            styles = getSampleStyleSheet()
+            
+            # Title
+            title = Paragraph(f"<b>{summary['class_name']} - {summary['term_name']} Summary Sheet</b>", styles['Heading1'])
+            elements.append(title)
+            elements.append(Spacer(1, 20))
+            
+            # Table data
+            headers = ["S/N", "Name"]
+            for subject in summary["subjects"]:
+                headers.append(subject["code"] or subject["name"][:5])
+            headers.extend(["Total", "Pos"])
+            
+            table_data = [headers]
+            for i, student in enumerate(summary["students"], 1):
+                row = [str(i), student["student_name"][:25]]
+                for subject in summary["subjects"]:
+                    score = student["subject_scores"].get(subject["id"])
+                    row.append(str(int(score)) if score is not None else "-")
+                row.extend([str(int(student["total_score"])), str(student["position"])])
+                table_data.append(row)
+            
+            # Create table
+            table = Table(table_data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#E34234')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 8),
+                ('FONTSIZE', (0, 1), (-1, -1), 7),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            elements.append(table)
+            
+            doc.build(elements)
+            buffer.seek(0)
+            
+            filename = f"{summary['class_name']}_{summary['term_name']}_Summary.pdf"
+            
+            return StreamingResponse(
+                buffer,
+                media_type="application/pdf",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+            
+        except ImportError:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="PDF export requires reportlab library. Please install it or use CSV format."
+            )
+
+
 @router.post("/report-cards", response_model=ReportCardResponse)
 async def create_report_card(
     report_data: ReportCardCreate,

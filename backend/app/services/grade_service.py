@@ -1564,3 +1564,173 @@ class GradeService:
             subjects_performance=subjects_performance,
             grade_distribution=grade_distribution
         )
+
+    @staticmethod
+    async def get_class_summary_sheet(
+        db: AsyncSession,
+        class_id: str,
+        term_id: str,
+        school_id: str
+    ) -> dict:
+        """
+        Generate comprehensive grades summary sheet for a class.
+        Shows all students with their consolidated scores per subject, total, and position.
+        
+        Args:
+            db: Database session
+            class_id: Class ID
+            term_id: Term ID
+            school_id: School ID
+            
+        Returns:
+            Dictionary with class info, subjects, students with scores, totals, and positions
+        """
+        from app.models.student import Student, StudentStatus
+        
+        # Get class info
+        class_result = await db.execute(
+            select(Class).where(
+                Class.id == class_id,
+                Class.school_id == school_id,
+                Class.is_deleted == False
+            )
+        )
+        class_obj = class_result.scalar_one_or_none()
+        if not class_obj:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Class not found"
+            )
+        
+        # Get term info
+        term_result = await db.execute(
+            select(Term).where(
+                Term.id == term_id,
+                Term.school_id == school_id,
+                Term.is_deleted == False
+            )
+        )
+        term = term_result.scalar_one_or_none()
+        if not term:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Term not found"
+            )
+        
+        # Get students in the class
+        students_result = await db.execute(
+            select(Student).where(
+                Student.current_class_id == class_id,
+                Student.school_id == school_id,
+                Student.is_deleted == False,
+                Student.status == StudentStatus.ACTIVE
+            ).order_by(Student.last_name, Student.first_name)
+        )
+        students = list(students_result.scalars().all())
+        
+        if not students:
+            return {
+                "class_id": class_id,
+                "class_name": class_obj.name,
+                "term_id": term_id,
+                "term_name": term.name,
+                "academic_session": term.academic_session,
+                "subjects": [],
+                "students": [],
+                "total_students": 0,
+                "generated_at": datetime.utcnow()
+            }
+        
+        # Get all grades for these students in this term
+        student_ids = [s.id for s in students]
+        grades_result = await db.execute(
+            select(Grade).options(
+                selectinload(Grade.exam),
+                selectinload(Grade.subject)
+            ).where(
+                Grade.student_id.in_(student_ids),
+                Grade.term_id == term_id,
+                Grade.school_id == school_id,
+                Grade.is_deleted == False
+            )
+        )
+        all_grades = list(grades_result.scalars().all())
+        
+        # Get unique subjects from the grades (subjects that actually have grades)
+        subject_map = {}  # subject_id (str) -> subject info
+        for grade in all_grades:
+            if grade.subject_id and grade.subject:
+                sid = str(grade.subject_id)
+                if sid not in subject_map:
+                    subject_map[sid] = {
+                        "id": sid,
+                        "name": grade.subject.name,
+                        "code": grade.subject.code or ""
+                    }
+        
+        # Sort subjects by name
+        subjects = sorted(subject_map.values(), key=lambda x: x["name"])
+        subject_ids = [s["id"] for s in subjects]
+        
+        # Group grades by student and subject, consolidate to get total score per subject
+        # Sum all grade scores for each subject (across multiple exams)
+        student_subject_scores = {}  # {student_id (str): {subject_id (str): consolidated_score}}
+        
+        for grade in all_grades:
+            student_id = str(grade.student_id)
+            subject_id = str(grade.subject_id)
+            
+            if student_id not in student_subject_scores:
+                student_subject_scores[student_id] = {}
+            
+            # Sum scores from different exams for the same subject
+            current_score = student_subject_scores[student_id].get(subject_id, 0.0)
+            student_subject_scores[student_id][subject_id] = current_score + float(grade.score)
+        
+        # Build student rows with scores and calculate totals
+        student_rows = []
+        for student in students:
+            subject_scores = {}
+            total_score = 0.0
+            student_id_str = str(student.id)
+            
+            for subject_id in subject_ids:
+                score = student_subject_scores.get(student_id_str, {}).get(subject_id)
+                subject_scores[subject_id] = score
+                if score is not None:
+                    total_score += score
+            
+            student_name = f"{student.last_name} {student.first_name}"
+            if student.middle_name:
+                student_name = f"{student.last_name} {student.first_name} {student.middle_name}"
+            
+            student_rows.append({
+                "student_id": student.id,
+                "student_name": student_name.upper(),
+                "admission_number": student.admission_number,
+                "subject_scores": subject_scores,
+                "total_score": round(total_score, 2),
+                "position": 0  # Will be calculated below
+            })
+        
+        # Sort by total score descending and assign positions (with ties sharing positions)
+        student_rows.sort(key=lambda x: x["total_score"], reverse=True)
+        
+        current_position = 1
+        for i, row in enumerate(student_rows):
+            if i > 0 and row["total_score"] < student_rows[i-1]["total_score"]:
+                current_position = i + 1
+            row["position"] = current_position
+        
+        return {
+            "class_id": class_id,
+            "class_name": class_obj.name,
+            "term_id": term_id,
+            "term_name": term.name,
+            "academic_session": term.academic_session,
+            "subjects": subjects,
+            "students": student_rows,
+            "total_students": len(student_rows),
+            "generated_at": datetime.utcnow()
+        }
+
