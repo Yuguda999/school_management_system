@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
 import ThemeAwareLogo from '../ui/ThemeAwareLogo';
+import { getSchoolLogoUrl } from '../../utils/imageUrl';
 
 interface SidebarProps {
   onClose?: () => void;
@@ -317,7 +318,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
             <>
               <div className="flex-shrink-0">
                 <ThemeAwareLogo
-                  logoUrl={user?.school?.logo_url ? `http://localhost:8000${user.school.logo_url}` : undefined}
+                  logoUrl={getSchoolLogoUrl(user?.school?.logo_url)}
                   schoolName={getSchoolName()}
                   size="md"
                   showFallback={true}
@@ -338,7 +339,7 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
           {isCollapsed && (
             <div className="flex-shrink-0">
               <ThemeAwareLogo
-                logoUrl={user?.school?.logo_url ? `http://localhost:8000${user.school.logo_url}` : undefined}
+                logoUrl={getSchoolLogoUrl(user?.school?.logo_url)}
                 schoolName={getSchoolName()}
                 size="sm"
                 showFallback={true}

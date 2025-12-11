@@ -8,6 +8,7 @@ import { schoolService, SchoolPublicInfo } from '../../services/schoolService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import SchoolSelectionModal from '../../components/auth/SchoolSelectionModal';
 import { useToast } from '../../hooks/useToast';
+import { getSchoolLogoUrl } from '../../utils/imageUrl';
 
 const SchoolLoginPage: React.FC = () => {
   const { schoolCode } = useParams<{ schoolCode: string }>();
@@ -255,7 +256,7 @@ const SchoolLoginPage: React.FC = () => {
               </div>
               {schoolInfo?.logo_url ? (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${schoolInfo.logo_url}`}
+                  src={getSchoolLogoUrl(schoolInfo.logo_url)}
                   alt={`${schoolInfo.name} logo`}
                   className="h-48 w-auto object-contain relative z-10"
                   onError={(e) => {
@@ -295,7 +296,7 @@ const SchoolLoginPage: React.FC = () => {
           {schoolInfo?.logo_url ? (
             <div className="h-12 w-12 flex items-center justify-center">
               <img
-                src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${schoolInfo.logo_url}`}
+                src={getSchoolLogoUrl(schoolInfo.logo_url)}
                 alt={`${schoolInfo.name} logo`}
                 className="h-full w-full object-contain"
               />

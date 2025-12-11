@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { SchoolOption } from '../../types';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import { getSchoolLogoUrl } from '../../utils/imageUrl';
 
 interface SchoolSelectionModalProps {
   schools: SchoolOption[];
@@ -118,7 +119,7 @@ const SchoolSelectionModal: React.FC<SchoolSelectionModalProps> = ({
                         {school.logo_url ? (
                           <>
                             <img
-                              src={school.logo_url.startsWith('http') ? school.logo_url : `http://localhost:8000${school.logo_url}`}
+                              src={getSchoolLogoUrl(school.logo_url)}
                               alt={`${school.name} logo`}
                               className="h-16 w-16 rounded-2xl object-cover shadow-sm ring-1 ring-gray-100 dark:ring-gray-700"
                               onError={(e) => {

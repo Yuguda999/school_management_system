@@ -17,6 +17,7 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 import { useToast } from '../../hooks/useToast';
 import AddSchoolModal from './AddSchoolModal';
 import EditSchoolModal from './EditSchoolModal';
+import { getSchoolLogoUrl } from '../../utils/imageUrl';
 
 const SchoolManagement: React.FC = () => {
   const { user, selectSchool, updateUser } = useAuth();
@@ -121,7 +122,7 @@ const SchoolManagement: React.FC = () => {
               <div className="flex items-center space-x-3">
                 {school.logo_url ? (
                   <img
-                    src={school.logo_url}
+                    src={getSchoolLogoUrl(school.logo_url)}
                     alt={`${school.name} logo`}
                     className="h-12 w-12 rounded-lg object-cover"
                   />

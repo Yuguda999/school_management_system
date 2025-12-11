@@ -22,6 +22,7 @@ import ModernButton from '../ui/ModernButton';
 import ThemeAwareLogo from '../ui/ThemeAwareLogo';
 import ThemeSelector from '../ui/ThemeSelector';
 import { PREDEFINED_THEMES, PredefinedTheme, getThemeById } from '../../constants/themes';
+import { getSchoolLogoUrl } from '../../utils/imageUrl';
 
 interface EditSchoolModalProps {
   isOpen: boolean;
@@ -101,7 +102,7 @@ const EditSchoolModal: React.FC<EditSchoolModalProps> = ({
 
         // Set logo preview if exists
         if (schoolData.logo_url) {
-          setLogoPreview(`http://localhost:8000${schoolData.logo_url}`);
+          setLogoPreview(getSchoolLogoUrl(schoolData.logo_url) || null);
         } else {
           setLogoPreview(null);
         }
@@ -217,7 +218,7 @@ const EditSchoolModal: React.FC<EditSchoolModalProps> = ({
       const response = await schoolService.uploadLogo(logoFile);
       showSuccess('Logo uploaded successfully!');
       setLogoFile(null);
-      setLogoPreview(`http://localhost:8000${response.logo_url}`);
+      setLogoPreview(getSchoolLogoUrl(response.logo_url) || null);
       onSuccess();
     } catch (error: any) {
       console.error('Failed to upload logo:', error);
