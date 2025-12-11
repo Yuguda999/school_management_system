@@ -590,3 +590,124 @@ class EmailService:
         """
         
         return html_content, text_content
+
+    @staticmethod
+    def generate_teacher_account_created_email(
+        teacher_name: str,
+        school_name: str,
+        email: str,
+        temporary_password: str,
+        login_url: str,
+        school_logo: str = None
+    ) -> tuple[str, str]:
+        """
+        Generate email for manually created teacher account with login credentials
+        
+        Returns:
+            tuple: (html_content, text_content)
+        """
+        logo_html = ""
+        if school_logo:
+            logo_html = f'<img src="{school_logo}" alt="{school_name}" style="max-height: 80px; margin-bottom: 15px;">'
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Your Teacher Account is Ready</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #4f46e5; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header img {{ max-height: 80px; margin-bottom: 15px; }}
+                .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .button {{ display: inline-block; background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }}
+                .credentials {{ background-color: #e0e7ff; border: 1px solid #4f46e5; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+                .credentials-label {{ color: #4338ca; font-weight: bold; font-size: 12px; text-transform: uppercase; }}
+                .credentials-value {{ font-size: 16px; font-family: monospace; word-break: break-all; margin-top: 5px; }}
+                .warning {{ background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+                .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    {logo_html}
+                    <h1>🎉 Welcome to {school_name}!</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello {teacher_name},</h2>
+                    
+                    <p>Your teacher account has been created at <strong>{school_name}</strong>. You can now access the school management platform.</p>
+                    
+                    <div class="credentials">
+                        <div style="margin-bottom: 15px;">
+                            <div class="credentials-label">📧 Email</div>
+                            <div class="credentials-value">{email}</div>
+                        </div>
+                        <div>
+                            <div class="credentials-label">🔑 Temporary Password</div>
+                            <div class="credentials-value">{temporary_password}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Important:</strong> Please change your password immediately after your first login for security purposes.
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <a href="{login_url}" class="button">Login to Your Account</a>
+                    </div>
+                    
+                    <p>Once logged in, you'll be able to:</p>
+                    <ul>
+                        <li>Access your teacher dashboard</li>
+                        <li>Manage your classes and subjects</li>
+                        <li>Record grades and attendance</li>
+                        <li>Communicate with students and parents</li>
+                    </ul>
+                    
+                    <p>If you have any questions, please contact the school administration.</p>
+                    
+                    <p>Best regards,<br>
+                    The {school_name} Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message from {school_name}.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        🎉 Welcome to {school_name}!
+        
+        Hello {teacher_name},
+        
+        Your teacher account has been created at {school_name}. You can now access the school management platform.
+        
+        YOUR LOGIN CREDENTIALS:
+        ========================
+        📧 Email: {email}
+        🔑 Temporary Password: {temporary_password}
+        
+        ⚠️ IMPORTANT: Please change your password immediately after your first login for security purposes.
+        
+        Login here: {login_url}
+        
+        Once logged in, you'll be able to:
+        - Access your teacher dashboard
+        - Manage your classes and subjects
+        - Record grades and attendance
+        - Communicate with students and parents
+        
+        If you have any questions, please contact the school administration.
+        
+        Best regards,
+        The {school_name} Team
+        """
+        
+        return html_content, text_content

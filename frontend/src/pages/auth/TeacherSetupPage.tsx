@@ -305,33 +305,43 @@ const TeacherSetupPage: React.FC = () => {
               )}
             </div>
 
-            {/* Optional: Phone */}
+            {/* Phone - Required */}
             <div>
               <label className="label">
-                Phone Number (Optional)
+                Phone Number *
               </label>
               <input
                 type="tel"
-                className="input"
+                className={`input ${errors.phone ? 'input-error' : ''}`}
                 placeholder="+1 (555) 123-4567"
-                {...register('phone')}
+                {...register('phone', {
+                  required: 'Phone number is required'
+                })}
               />
+              {errors.phone && (
+                <p className="error-text">{errors.phone.message}</p>
+              )}
             </div>
 
-            {/* Optional: Gender */}
+            {/* Gender - Required */}
             <div>
               <label className="label">
-                Gender (Optional)
+                Gender *
               </label>
               <select
-                className="input"
-                {...register('gender')}
+                className={`input ${errors.gender ? 'input-error' : ''}`}
+                {...register('gender', {
+                  required: 'Gender is required'
+                })}
               >
                 <option value="">Select gender</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
+              {errors.gender && (
+                <p className="error-text">{errors.gender.message}</p>
+              )}
             </div>
 
             {/* Submit Button */}

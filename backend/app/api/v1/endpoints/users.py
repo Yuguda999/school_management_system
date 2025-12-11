@@ -72,7 +72,42 @@ async def create_teacher_with_subjects(
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new teacher with subject assignments (School Admin only)"""
+    import logging
+    from app.services.email_service import EmailService
+    from app.core.config import settings
+    
+    logger = logging.getLogger(__name__)
+    
+    # Store the password before it gets hashed
+    plain_password = teacher_data.password
+    
     user = await UserService.create_teacher_with_subjects(db, teacher_data, current_school.id)
+    
+    # Send welcome email with login credentials
+    try:
+        login_url = f"{settings.frontend_url}/{current_school.code.lower()}/login"
+        
+        html_content, text_content = EmailService.generate_teacher_account_created_email(
+            teacher_name=user.full_name,
+            school_name=current_school.name,
+            email=user.email,
+            temporary_password=plain_password,
+            login_url=login_url,
+            school_logo=current_school.logo_url
+        )
+        
+        await EmailService.send_email(
+            to_emails=[user.email],
+            subject=f"Your Teacher Account at {current_school.name} is Ready!",
+            html_content=html_content,
+            text_content=text_content,
+            sender_name=current_school.name
+        )
+        logger.info(f"Welcome email with credentials sent to new teacher: {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to send welcome email to new teacher: {str(e)}")
+        # Don't fail teacher creation if email fails
+    
     return UserResponse.from_orm(user)
 
 

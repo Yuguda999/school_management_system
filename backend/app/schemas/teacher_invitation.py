@@ -52,10 +52,12 @@ class InvitationAcceptRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     confirm_password: str = Field(..., min_length=8, max_length=128)
     
-    # Optional additional info that can be provided during acceptance
-    phone: Optional[str] = Field(None, max_length=20)
+    # Required info
+    phone: str = Field(..., min_length=1, max_length=20)
+    gender: str = Field(..., pattern="^(male|female|other)$")
+    
+    # Optional additional info
     date_of_birth: Optional[str] = None  # YYYY-MM-DD format
-    gender: Optional[str] = Field(None, pattern="^(male|female|other)$")
     
     # Professional details
     qualification: Optional[str] = Field(None, max_length=255)
