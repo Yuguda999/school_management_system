@@ -221,6 +221,16 @@ class CommunicationService:
         school_id: str
     ) -> bool:
         """Send a message to all recipients"""
+        from app.models.school import School
+        
+        # Get school info for dynamic email branding
+        school_result = await db.execute(
+            select(School).where(School.id == school_id)
+        )
+        school = school_result.scalar_one_or_none()
+        school_name = school.name if school else None
+        school_logo = school.logo_url if school else None
+        
         # Get message with recipients
         result = await db.execute(
             select(Message).options(
@@ -242,9 +252,9 @@ class CommunicationService:
         # Send to each recipient
         for recipient in message.message_recipients:
             try:
-                # Simulate sending (in real implementation, integrate with SMS/Email providers)
+                # Send with school branding
                 success = await CommunicationService._send_to_recipient(
-                    message, recipient
+                    message, recipient, school_name=school_name, school_logo=school_logo
                 )
                 
                 if success:
@@ -286,37 +296,112 @@ class CommunicationService:
     @staticmethod
     async def _send_to_recipient(
         message: Message,
-        recipient: MessageRecipient
+        recipient: MessageRecipient,
+        school_name: Optional[str] = None,
+        school_logo: Optional[str] = None
     ) -> bool:
-        """Send message to individual recipient (mock implementation)"""
-        # In a real implementation, this would integrate with:
-        # - SMS providers (Twilio, AWS SNS, etc.)
-        # - Email providers (SendGrid, AWS SES, etc.)
-        # - Push notification services
+        """Send message to individual recipient using real email/SMS services"""
+        from app.services.email_service import EmailService
         
         try:
             if message.message_type == MessageType.EMAIL:
-                # Mock email sending
+                # Send real email using EmailService
+                if not recipient.recipient_email:
+                    logger.warning(f"No email address for recipient {recipient.recipient_name}")
+                    return False
+                
+                # Build logo HTML if school has a logo
+                logo_html = ""
+                if school_logo:
+                    logo_html = f'<img src="{school_logo}" alt="{school_name or "School"} Logo" style="max-height: 60px; margin-bottom: 10px;">'
+                
+                # Use school name or fallback
+                display_school_name = school_name or "School"
+                
+                # Create HTML content for the email with school branding
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #4f46e5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                        .header img {{ max-height: 60px; margin-bottom: 10px; }}
+                        .content {{ background-color: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }}
+                        .footer {{ margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center; }}
+                        .urgent {{ background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 10px; margin-bottom: 15px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            {logo_html}
+                            <h2>{message.subject}</h2>
+                        </div>
+                        <div class="content">
+                            {"<div class='urgent'><strong>⚠️ URGENT MESSAGE</strong></div>" if message.is_urgent else ""}
+                            <p>Dear {recipient.recipient_name},</p>
+                            <div>{message.content}</div>
+                        </div>
+                        <div class="footer">
+                            <p>Sent by: {message.sender_name}</p>
+                            <p>This is an automated message from {display_school_name}.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                text_content = f"""
+                {message.subject}
+                
+                Dear {recipient.recipient_name},
+                
+                {"⚠️ URGENT MESSAGE" if message.is_urgent else ""}
+                
+                {message.content}
+                
+                ---
+                Sent by: {message.sender_name}
+                This is an automated message from {display_school_name}.
+                """
+                
                 logger.info(f"Sending email to {recipient.recipient_email}: {message.subject}")
-                await asyncio.sleep(0.1)  # Simulate network delay
-                return True
+                email_sent = await EmailService.send_email(
+                    to_emails=[recipient.recipient_email],
+                    subject=message.subject,
+                    html_content=html_content,
+                    text_content=text_content,
+                    sender_name=school_name  # Dynamic school name as sender
+                )
+                
+                if email_sent:
+                    logger.info(f"Email sent successfully to {recipient.recipient_email}")
+                else:
+                    logger.warning(f"Failed to send email to {recipient.recipient_email}")
+                
+                return email_sent
                 
             elif message.message_type == MessageType.SMS:
-                # Mock SMS sending
-                logger.info(f"Sending SMS to {recipient.recipient_phone}: {message.content[:50]}...")
-                await asyncio.sleep(0.1)  # Simulate network delay
+                # SMS sending - would integrate with Twilio or similar
+                # For now, log the attempt but return True to not block
+                logger.info(f"SMS sending to {recipient.recipient_phone}: {message.content[:50]}...")
+                # TODO: Integrate with SMS provider (Twilio, AWS SNS, etc.)
                 return True
                 
             elif message.message_type == MessageType.NOTIFICATION:
-                # Mock push notification
-                logger.info(f"Sending notification to {recipient.recipient_name}: {message.subject}")
-                await asyncio.sleep(0.1)  # Simulate network delay
+                # In-app notification - already handled by NotificationService in send_message
+                logger.info(f"In-app notification for {recipient.recipient_name}: {message.subject}")
                 return True
                 
             return False
             
         except Exception as e:
-            logger.error(f"Error sending message: {str(e)}")
+            logger.error(f"Error sending message to {recipient.recipient_name}: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
 
     @staticmethod

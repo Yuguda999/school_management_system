@@ -35,6 +35,34 @@ async def register_school(
         school, admin_user = await SchoolService.register_school_with_freemium_trial(
             db, registration_data
         )
+        
+        # Send welcome email to new school owner
+        try:
+            from app.services.email_service import EmailService
+            from app.core.config import settings
+            
+            login_url = f"{settings.frontend_url}/{school.code.lower()}/login"
+            
+            html_content, text_content = EmailService.generate_welcome_email(
+                user_name=admin_user.full_name,
+                school_name=school.name,
+                user_role="School Owner",
+                login_url=login_url,
+                school_logo=school.logo_url
+            )
+            
+            await EmailService.send_email(
+                to_emails=[admin_user.email],
+                subject=f"Welcome to {school.name} - Your School is Ready!",
+                html_content=html_content,
+                text_content=text_content,
+                sender_name=school.name
+            )
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send welcome email: {str(e)}")
+            # Don't fail registration if email fails
 
         return SchoolRegistrationResponse(
             school=SchoolResponse.from_orm(school),

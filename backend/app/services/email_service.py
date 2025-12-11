@@ -14,7 +14,8 @@ class EmailService:
         subject: str,
         html_content: str,
         text_content: Optional[str] = None,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
+        sender_name: Optional[str] = None
     ) -> bool:
         """
         Send email using Resend API (HTTP-based, bypasses SMTP port restrictions)
@@ -37,7 +38,8 @@ class EmailService:
                     subject=subject,
                     html_content=html_content,
                     text_content=text_content,
-                    from_email=from_email
+                    from_email=from_email,
+                    sender_name=sender_name
                 )
             else:
                 # Fall back to SMTP if Resend is not configured
@@ -46,7 +48,8 @@ class EmailService:
                     subject=subject,
                     html_content=html_content,
                     text_content=text_content,
-                    from_email=from_email
+                    from_email=from_email,
+                    sender_name=sender_name
                 )
                 
         except Exception as e:
@@ -62,7 +65,8 @@ class EmailService:
         subject: str,
         html_content: str,
         text_content: Optional[str] = None,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
+        sender_name: Optional[str] = None
     ) -> bool:
         """Send email using Resend HTTP API"""
         try:
@@ -72,8 +76,9 @@ class EmailService:
             
             resend.api_key = settings.resend_api_key
             
-            # Use verified domain campuspq.com for sending emails
-            sender = "Edix School Platform <noreply@campuspq.com>"
+            # Use dynamic school name or default to platform name
+            display_name = sender_name or "Edix School Platform"
+            sender = f"{display_name} <noreply@campuspq.com>"
             
             logger.info(f"Sending email from: {sender}")
             
@@ -106,7 +111,8 @@ class EmailService:
         subject: str,
         html_content: str,
         text_content: Optional[str] = None,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
+        sender_name: Optional[str] = None
     ) -> bool:
         """Send email using SMTP (fallback for local development)"""
         try:
@@ -279,6 +285,308 @@ class EmailService:
         ---
         This is an automated message. Please do not reply to this email.
         If you did not expect this invitation, please ignore this email.
+        """
+        
+        return html_content, text_content
+
+    @staticmethod
+    def generate_welcome_email(
+        user_name: str,
+        school_name: str,
+        user_role: str,
+        login_url: str,
+        school_logo: str = None
+    ) -> tuple[str, str]:
+        """
+        Generate welcome email for new users (teachers, students, etc.)
+        
+        Returns:
+            tuple: (html_content, text_content)
+        """
+        logo_html = ""
+        if school_logo:
+            logo_html = f'<img src="{school_logo}" alt="{school_name}" style="max-height: 80px; margin-bottom: 15px;">'
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Welcome to {school_name}</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #4f46e5; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header img {{ max-height: 80px; margin-bottom: 15px; }}
+                .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .button {{ display: inline-block; background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }}
+                .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }}
+                .feature-box {{ background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin: 10px 0; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    {logo_html}
+                    <h1>🎉 Welcome to {school_name}!</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello {user_name},</h2>
+                    
+                    <p>We're thrilled to have you join <strong>{school_name}</strong> as a <strong>{user_role}</strong>!</p>
+                    
+                    <p>Your account has been successfully created and you're ready to explore our platform.</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="{login_url}" class="button">Login to Your Account</a>
+                    </div>
+                    
+                    <h3>What you can do:</h3>
+                    <div class="feature-box">
+                        <strong>📊 Dashboard</strong><br>
+                        Access your personalized dashboard with all your information at a glance.
+                    </div>
+                    <div class="feature-box">
+                        <strong>💬 Communication</strong><br>
+                        Stay connected with messages and announcements.
+                    </div>
+                    <div class="feature-box">
+                        <strong>📚 Resources</strong><br>
+                        Access learning materials and important documents.
+                    </div>
+                    
+                    <p>If you have any questions, don't hesitate to reach out to the school administration.</p>
+                    
+                    <p>Best regards,<br>
+                    The {school_name} Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated message from {school_name}.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        🎉 Welcome to {school_name}!
+        
+        Hello {user_name},
+        
+        We're thrilled to have you join {school_name} as a {user_role}!
+        
+        Your account has been successfully created and you're ready to explore our platform.
+        
+        Login to your account: {login_url}
+        
+        What you can do:
+        - Access your personalized dashboard
+        - Stay connected with messages and announcements
+        - Access learning materials and important documents
+        
+        If you have any questions, don't hesitate to reach out to the school administration.
+        
+        Best regards,
+        The {school_name} Team
+        """
+        
+        return html_content, text_content
+
+    @staticmethod
+    def generate_login_notification_email(
+        user_name: str,
+        school_name: str,
+        login_time: str,
+        device_info: str = "Unknown device",
+        ip_address: str = "Unknown",
+        location: str = "Unknown location"
+    ) -> tuple[str, str]:
+        """
+        Generate login notification email for security alerts
+        
+        Returns:
+            tuple: (html_content, text_content)
+        """
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>New Login Detected</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .info-box {{ background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; }}
+                .info-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }}
+                .info-label {{ color: #6b7280; }}
+                .info-value {{ font-weight: bold; }}
+                .warning {{ background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+                .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔐 New Login to Your Account</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello {user_name},</h2>
+                    
+                    <p>We detected a new login to your <strong>{school_name}</strong> account.</p>
+                    
+                    <div class="info-box">
+                        <div class="info-row">
+                            <span class="info-label">📅 Time:</span>
+                            <span class="info-value">{login_time}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">💻 Device:</span>
+                            <span class="info-value">{device_info}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🌐 IP Address:</span>
+                            <span class="info-value">{ip_address}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📍 Location:</span>
+                            <span class="info-value">{location}</span>
+                        </div>
+                    </div>
+                    
+                    <p><strong>Was this you?</strong></p>
+                    <p>If this was you, no further action is needed.</p>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Wasn't you?</strong><br>
+                        If you didn't log in, please change your password immediately and contact the school administrator.
+                    </div>
+                    
+                    <p>Best regards,<br>
+                    The {school_name} Security Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is a security notification from {school_name}.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        🔐 New Login to Your Account
+        
+        Hello {user_name},
+        
+        We detected a new login to your {school_name} account.
+        
+        Login Details:
+        - Time: {login_time}
+        - Device: {device_info}
+        - IP Address: {ip_address}
+        - Location: {location}
+        
+        Was this you?
+        If this was you, no further action is needed.
+        
+        ⚠️ Wasn't you?
+        If you didn't log in, please change your password immediately and contact the school administrator.
+        
+        Best regards,
+        The {school_name} Security Team
+        """
+        
+        return html_content, text_content
+
+    @staticmethod
+    def generate_password_changed_email(
+        user_name: str,
+        school_name: str,
+        change_time: str
+    ) -> tuple[str, str]:
+        """
+        Generate password changed notification email
+        
+        Returns:
+            tuple: (html_content, text_content)
+        """
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Changed</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #059669; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .success-box {{ background-color: #d1fae5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }}
+                .warning {{ background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+                .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🔒 Password Changed Successfully</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello {user_name},</h2>
+                    
+                    <div class="success-box">
+                        <h3 style="color: #059669; margin: 0;">✅ Your password has been changed</h3>
+                        <p style="margin: 10px 0 0 0;">Changed on: {change_time}</p>
+                    </div>
+                    
+                    <p>Your password for your <strong>{school_name}</strong> account has been successfully updated.</p>
+                    
+                    <div class="warning">
+                        <strong>⚠️ Didn't change your password?</strong><br>
+                        If you didn't make this change, please contact the school administrator immediately as your account may have been compromised.
+                    </div>
+                    
+                    <p>For your security, we recommend:</p>
+                    <ul>
+                        <li>Using a unique password for each account</li>
+                        <li>Not sharing your password with anyone</li>
+                        <li>Changing your password periodically</li>
+                    </ul>
+                    
+                    <p>Best regards,<br>
+                    The {school_name} Security Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is a security notification from {school_name}.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_content = f"""
+        🔒 Password Changed Successfully
+        
+        Hello {user_name},
+        
+        ✅ Your password has been changed on: {change_time}
+        
+        Your password for your {school_name} account has been successfully updated.
+        
+        ⚠️ Didn't change your password?
+        If you didn't make this change, please contact the school administrator immediately.
+        
+        For your security, we recommend:
+        - Using a unique password for each account
+        - Not sharing your password with anyone
+        - Changing your password periodically
+        
+        Best regards,
+        The {school_name} Security Team
         """
         
         return html_content, text_content

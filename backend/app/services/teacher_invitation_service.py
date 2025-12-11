@@ -32,7 +32,7 @@ class TeacherInvitationService:
         invitation_data: TeacherInvitationCreate,
         school_id: str,
         invited_by_user_id: str,
-        frontend_base_url: str = "http://localhost:3000"
+        frontend_base_url: str = ""
     ) -> TeacherInvitation:
         """Create and send a teacher invitation"""
         
@@ -128,7 +128,8 @@ class TeacherInvitationService:
                 to_emails=[invitation.email],
                 subject=f"Invitation to Join {school.name} as a Teacher",
                 html_content=html_content,
-                text_content=text_content
+                text_content=text_content,
+                sender_name=school.name  # Dynamic school name as sender
             )
             
             if not email_sent:
@@ -274,6 +275,13 @@ class TeacherInvitationService:
             await db.commit()
             await db.refresh(user)
 
+            # Get school info for welcome email
+            from app.models.school import School
+            school_result = await db.execute(
+                select(School).where(School.id == invitation.school_id)
+            )
+            school = school_result.scalar_one_or_none()
+
             # Notify the inviter
             if invitation.invited_by:
                 await NotificationService.create_notification(
@@ -287,6 +295,33 @@ class TeacherInvitationService:
                         link=f"/teachers/{user.id}"
                     )
                 )
+            
+            # Send welcome email to new teacher
+            try:
+                from app.services.email_service import EmailService
+                from app.core.config import settings
+                
+                login_url = f"{settings.frontend_url}/{school.code.lower()}/login" if school else settings.frontend_url
+                
+                html_content, text_content = EmailService.generate_welcome_email(
+                    user_name=user.full_name,
+                    school_name=school.name if school else "School",
+                    user_role="Teacher",
+                    login_url=login_url,
+                    school_logo=school.logo_url if school else None
+                )
+                
+                await EmailService.send_email(
+                    to_emails=[user.email],
+                    subject=f"Welcome to {school.name if school else 'School'}!",
+                    html_content=html_content,
+                    text_content=text_content,
+                    sender_name=school.name if school else None
+                )
+                logger.info(f"Welcome email sent to new teacher: {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email: {str(e)}")
+                # Don't fail if email fails
 
         except Exception as e:
             logger.error(f"Error creating user: {str(e)}")

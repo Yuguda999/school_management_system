@@ -129,6 +129,41 @@ async def login(
         data={"sub": user.id, "email": user.email}
     )
 
+    # Send login notification email
+    try:
+        from datetime import datetime
+        
+        # Get school name for email branding
+        school_name = "School"
+        if user.school_id:
+            school_result = await db.execute(
+                select(School).where(School.id == user.school_id)
+            )
+            school = school_result.scalar_one_or_none()
+            if school:
+                school_name = school.name
+        
+        html_content, text_content = EmailService.generate_login_notification_email(
+            user_name=user.full_name,
+            school_name=school_name,
+            login_time=datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC"),
+            device_info="Web Browser",
+            ip_address="Unknown",
+            location="Unknown"
+        )
+        
+        await EmailService.send_email(
+            to_emails=[user.email],
+            subject=f"New Login Detected - {school_name}",
+            html_content=html_content,
+            text_content=text_content,
+            sender_name=school_name
+        )
+        logger.info(f"Login notification email sent to {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to send login notification email: {str(e)}")
+        # Don't fail login if email fails
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -258,6 +293,31 @@ async def school_login(
     refresh_token = create_refresh_token(
         data={"sub": user.id, "email": user.email}
     )
+
+    # Send login notification email
+    try:
+        from datetime import datetime
+        
+        html_content, text_content = EmailService.generate_login_notification_email(
+            user_name=user.full_name,
+            school_name=school.name,
+            login_time=datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC"),
+            device_info="Web Browser",
+            ip_address="Unknown",
+            location="Unknown"
+        )
+        
+        await EmailService.send_email(
+            to_emails=[user.email],
+            subject=f"New Login Detected - {school.name}",
+            html_content=html_content,
+            text_content=text_content,
+            sender_name=school.name
+        )
+        logger.info(f"Login notification email sent to {user.email}")
+    except Exception as e:
+        logger.error(f"Failed to send login notification email: {str(e)}")
+        # Don't fail login if email fails
 
     return LoginResponse(
         access_token=access_token,
@@ -472,52 +532,109 @@ async def request_password_reset(
         # Don't reveal if email exists or not
         return {"message": "If the email exists, a password reset link has been sent"}
     
+    # Get user's school for branding
+    school_name = "School"
+    school_logo = None
+    if user.school_id:
+        school_result = await db.execute(
+            select(School).where(School.id == user.school_id)
+        )
+        school = school_result.scalar_one_or_none()
+        if school:
+            school_name = school.name
+            school_logo = school.logo_url
+    
     # Generate reset token
     reset_token = generate_password_reset_token(user.email)
     
     # Send email with reset token
     try:
-        reset_url = f"http://localhost:3000/reset-password?token={reset_token}"
+        reset_url = f"{settings.frontend_url}/reset-password?token={reset_token}"
+        
+        # Build logo HTML if available
+        logo_html = ""
+        if school_logo:
+            logo_html = f'<img src="{school_logo}" alt="{school_name}" style="max-height: 60px; margin-bottom: 15px;">'
         
         html_content = f"""
+        <!DOCTYPE html>
         <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Password Reset</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #4f46e5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header img {{ max-height: 60px; margin-bottom: 10px; }}
+                .content {{ background-color: #f9fafb; padding: 30px; border-radius: 0 0 8px 8px; }}
+                .button {{ display: inline-block; background-color: #4f46e5; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }}
+                .warning {{ background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0; }}
+                .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 14px; color: #6b7280; text-align: center; }}
+            </style>
+        </head>
         <body>
-            <h2>Password Reset Request</h2>
-            <p>Hello {user.first_name},</p>
-            <p>You have requested to reset your password for the School Management System.</p>
-            <p>Click the link below to reset your password:</p>
-            <p><a href="{reset_url}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you did not request this password reset, please ignore this email.</p>
-            <br>
-            <p>Best regards,<br>School Management System Team</p>
+            <div class="container">
+                <div class="header">
+                    {logo_html}
+                    <h1>🔑 Password Reset Request</h1>
+                </div>
+                <div class="content">
+                    <h2>Hello {user.first_name},</h2>
+                    
+                    <p>You have requested to reset your password for your <strong>{school_name}</strong> account.</p>
+                    
+                    <p>Click the button below to reset your password:</p>
+                    
+                    <div style="text-align: center;">
+                        <a href="{reset_url}" class="button">Reset Password</a>
+                    </div>
+                    
+                    <div class="warning">
+                        <strong>⏰ This link will expire in 24 hours.</strong>
+                    </div>
+                    
+                    <p>If you're unable to click the button, copy and paste this link:</p>
+                    <p style="word-break: break-all; background-color: #f3f4f6; padding: 10px; border-radius: 4px; font-family: monospace;">{reset_url}</p>
+                    
+                    <p>If you did not request this password reset, please ignore this email or contact the school administrator.</p>
+                    
+                    <p>Best regards,<br>
+                    The {school_name} Team</p>
+                </div>
+                <div class="footer">
+                    <p>This is an automated security message from {school_name}.</p>
+                </div>
+            </div>
         </body>
         </html>
         """
         
         text_content = f"""
-        Password Reset Request
+        🔑 Password Reset Request
         
         Hello {user.first_name},
         
-        You have requested to reset your password for the School Management System.
+        You have requested to reset your password for your {school_name} account.
         
         Click the link below to reset your password:
         {reset_url}
         
-        This link will expire in 24 hours.
+        ⏰ This link will expire in 24 hours.
         
         If you did not request this password reset, please ignore this email.
         
         Best regards,
-        School Management System Team
+        The {school_name} Team
         """
         
         email_sent = await EmailService.send_email(
             to_emails=[user.email],
-            subject="Password Reset Request - School Management System",
+            subject=f"Password Reset Request - {school_name}",
             html_content=html_content,
-            text_content=text_content
+            text_content=text_content,
+            sender_name=school_name
         )
         
         if not email_sent:
@@ -606,7 +723,17 @@ async def change_password(
     current_user.password_hash = get_password_hash(password_data.new_password)
     await db.commit()
     
-    # Notify User
+    # Get school info for email
+    school_name = "School"
+    if current_user.school_id:
+        school_result = await db.execute(
+            select(School).where(School.id == current_user.school_id)
+        )
+        school = school_result.scalar_one_or_none()
+        if school:
+            school_name = school.name
+    
+    # Notify User (in-app)
     await NotificationService.create_notification(
         db=db,
         school_id=current_user.school_id,
@@ -618,6 +745,27 @@ async def change_password(
             link="/profile"
         )
     )
+    
+    # Send password change email notification
+    try:
+        from datetime import datetime
+        html_content, text_content = EmailService.generate_password_changed_email(
+            user_name=current_user.full_name,
+            school_name=school_name,
+            change_time=datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+        )
+        
+        await EmailService.send_email(
+            to_emails=[current_user.email],
+            subject=f"Password Changed - {school_name}",
+            html_content=html_content,
+            text_content=text_content,
+            sender_name=school_name
+        )
+        logger.info(f"Password change email sent to {current_user.email}")
+    except Exception as e:
+        logger.error(f"Failed to send password change email: {str(e)}")
+        # Don't fail if email fails
     
     return {"message": "Password changed successfully"}
 

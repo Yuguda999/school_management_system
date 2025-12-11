@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     # Resend (recommended for Render.com)
     resend_api_key: Optional[str] = None
     
+    # Frontend URL (for email links in production)
+    frontend_url: str = "http://localhost:3000"
+    
     # SMS (Twilio)
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
@@ -63,6 +66,11 @@ class Settings(BaseSettings):
     max_file_size: int = 10485760  # 10MB
     upload_dir: str = "uploads/"
     allowed_extensions: str = "pdf,doc,docx,jpg,jpeg,png,gif"
+    
+    # Cloudinary (for cloud image storage)
+    cloudinary_cloud_name: Optional[str] = None
+    cloudinary_api_key: Optional[str] = None
+    cloudinary_api_secret: Optional[str] = None
 
 
 

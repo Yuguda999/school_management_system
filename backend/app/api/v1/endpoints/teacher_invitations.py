@@ -8,6 +8,7 @@ from app.core.deps import (
     require_school_admin_user,
     get_current_school
 )
+from app.core.config import settings
 from app.models.user import User
 from app.models.school import School
 from app.models.teacher_invitation import TeacherInvitation, InvitationStatus
@@ -38,14 +39,8 @@ async def create_teacher_invitation(
 ) -> Any:
     """Create and send a teacher invitation (Admin/Super Admin only)"""
     
-    # Get frontend base URL from request
-    frontend_base_url = f"{request.url.scheme}://{request.url.hostname}"
-    if request.url.port and request.url.port not in [80, 443]:
-        frontend_base_url += f":{request.url.port}"
-    
-    # For development, use localhost:3000
-    if "localhost" in str(request.url.hostname) or "127.0.0.1" in str(request.url.hostname):
-        frontend_base_url = "http://localhost:3000"
+    # Use FRONTEND_URL from settings for email links
+    frontend_base_url = settings.frontend_url
     
     invitation = await TeacherInvitationService.create_invitation(
         db=db,
@@ -261,15 +256,8 @@ async def resend_teacher_invitation(
             detail="Inviter not found"
         )
 
-    # Send resend invitation email
-    frontend_base_url = f"{request.url.scheme}://{request.url.hostname}"
-    if request.url.port and request.url.port not in [80, 443]:
-        frontend_base_url += f":{request.url.port}"
-
-    # For development, use localhost:3000
-    if "localhost" in str(request.url.hostname) or "127.0.0.1" in str(request.url.hostname):
-        frontend_base_url = "http://localhost:3000"
-
+    # Use FRONTEND_URL from settings for email links
+    frontend_base_url = settings.frontend_url
     invitation_link = f"{frontend_base_url}/teacher/accept-invitation?token={invitation.invitation_token}"
 
     logger.info(f"About to send resend invitation email to {invitation.email}")
@@ -293,7 +281,8 @@ async def resend_teacher_invitation(
             to_emails=[invitation.email],
             subject=f"Invitation Resent - Join {school.name} as a Teacher",
             html_content=html_content,
-            text_content=text_content
+            text_content=text_content,
+            sender_name=school.name  # Dynamic school name as sender
         )
         logger.info(f"Email sending completed. Result: {email_sent}")
 
