@@ -1,7 +1,4 @@
-import smtplib
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from typing import List, Optional
 from app.core.config import settings
 
@@ -9,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails using SMTP"""
+    """Service for sending emails using Resend API (HTTP-based, works on Render.com)"""
     
     @staticmethod
     async def send_email(
@@ -20,7 +17,7 @@ class EmailService:
         from_email: Optional[str] = None
     ) -> bool:
         """
-        Send email using SMTP
+        Send email using Resend API (HTTP-based, bypasses SMTP port restrictions)
 
         Args:
             to_emails: List of recipient email addresses
@@ -33,7 +30,91 @@ class EmailService:
             bool: True if email sent successfully, False otherwise
         """
         try:
-            logger.info(f"Attempting to send email to {to_emails}")
+            # Check if Resend API key is configured
+            if settings.resend_api_key:
+                return await EmailService._send_via_resend(
+                    to_emails=to_emails,
+                    subject=subject,
+                    html_content=html_content,
+                    text_content=text_content,
+                    from_email=from_email
+                )
+            else:
+                # Fall back to SMTP if Resend is not configured
+                return await EmailService._send_via_smtp(
+                    to_emails=to_emails,
+                    subject=subject,
+                    html_content=html_content,
+                    text_content=text_content,
+                    from_email=from_email
+                )
+                
+        except Exception as e:
+            logger.error(f"Failed to send email: {str(e)}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
+    
+    @staticmethod
+    async def _send_via_resend(
+        to_emails: List[str],
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+        from_email: Optional[str] = None
+    ) -> bool:
+        """Send email using Resend HTTP API"""
+        try:
+            import resend
+            
+            logger.info(f"Attempting to send email via Resend to {to_emails}")
+            
+            resend.api_key = settings.resend_api_key
+            
+            # Use verified domain campuspq.com for sending emails
+            sender = "Edix School Platform <noreply@campuspq.com>"
+            
+            logger.info(f"Sending email from: {sender}")
+            
+            params = {
+                "from": sender,
+                "to": to_emails,
+                "subject": subject,
+                "html": html_content,
+            }
+            
+            if text_content:
+                params["text"] = text_content
+            
+            email_response = resend.Emails.send(params)
+            
+            logger.info(f"Email sent successfully via Resend to {', '.join(to_emails)}")
+            logger.info(f"Resend response: {email_response}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send email via Resend: {str(e)}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
+    
+    @staticmethod
+    async def _send_via_smtp(
+        to_emails: List[str],
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+        from_email: Optional[str] = None
+    ) -> bool:
+        """Send email using SMTP (fallback for local development)"""
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            logger.info(f"Attempting to send email via SMTP to {to_emails}")
             logger.info(f"SMTP settings - Host: {settings.smtp_host}, Port: {settings.smtp_port}, User: {settings.smtp_user}")
 
             if not settings.smtp_user or not settings.smtp_password:
@@ -78,11 +159,11 @@ class EmailService:
             logger.info("Message sent, closing connection")
             server.quit()
 
-            logger.info(f"Email sent successfully to {', '.join(to_emails)}")
+            logger.info(f"Email sent successfully via SMTP to {', '.join(to_emails)}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            logger.error(f"Failed to send email via SMTP: {str(e)}")
             logger.error(f"Exception type: {type(e).__name__}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")

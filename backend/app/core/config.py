@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # SendGrid (alternative)
     sendgrid_api_key: Optional[str] = None
     
+    # Resend (recommended for Render.com)
+    resend_api_key: Optional[str] = None
+    
     # SMS (Twilio)
     twilio_account_sid: Optional[str] = None
     twilio_auth_token: Optional[str] = None
