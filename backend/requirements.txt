@@ -29,7 +29,7 @@ distro==1.9.0
 dnspython==2.6.1
 e2b==0.17.1
 e2b-code-interpreter==0.0.10
-ecdsa==0.19.0
+ecdsa
 email_validator==2.2.0
 et_xmlfile==2.0.0
 fastapi==0.115.8
