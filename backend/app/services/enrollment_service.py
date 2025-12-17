@@ -474,6 +474,7 @@ class EnrollmentService:
                     class_id=class_id,
                     term_id=term.id,
                     academic_session=term.academic_session,
+                    academic_session_id=term.academic_session_id,  # Set FK for proper querying
                     school_id=school_id,
                     enrollment_date=date.today(),
                     status=ClassHistoryStatus.ACTIVE,

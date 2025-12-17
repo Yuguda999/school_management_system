@@ -206,6 +206,79 @@ export const promotionService = {
         const response = await apiService.api.get(`${getBaseUrl()}/promotions/class-progression`);
         return response.data;
     },
+
+    // ===================
+    // Approval Workflow
+    // ===================
+
+    /**
+     * Submit promotion decisions for approval (used by teachers)
+     */
+    submitForApproval: async (data: BulkPromotionRequest): Promise<{
+        id: string;
+        status: string;
+        message: string;
+        total_decisions: number;
+    }> => {
+        const response = await apiService.api.post(`${getBaseUrl()}/promotions/submit`, data);
+        return response.data;
+    },
+
+    /**
+     * Get pending promotion approvals (admin only)
+     */
+    getPendingApprovals: async (sessionId?: string): Promise<{
+        pending_requests: PendingPromotionRequest[];
+        total: number;
+    }> => {
+        const params: Record<string, string> = {};
+        if (sessionId) params.session_id = sessionId;
+
+        const response = await apiService.api.get(`${getBaseUrl()}/promotions/pending`, { params });
+        return response.data;
+    },
+
+    /**
+     * Approve a pending promotion request
+     */
+    approveRequest: async (requestId: string): Promise<BulkPromotionResult> => {
+        const response = await apiService.api.post(`${getBaseUrl()}/promotions/${requestId}/approve`);
+        return response.data;
+    },
+
+    /**
+     * Reject a pending promotion request
+     */
+    rejectRequest: async (requestId: string, reason?: string): Promise<{
+        id: string;
+        status: string;
+        reason: string;
+        message: string;
+    }> => {
+        const params: Record<string, string> = {};
+        if (reason) params.reason = reason;
+
+        const response = await apiService.api.post(`${getBaseUrl()}/promotions/${requestId}/reject`, null, { params });
+        return response.data;
+    },
 };
+
+// Type for pending promotion requests
+export interface PendingPromotionRequest {
+    id: string;
+    session_id: string;
+    session_name: string;
+    class_id: string | null;
+    class_name: string;
+    submitted_by: string;
+    submitter_name: string;
+    submitted_at: string;
+    total_decisions: number;
+    decisions: Array<{
+        student_id: string;
+        action: string;
+        next_class_id?: string;
+    }>;
+}
 
 export default { sessionService, promotionService };

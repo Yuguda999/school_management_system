@@ -180,3 +180,130 @@ async def get_class_progression_map(
     return {
         "progression_map": progression_list
     }
+
+
+# =============================================================================
+# APPROVAL WORKFLOW ENDPOINTS
+# =============================================================================
+
+@router.post("/submit")
+async def submit_for_approval(
+    promotion_data: BulkPromotionRequest,
+    current_user: User = Depends(get_current_active_user),
+    school_context: SchoolContext = Depends(get_current_school_context),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Submit promotion decisions for approval (used by teachers).
+    
+    Creates a pending promotion request that must be approved by school owner.
+    """
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    # Get the class_id from the first decision (assuming all are same class)
+    class_id = None
+    if promotion_data.decisions:
+        # We'll extract class from candidates
+        pass
+    
+    result = await PromotionService.submit_for_approval(
+        db,
+        school_id=current_school.id,
+        session_id=promotion_data.session_id,
+        decisions=[d.dict() for d in promotion_data.decisions],
+        submitted_by=current_user.id,
+        class_id=class_id
+    )
+    
+    return result
+
+
+@router.get("/pending")
+async def get_pending_approvals(
+    session_id: Optional[str] = Query(None, description="Filter by session ID"),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Get all pending promotion requests for the school (admin only).
+    """
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    pending = await PromotionService.get_pending_approvals(
+        db, current_school.id, session_id
+    )
+    
+    return {
+        "pending_requests": pending,
+        "total": len(pending)
+    }
+
+
+@router.post("/{request_id}/approve", response_model=BulkPromotionResult)
+async def approve_promotion_request(
+    request_id: str,
+    current_user: User = Depends(get_current_active_user),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Approve a pending promotion request and execute the promotions.
+    """
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    result = await PromotionService.approve_promotion_request(
+        db,
+        request_id=request_id,
+        school_id=current_school.id,
+        reviewed_by=current_user.id
+    )
+    
+    return result
+
+
+@router.post("/{request_id}/reject")
+async def reject_promotion_request(
+    request_id: str,
+    reason: str = Query("", description="Reason for rejection"),
+    current_user: User = Depends(get_current_active_user),
+    school_context: SchoolContext = Depends(require_school_admin()),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    """
+    Reject a pending promotion request.
+    """
+    current_school = school_context.school
+    
+    if not current_school:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="School not found"
+        )
+    
+    result = await PromotionService.reject_promotion_request(
+        db,
+        request_id=request_id,
+        school_id=current_school.id,
+        reviewed_by=current_user.id,
+        reason=reason
+    )
+    
+    return result

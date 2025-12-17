@@ -956,7 +956,8 @@ class StudentService:
         academic_session: str,
         school_id: str,
         enrollment_date: date = None,
-        status: ClassHistoryStatus = ClassHistoryStatus.ACTIVE
+        status: ClassHistoryStatus = ClassHistoryStatus.ACTIVE,
+        academic_session_id: Optional[str] = None
     ) -> StudentClassHistory:
         """Create a class history record for a student"""
         if enrollment_date is None:
@@ -977,6 +978,8 @@ class StudentService:
             # Update existing record
             existing.class_id = class_id
             existing.academic_session = academic_session
+            if academic_session_id:
+                existing.academic_session_id = academic_session_id
             existing.status = status
             existing.is_current = (status == ClassHistoryStatus.ACTIVE)
             await db.commit()
@@ -989,6 +992,7 @@ class StudentService:
             class_id=class_id,
             term_id=term_id,
             academic_session=academic_session,
+            academic_session_id=academic_session_id,
             school_id=school_id,
             enrollment_date=enrollment_date,
             status=status,

@@ -6,6 +6,10 @@
  * - Make individual or bulk promotion decisions
  * - Auto-promote based on school rules
  * - Track promotion progress
+ * 
+ * Teachers can:
+ * - View students in their assigned class
+ * - Submit promotion decisions for approval
  */
 
 import { useState, useEffect } from 'react';
@@ -18,6 +22,9 @@ import {
     PromotionAction,
     BulkPromotionResult,
 } from '../../types/session';
+import Modal from '../../components/ui/Modal';
+import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../contexts/AuthContext';
 import './PromotionManagement.css';
 
 const actionColors: Record<PromotionAction, string> = {
@@ -37,6 +44,12 @@ const actionLabels: Record<PromotionAction, string> = {
 const PromotionManagementPage = () => {
     const { sessionId } = useParams<{ sessionId: string }>();
     const navigate = useNavigate();
+    const { showSuccess, showError } = useToast();
+    const { user } = useAuth();
+
+    // Role checks
+    const isTeacher = user?.role === 'teacher';
+    const isAdmin = user?.role === 'school_owner' || user?.role === 'school_admin';
 
     const [session, setSession] = useState<AcademicSessionWithTerms | null>(null);
     const [candidates, setCandidates] = useState<PromotionCandidate[]>([]);
@@ -46,6 +59,10 @@ const PromotionManagementPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<BulkPromotionResult | null>(null);
     const [filterClass, setFilterClass] = useState<string>('');
+
+    // Modal State
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmAction, setConfirmAction] = useState<'auto' | 'execute' | 'submit' | null>(null);
 
     // Stats
     const [stats, setStats] = useState({
@@ -112,7 +129,9 @@ const PromotionManagementPage = () => {
 
             setError(null);
         } catch (err) {
-            setError('Failed to load promotion data');
+            const msg = 'Failed to load promotion data';
+            setError(msg);
+            showError(msg);
             console.error(err);
         } finally {
             setLoading(false);
@@ -153,48 +172,48 @@ const PromotionManagementPage = () => {
         });
     };
 
-    const handleAutoPromote = async () => {
-        if (
-            !confirm(
-                'This will automatically promote students based on your school\'s configured rules. Continue?'
-            )
-        ) {
-            return;
-        }
-
-        try {
-            setProcessing(true);
-            const result = await promotionService.autoPromote(sessionId!);
-            setResult(result);
-        } catch (err: unknown) {
-            const errorMessage =
-                (err as { response?: { data?: { detail?: string } } }).response?.data
-                    ?.detail || 'Failed to execute auto-promotion';
-            alert(errorMessage);
-        } finally {
-            setProcessing(false);
-        }
+    const initiateAutoPromote = () => {
+        setConfirmAction('auto');
+        setShowConfirmModal(true);
     };
 
-    const handleExecutePromotions = async () => {
-        if (!confirm('Execute all promotion decisions? This action cannot be undone.')) {
-            return;
-        }
+    const initiateExecute = () => {
+        setConfirmAction(isTeacher ? 'submit' : 'execute');
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmAction = async () => {
+        setShowConfirmModal(false);
+        if (!confirmAction) return;
 
         try {
             setProcessing(true);
-
-            // Build the request - we need to fetch class_history_ids
-            // For now, we'll use the auto-promote endpoint which handles this
-            const result = await promotionService.autoPromote(sessionId!);
-            setResult(result);
+            if (confirmAction === 'auto') {
+                const res = await promotionService.autoPromote(sessionId!);
+                setResult(res);
+                showSuccess('Promotions processed successfully');
+            } else if (confirmAction === 'submit') {
+                // Teacher submitting for approval
+                const decisionsArray = Array.from(decisions.values());
+                await promotionService.submitForApproval({
+                    session_id: sessionId!,
+                    decisions: decisionsArray
+                });
+                showSuccess('Promotion decisions submitted for approval. The school administrator will review and approve.');
+            } else {
+                // Admin executing promotions
+                const res = await promotionService.autoPromote(sessionId!);
+                setResult(res);
+                showSuccess('Promotions executed successfully');
+            }
         } catch (err: unknown) {
             const errorMessage =
                 (err as { response?: { data?: { detail?: string } } }).response?.data
-                    ?.detail || 'Failed to execute promotions';
-            alert(errorMessage);
+                    ?.detail || 'Failed to process promotions';
+            showError(errorMessage);
         } finally {
             setProcessing(false);
+            setConfirmAction(null);
         }
     };
 
@@ -263,7 +282,7 @@ const PromotionManagementPage = () => {
                     <div className="result-actions">
                         <button
                             className="btn-primary"
-                            onClick={() => navigate('/sessions')}
+                            onClick={() => navigate(-1)}
                         >
                             Back to Sessions
                         </button>
@@ -277,7 +296,7 @@ const PromotionManagementPage = () => {
         <div className="promotion-management">
             <div className="page-header">
                 <div className="header-content">
-                    <button className="back-btn" onClick={() => navigate('/sessions')}>
+                    <button className="back-btn" onClick={() => navigate(-1)}>
                         ← Back
                     </button>
                     <h1>Student Promotions</h1>
@@ -346,13 +365,15 @@ const PromotionManagementPage = () => {
                     >
                         Mark All Repeat
                     </button>
-                    <button
-                        className="btn-auto"
-                        onClick={handleAutoPromote}
-                        disabled={processing}
-                    >
-                        🚀 Auto-Promote
-                    </button>
+                    {isAdmin && (
+                        <button
+                            className="btn-auto"
+                            onClick={initiateAutoPromote}
+                            disabled={processing}
+                        >
+                            🚀 Auto-Promote
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -373,7 +394,17 @@ const PromotionManagementPage = () => {
                         {filteredCandidates.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="empty-cell">
-                                    No students found for promotion
+                                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                                        <p className="text-lg font-medium mb-2">No students found for promotion</p>
+                                        <p className="text-sm">
+                                            This could be because:
+                                        </p>
+                                        <ul className="text-sm list-disc list-inside mt-2 text-left">
+                                            <li>No students are enrolled in this session</li>
+                                            <li>All students have already been promoted</li>
+                                            <li>Class history records are missing</li>
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                         ) : (
@@ -451,12 +482,53 @@ const PromotionManagementPage = () => {
                 </div>
                 <button
                     className="btn-execute"
-                    onClick={handleExecutePromotions}
+                    onClick={initiateExecute}
                     disabled={processing || candidates.length === 0}
                 >
-                    {processing ? 'Processing...' : 'Execute Promotions'}
+                    {processing ? 'Processing...' : (isTeacher ? 'Submit for Approval' : 'Execute Promotions')}
                 </button>
             </div>
+
+            {/* Confirmation Modal */}
+            <Modal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                title={
+                    confirmAction === 'auto'
+                        ? 'Auto-Promote Students'
+                        : confirmAction === 'submit'
+                            ? 'Submit Promotion Decisions'
+                            : 'Execute Promotions'
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-gray-600 dark:text-gray-400">
+                        {confirmAction === 'auto'
+                            ? "This will automatically promote students based on your school's configured rules. Are you sure you want to continue?"
+                            : confirmAction === 'submit'
+                                ? "Your promotion decisions will be submitted to the school administrator for review and approval. Continue?"
+                                : "Are you sure you want to execute these promotion decisions? This action cannot be undone."}
+                    </p>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
+                        <button
+                            type="button"
+                            onClick={() => setShowConfirmModal(false)}
+                            className="btn btn-secondary"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleConfirmAction}
+                            disabled={processing}
+                            className="btn btn-primary"
+                        >
+                            {processing ? <div className="spinner-sm" /> : (confirmAction === 'submit' ? 'Submit' : 'Confirm')}
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

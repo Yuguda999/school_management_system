@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AcademicSession, CreateAcademicSessionRequest, SessionStatus } from '../../types/session';
 import { sessionService } from '../../services/sessionService';
 import LoadingSpinner from '../ui/LoadingSpinner';
@@ -18,6 +19,7 @@ import {
     StarIcon,
     PencilIcon,
     TrashIcon,
+    UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -36,6 +38,8 @@ const statusLabels: Record<SessionStatus, string> = {
 };
 
 const SessionManagement = () => {
+    const navigate = useNavigate();
+    const { schoolCode } = useParams<{ schoolCode: string }>();
     const [sessions, setSessions] = useState<AcademicSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -294,13 +298,25 @@ const SessionManagement = () => {
                                         </button>
                                     )}
                                     {session.status === 'completed' && (
-                                        <button
-                                            onClick={() => handleArchiveSession(session.id)}
-                                            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-                                            title="Archive session"
-                                        >
-                                            <ArchiveBoxIcon className="h-5 w-5" />
-                                        </button>
+                                        <>
+                                            {!session.promotion_completed && (
+                                                <button
+                                                    onClick={() => navigate(`/${schoolCode}/sessions/${session.id}/promotions`)}
+                                                    className="p-2 text-gray-400 hover:text-indigo-500 transition-colors"
+                                                    title="Run Promotions"
+                                                    type="button"
+                                                >
+                                                    <UserGroupIcon className="h-5 w-5" />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => handleArchiveSession(session.id)}
+                                                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                                                title="Archive session"
+                                            >
+                                                <ArchiveBoxIcon className="h-5 w-5" />
+                                            </button>
+                                        </>
                                     )}
                                     {/* Edit button - only for upcoming sessions */}
                                     {session.status === 'upcoming' && (

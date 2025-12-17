@@ -56,6 +56,7 @@ import SettingsPage from './pages/settings/SettingsPage';
 import ReportCardTemplatesPage from './pages/templates/ReportCardTemplatesPage';
 import TermManagementPage from './pages/terms/TermManagementPage';
 import PromotionManagementPage from './pages/sessions/PromotionManagementPage';
+import PendingApprovalsPage from './pages/sessions/PendingApprovalsPage';
 import SessionManagementPage from './pages/sessions/SessionManagementPage';
 import AssetsPage from './pages/assets/AssetsPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
@@ -444,12 +445,22 @@ function App() {
               }
             />
 
-            {/* Promotions (accessed from Settings > Academic > Sessions) */}
+            {/* Promotions (accessed from Settings > Academic > Sessions, or by teachers for their class) */}
             <Route
               path="sessions/:sessionId/promotions"
               element={
-                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']}>
                   <PromotionManagementPage />
+                </SchoolRoute>
+              }
+            />
+
+            {/* Pending Promotion Approvals (admin only) */}
+            <Route
+              path="promotions/pending"
+              element={
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                  <PendingApprovalsPage />
                 </SchoolRoute>
               }
             />

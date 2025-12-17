@@ -30,6 +30,9 @@ interface SystemConfig {
   auto_generate_student_ids: boolean;
   backup_frequency: string;
   session_timeout: number;
+  // Promotion settings
+  promotion_mode: 'automatic' | 'performance_based' | 'manual';
+  min_promotion_score: number;
 }
 
 const SystemConfiguration: React.FC = () => {
@@ -51,6 +54,9 @@ const SystemConfiguration: React.FC = () => {
     auto_generate_student_ids: true,
     backup_frequency: 'daily',
     session_timeout: 30,
+    // Promotion settings
+    promotion_mode: 'automatic',
+    min_promotion_score: 40,
   });
 
   const [loading, setLoading] = useState(false);
@@ -108,8 +114,8 @@ const SystemConfiguration: React.FC = () => {
               <button
                 onClick={() => setActiveTab('config')}
                 className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === 'config'
-                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
               >
                 <Cog6ToothIcon className="h-4 w-4 mr-2" />
@@ -118,8 +124,8 @@ const SystemConfiguration: React.FC = () => {
               <button
                 onClick={() => setActiveTab('users')}
                 className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === 'users'
-                    ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  ? 'bg-gradient-to-r from-primary-500 to-secondary-600 text-white shadow-lg shadow-primary-500/30'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
               >
                 <UserGroupIcon className="h-4 w-4 mr-2" />
@@ -190,6 +196,69 @@ const SystemConfiguration: React.FC = () => {
                     max="100"
                   />
                 </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Promotion Settings */}
+          <Card variant="glass">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                  <UserGroupIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Promotion Settings
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Configure how students are promoted to the next class
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Promotion Mode
+                  </label>
+                  <select
+                    value={config.promotion_mode}
+                    onChange={(e) => handleInputChange('promotion_mode', e.target.value)}
+                    className="input"
+                  >
+                    <option value="automatic">Automatic (Promote All)</option>
+                    <option value="performance_based">Performance Based (Score Threshold)</option>
+                    <option value="manual">Manual (Require Individual Decisions)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {config.promotion_mode === 'automatic' && 'All students will be automatically promoted to the next class.'}
+                    {config.promotion_mode === 'performance_based' && 'Students meeting the minimum score will be promoted; others repeat.'}
+                    {config.promotion_mode === 'manual' && 'Each student requires a manual promotion decision.'}
+                  </p>
+                </div>
+
+                {config.promotion_mode === 'performance_based' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Minimum Promotion Score
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={config.min_promotion_score}
+                        onChange={(e) => handleInputChange('min_promotion_score', parseInt(e.target.value))}
+                        className="input pr-8"
+                        min="0"
+                        max="100"
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Students with session average below this score will repeat the class.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </Card>

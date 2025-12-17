@@ -172,8 +172,13 @@ class PromotionService:
         """
         Get all students eligible for promotion review in a session.
         
-        This returns students who have active class history in the given session.
+        This returns students who:
+        1. Have active class history in the given session, OR
+        2. Are currently assigned to a class (fallback for students without history)
         """
+        from sqlalchemy import or_
+        from app.models.student import StudentStatus
+        
         # Get the session
         session_result = await db.execute(
             select(AcademicSession).where(
@@ -193,13 +198,19 @@ class PromotionService:
         # Get class progression map
         progression_map = await PromotionService.get_class_progression_map(db, school_id)
         
-        # Query for students with class history in this session
+        candidates = []
+        processed_student_ids = set()
+        
+        # First, try to get students from StudentClassHistory
         query = select(StudentClassHistory).options(
             selectinload(StudentClassHistory.student),
             selectinload(StudentClassHistory.class_)
         ).where(
             StudentClassHistory.school_id == school_id,
-            StudentClassHistory.academic_session == session.name,
+            or_(
+                StudentClassHistory.academic_session_id == session_id,
+                StudentClassHistory.academic_session == session.name
+            ),
             StudentClassHistory.is_deleted == False,
             StudentClassHistory.status.in_([
                 ClassHistoryStatus.ACTIVE,
@@ -218,20 +229,16 @@ class PromotionService:
         for history in histories:
             if history.student_id not in student_histories:
                 student_histories[history.student_id] = history
-            else:
-                # Keep the one with higher sequence term
-                existing = student_histories[history.student_id]
-                if history.term and existing.term:
-                    # Compare by term sequence
-                    pass  # For now just keep first
         
-        candidates = []
+        # Process students with class history
         for student_id, history in student_histories.items():
             student = history.student
             current_class = history.class_
             
             if not student or not current_class:
                 continue
+            
+            processed_student_ids.add(student_id)
             
             # Calculate session average
             session_avg = await PromotionService.calculate_student_session_average(
@@ -246,7 +253,7 @@ class PromotionService:
             # Determine suggested action
             if next_class_id is None and next_class_name == "Graduated":
                 suggested_action = "graduate"
-            elif session_avg and session_avg < 40:  # Default threshold
+            elif session_avg and session_avg < 40:
                 suggested_action = "repeat"
             else:
                 suggested_action = "promote"
@@ -263,6 +270,63 @@ class PromotionService:
                 next_class_id=next_class_id,
                 next_class_name=next_class_name
             ))
+        
+        # FALLBACK: If no students found from class history, get from Student.current_class_id
+        # This handles students who were created before the session system was set up
+        if not candidates:
+            student_query = select(Student).options(
+                selectinload(Student.current_class)
+            ).where(
+                Student.school_id == school_id,
+                Student.is_deleted == False,
+                Student.status == StudentStatus.ACTIVE,
+                Student.current_class_id.isnot(None)
+            )
+            
+            if class_id:
+                student_query = student_query.where(Student.current_class_id == class_id)
+            
+            student_result = await db.execute(student_query)
+            students = student_result.scalars().all()
+            
+            for student in students:
+                if student.id in processed_student_ids:
+                    continue
+                
+                current_class = student.current_class
+                if not current_class:
+                    continue
+                
+                # Calculate session average (may be None if no grades exist)
+                session_avg = await PromotionService.calculate_student_session_average(
+                    db, student.id, session_id, school_id
+                )
+                
+                # Determine next class
+                next_class_id, next_class_name = progression_map.get(
+                    current_class.id, (None, "Unknown")
+                )
+                
+                # Determine suggested action
+                if next_class_id is None and next_class_name == "Graduated":
+                    suggested_action = "graduate"
+                elif session_avg and session_avg < 40:
+                    suggested_action = "repeat"
+                else:
+                    suggested_action = "promote"
+                
+                candidates.append(PromotionCandidate(
+                    student_id=student.id,
+                    student_name=student.full_name,
+                    admission_number=student.admission_number,
+                    current_class_id=current_class.id,
+                    current_class_name=current_class.name,
+                    session_average=float(session_avg) if session_avg else None,
+                    promotion_eligible=True,  # Default to eligible for fallback students
+                    suggested_action=suggested_action,
+                    next_class_id=next_class_id,
+                    next_class_name=next_class_name
+                ))
         
         return candidates
     
@@ -603,3 +667,200 @@ class PromotionService:
         return await PromotionService.promote_students(
             db, school_id, session_id, decisions, decided_by
         )
+
+    # =========================================================================
+    # APPROVAL WORKFLOW METHODS
+    # =========================================================================
+    
+    @staticmethod
+    async def submit_for_approval(
+        db: AsyncSession,
+        school_id: str,
+        session_id: str,
+        decisions: List[dict],
+        submitted_by: str,
+        class_id: Optional[str] = None
+    ) -> dict:
+        """
+        Submit promotion decisions for approval by school owner.
+        Creates a PromotionRequest with pending status.
+        """
+        from app.models.promotion_request import PromotionRequest, PromotionRequestStatus
+        
+        # Create the promotion request
+        promotion_request = PromotionRequest(
+            id=str(uuid.uuid4()),
+            school_id=school_id,
+            session_id=session_id,
+            class_id=class_id,
+            submitted_by=submitted_by,
+            decisions=decisions,
+            status=PromotionRequestStatus.PENDING
+        )
+        
+        db.add(promotion_request)
+        await db.commit()
+        await db.refresh(promotion_request)
+        
+        return {
+            "id": promotion_request.id,
+            "status": "pending",
+            "message": "Promotion decisions submitted for approval",
+            "total_decisions": len(decisions)
+        }
+    
+    @staticmethod
+    async def get_pending_approvals(
+        db: AsyncSession,
+        school_id: str,
+        session_id: Optional[str] = None
+    ) -> List[dict]:
+        """
+        Get all pending promotion requests for a school.
+        """
+        from app.models.promotion_request import PromotionRequest, PromotionRequestStatus
+        from app.models.user import User
+        
+        query = select(PromotionRequest).options(
+            selectinload(PromotionRequest.session),
+            selectinload(PromotionRequest.class_),
+            selectinload(PromotionRequest.submitter)
+        ).where(
+            PromotionRequest.school_id == school_id,
+            PromotionRequest.status == PromotionRequestStatus.PENDING,
+            PromotionRequest.is_deleted == False
+        )
+        
+        if session_id:
+            query = query.where(PromotionRequest.session_id == session_id)
+        
+        query = query.order_by(PromotionRequest.submitted_at.desc())
+        
+        result = await db.execute(query)
+        requests = result.scalars().all()
+        
+        pending_list = []
+        for req in requests:
+            pending_list.append({
+                "id": req.id,
+                "session_id": req.session_id,
+                "session_name": req.session.name if req.session else "Unknown",
+                "class_id": req.class_id,
+                "class_name": req.class_.name if req.class_ else "All Classes",
+                "submitted_by": req.submitted_by,
+                "submitter_name": f"{req.submitter.first_name} {req.submitter.last_name}" if req.submitter else "Unknown",
+                "submitted_at": req.submitted_at.isoformat() if req.submitted_at else None,
+                "total_decisions": len(req.decisions) if req.decisions else 0,
+                "decisions": req.decisions
+            })
+        
+        return pending_list
+    
+    @staticmethod
+    async def approve_promotion_request(
+        db: AsyncSession,
+        request_id: str,
+        school_id: str,
+        reviewed_by: str
+    ) -> BulkPromotionResult:
+        """
+        Approve a pending promotion request and execute the promotions.
+        """
+        from app.models.promotion_request import PromotionRequest, PromotionRequestStatus
+        from datetime import datetime
+        
+        # Get the request
+        result = await db.execute(
+            select(PromotionRequest).where(
+                PromotionRequest.id == request_id,
+                PromotionRequest.school_id == school_id,
+                PromotionRequest.is_deleted == False
+            )
+        )
+        request = result.scalar_one_or_none()
+        
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Promotion request not found"
+            )
+        
+        if request.status != PromotionRequestStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Request is already {request.status.value}"
+            )
+        
+        # Convert decisions back to PromotionDecision objects
+        decisions = []
+        for d in request.decisions:
+            decisions.append(PromotionDecision(
+                student_id=d.get('student_id'),
+                class_history_id=d.get('class_history_id', ''),
+                action=d.get('action', 'promote'),
+                next_class_id=d.get('next_class_id'),
+                remarks=d.get('remarks', 'Approved by admin')
+            ))
+        
+        # Execute the promotions
+        promotion_result = await PromotionService.promote_students(
+            db, school_id, request.session_id, decisions, reviewed_by
+        )
+        
+        # Update the request status
+        request.status = PromotionRequestStatus.APPROVED
+        request.reviewed_by = reviewed_by
+        request.reviewed_at = datetime.utcnow()
+        await db.commit()
+        
+        return promotion_result
+    
+    @staticmethod
+    async def reject_promotion_request(
+        db: AsyncSession,
+        request_id: str,
+        school_id: str,
+        reviewed_by: str,
+        reason: str = ""
+    ) -> dict:
+        """
+        Reject a pending promotion request.
+        """
+        from app.models.promotion_request import PromotionRequest, PromotionRequestStatus
+        from datetime import datetime
+        
+        # Get the request
+        result = await db.execute(
+            select(PromotionRequest).where(
+                PromotionRequest.id == request_id,
+                PromotionRequest.school_id == school_id,
+                PromotionRequest.is_deleted == False
+            )
+        )
+        request = result.scalar_one_or_none()
+        
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Promotion request not found"
+            )
+        
+        if request.status != PromotionRequestStatus.PENDING:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Request is already {request.status.value}"
+            )
+        
+        # Update the request status
+        request.status = PromotionRequestStatus.REJECTED
+        request.reviewed_by = reviewed_by
+        request.reviewed_at = datetime.utcnow()
+        request.rejection_reason = reason
+        await db.commit()
+        
+        return {
+            "id": request_id,
+            "status": "rejected",
+            "reason": reason,
+            "message": "Promotion request has been rejected"
+        }
