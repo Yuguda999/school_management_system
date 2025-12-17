@@ -162,6 +162,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       description: 'Physical resources'
     },
     {
+      name: 'Teacher Permissions',
+      href: `/${schoolCode}/settings/teacher-permissions`,
+      icon: Cog6ToothIcon,
+      roles: ['school_owner'],
+      description: 'Delegate permissions'
+    },
+    {
       name: 'Settings',
       href: `/${schoolCode}/settings`,
       icon: Cog6ToothIcon,

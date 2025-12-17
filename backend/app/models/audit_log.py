@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, JSON, Text
+from sqlalchemy import Column, String, JSON, Text, Boolean, ForeignKey
 from app.models.base import TenantBaseModel
 
 class AuditLog(TenantBaseModel):
@@ -11,3 +11,8 @@ class AuditLog(TenantBaseModel):
     details = Column(JSON, nullable=True)  # Store before/after state or other details
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
+    
+    # Delegated action tracking
+    is_delegated = Column(Boolean, default=False, nullable=False)  # True if action was by delegated teacher
+    delegated_by = Column(String(36), ForeignKey("users.id"), nullable=True)  # Owner who delegated the permission
+

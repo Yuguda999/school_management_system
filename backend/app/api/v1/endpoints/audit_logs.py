@@ -18,12 +18,14 @@ async def get_audit_logs(
     entity_type: Optional[str] = None,
     entity_id: Optional[str] = None,
     action: Optional[str] = None,
+    is_delegated: Optional[bool] = Query(None, description="Filter for delegated actions only"),
     current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get audit logs (Admin only)"""
     logs, _ = await AuditService.get_audit_logs(
-        db, current_school.id, skip, limit, user_id, entity_type, entity_id, action
+        db, current_school.id, skip, limit, user_id, entity_type, entity_id, action, is_delegated
     )
     return logs
+

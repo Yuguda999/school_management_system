@@ -25,3 +25,5 @@ from .student_goal import *  # noqa
 from .alert_rule import *  # noqa
 from .curriculum import *  # noqa
 from .teacher_material import *  # noqa
+from .teacher_permission import *  # noqa
+

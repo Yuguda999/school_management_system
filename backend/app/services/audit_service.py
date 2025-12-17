@@ -21,6 +21,33 @@ class AuditService:
         return audit_log
 
     @staticmethod
+    async def log_delegated_action(
+        db: AsyncSession,
+        user_id: str,
+        action: str,
+        entity_type: str,
+        entity_id: str,
+        school_id: str,
+        delegated_by: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> AuditLog:
+        """Log an action performed by a teacher with delegated permissions"""
+        audit_log = AuditLog(
+            user_id=user_id,
+            action=action,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            details=details or {},
+            is_delegated=True,
+            delegated_by=delegated_by,
+            school_id=school_id
+        )
+        db.add(audit_log)
+        await db.commit()
+        await db.refresh(audit_log)
+        return audit_log
+
+    @staticmethod
     async def get_audit_logs(
         db: AsyncSession,
         school_id: str,
@@ -29,7 +56,8 @@ class AuditService:
         user_id: Optional[str] = None,
         entity_type: Optional[str] = None,
         entity_id: Optional[str] = None,
-        action: Optional[str] = None
+        action: Optional[str] = None,
+        is_delegated: Optional[bool] = None
     ) -> Tuple[List[AuditLog], int]:
         query = select(AuditLog).where(
             AuditLog.school_id == school_id,
@@ -44,6 +72,8 @@ class AuditService:
             query = query.where(AuditLog.entity_id == entity_id)
         if action:
             query = query.where(AuditLog.action == action)
+        if is_delegated is not None:
+            query = query.where(AuditLog.is_delegated == is_delegated)
 
         # Get total count
         count_query = select(func.count()).select_from(query.subquery())
@@ -55,3 +85,4 @@ class AuditService:
         logs = result.scalars().all()
 
         return list(logs), total
+

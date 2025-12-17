@@ -9,6 +9,8 @@ class AuditLogBase(BaseModel):
     details: Optional[Dict[str, Any]] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
+    is_delegated: bool = False
+    delegated_by: Optional[str] = None
 
 class AuditLogCreate(AuditLogBase):
     user_id: str
@@ -21,3 +23,4 @@ class AuditLogResponse(AuditLogBase):
 
     class Config:
         from_attributes = True
+

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auditService } from '../../services/auditService';
 import { AuditLog } from '../../types';
 import { format } from 'date-fns';
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 
 const ActivityLogTable: React.FC = () => {
     const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -12,6 +12,7 @@ const ActivityLogTable: React.FC = () => {
     const [filters, setFilters] = useState({
         entity_type: '',
         action: '',
+        is_delegated: '' as '' | 'true' | 'false',
     });
 
     const fetchLogs = async () => {
@@ -22,6 +23,7 @@ const ActivityLogTable: React.FC = () => {
                 limit,
                 entity_type: filters.entity_type || undefined,
                 action: filters.action || undefined,
+                is_delegated: filters.is_delegated === '' ? undefined : filters.is_delegated === 'true',
             });
             setLogs(data);
         } catch (error) {
@@ -45,7 +47,7 @@ const ActivityLogTable: React.FC = () => {
             <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <h2 className="text-lg font-medium text-gray-900">Activity Log</h2>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Filter className="h-4 w-4 text-gray-400" />
@@ -61,6 +63,8 @@ const ActivityLogTable: React.FC = () => {
                             <option value="UPDATE">Update</option>
                             <option value="DELETE">Delete</option>
                             <option value="LOGIN">Login</option>
+                            <option value="GRANT_PERMISSION">Grant Permission</option>
+                            <option value="REVOKE_PERMISSION">Revoke Permission</option>
                         </select>
                     </div>
 
@@ -80,6 +84,23 @@ const ActivityLogTable: React.FC = () => {
                             <option value="class">Class</option>
                             <option value="subject">Subject</option>
                             <option value="school">School</option>
+                            <option value="teacher_permission">Permission</option>
+                        </select>
+                    </div>
+
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Shield className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <select
+                            name="is_delegated"
+                            value={filters.is_delegated}
+                            onChange={handleFilterChange}
+                            className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        >
+                            <option value="">All Sources</option>
+                            <option value="true">Delegated Only</option>
+                            <option value="false">Direct Only</option>
                         </select>
                     </div>
                 </div>
@@ -126,15 +147,23 @@ const ActivityLogTable: React.FC = () => {
                                         {format(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {/* Ideally we would resolve user_id to a name, but for now just ID or if backend sends name */}
-                                        {log.user_id}
+                                        <div className="flex items-center">
+                                            {log.user_id.substring(0, 8)}...
+                                            {log.is_delegated && (
+                                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                                    <Shield className="h-3 w-3 mr-1" />
+                                                    Delegated
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                       ${log.action === 'CREATE' ? 'bg-green-100 text-green-800' :
                                                 log.action === 'UPDATE' ? 'bg-blue-100 text-blue-800' :
                                                     log.action === 'DELETE' ? 'bg-red-100 text-red-800' :
-                                                        'bg-gray-100 text-gray-800'}`}>
+                                                        log.action.includes('PERMISSION') ? 'bg-purple-100 text-purple-800' :
+                                                            'bg-gray-100 text-gray-800'}`}>
                                             {log.action}
                                         </span>
                                     </td>
@@ -201,3 +230,4 @@ const ActivityLogTable: React.FC = () => {
 };
 
 export default ActivityLogTable;
+

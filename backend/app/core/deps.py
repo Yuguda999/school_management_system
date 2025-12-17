@@ -354,6 +354,94 @@ def require_student_user():
     return require_roles_user_only([UserRole.STUDENT])
 
 
+def require_permission(permission_type: 'PermissionType'):
+    """
+    Dependency that allows access if:
+    1. User is a school admin/owner/platform admin, OR
+    2. User is a teacher with the specific delegated permission
+    
+    Returns a tuple of (SchoolContext, Optional[TeacherPermission])
+    The TeacherPermission is returned if the access was granted via delegation.
+    """
+    from app.models.teacher_permission import PermissionType as PT
+    
+    async def permission_checker(
+        school_context: SchoolContext = Depends(get_current_school_context),
+        db: AsyncSession = Depends(get_db)
+    ):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        user = school_context.user
+        
+        # Platform admin, school owner, and school admin always have access
+        if user.role in [UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN]:
+            logger.info(f"✅ Permission granted via role: {user.role}")
+            return school_context, None
+        
+        # For teachers, check if they have the delegated permission
+        if user.role == UserRole.TEACHER:
+            from app.services.teacher_permission_service import TeacherPermissionService
+            
+            permission = await TeacherPermissionService.check_teacher_has_permission(
+                db,
+                user.id,
+                school_context.school_id,
+                permission_type
+            )
+            
+            if permission:
+                logger.info(f"✅ Permission granted via delegation: {permission_type.value}")
+                return school_context, permission
+        
+        # Access denied
+        logger.warning(f"❌ Access denied - User {user.id} lacks permission: {permission_type.value}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Not enough permissions. Required: {permission_type.value}"
+        )
+    
+    return permission_checker
+
+
+def require_permission_user(permission_type: 'PermissionType'):
+    """
+    Same as require_permission but returns User only (for backward compatibility).
+    Also returns delegation info in tuple.
+    """
+    from app.models.teacher_permission import PermissionType as PT
+    
+    async def permission_checker(
+        current_user: User = Depends(get_current_active_user),
+        db: AsyncSession = Depends(get_db)
+    ):
+        # Platform admin, school owner, and school admin always have access
+        if current_user.role in [UserRole.PLATFORM_SUPER_ADMIN, UserRole.SCHOOL_OWNER, UserRole.SCHOOL_ADMIN]:
+            return current_user, None
+        
+        # For teachers, check if they have the delegated permission
+        if current_user.role == UserRole.TEACHER and current_user.school_id:
+            from app.services.teacher_permission_service import TeacherPermissionService
+            
+            permission = await TeacherPermissionService.check_teacher_has_permission(
+                db,
+                current_user.id,
+                current_user.school_id,
+                permission_type
+            )
+            
+            if permission:
+                return current_user, permission
+        
+        # Access denied
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Not enough permissions. Required: {permission_type.value}"
+        )
+    
+    return permission_checker
+
+
 async def get_optional_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db)

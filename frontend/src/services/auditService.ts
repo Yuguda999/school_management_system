@@ -9,8 +9,10 @@ export const auditService = {
         entity_type?: string;
         entity_id?: string;
         action?: string;
+        is_delegated?: boolean;
     }) => {
         const response = await api.get<AuditLog[]>('/audit-logs/', { params });
         return response;
     },
 };
+

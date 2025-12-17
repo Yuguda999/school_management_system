@@ -59,6 +59,7 @@ import SessionManagementPage from './pages/sessions/SessionManagementPage';
 import AssetsPage from './pages/assets/AssetsPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import ActivityLogPage from './pages/settings/ActivityLogPage';
+import TeacherPermissionsPage from './pages/settings/TeacherPermissionsPage';
 import PlatformAdminPage from './pages/platform/PlatformAdminPage';
 import PlatformSchoolsPage from './pages/platform/PlatformSchoolsPage';
 import SchoolOwnersPage from './pages/platform/SchoolOwnersPage';
@@ -484,6 +485,14 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
                   <ActivityLogPage />
+                </SchoolRoute>
+              }
+            />
+            <Route
+              path="settings/teacher-permissions"
+              element={
+                <SchoolRoute allowedRoles={['school_owner']}>
+                  <TeacherPermissionsPage />
                 </SchoolRoute>
               }
             />

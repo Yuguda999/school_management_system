@@ -1488,8 +1488,66 @@ export interface AuditLog {
   details?: Record<string, any>;
   ip_address?: string;
   user_agent?: string;
+  is_delegated: boolean;
+  delegated_by?: string;
   created_at: string;
 }
+
+// Teacher Permission Types
+export type PermissionType =
+  | 'manage_students'
+  | 'manage_fees'
+  | 'manage_assets'
+  | 'manage_grades'
+  | 'manage_classes'
+  | 'manage_attendance'
+  | 'view_analytics';
+
+export interface TeacherPermission {
+  id: string;
+  school_id: string;
+  teacher_id: string;
+  permission_type: PermissionType;
+  granted_by: string;
+  expires_at?: string;
+  is_active: boolean;
+  teacher?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+  granter?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TeacherPermissionCreate {
+  teacher_id: string;
+  permission_type: PermissionType;
+  expires_at?: string;
+}
+
+export interface TeacherPermissionBulkCreate {
+  teacher_id: string;
+  permissions: PermissionType[];
+  expires_at?: string;
+}
+
+export interface TeacherPermissionUpdate {
+  is_active?: boolean;
+  expires_at?: string;
+}
+
+export interface PermissionTypeInfo {
+  value: PermissionType;
+  label: string;
+}
+
 
 // Asset Management Types
 export enum AssetCategory {
