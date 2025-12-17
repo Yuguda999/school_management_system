@@ -2,22 +2,36 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.core.deps import require_school_owner, get_current_school, SchoolContext
+from app.core.deps import require_school_owner, get_current_school, SchoolContext, get_current_active_user
 from app.models.user import User, UserRole
 from app.models.school import School
 from app.models.teacher_permission import PermissionType
+from app.models.notification import NotificationType
 from app.schemas.teacher_permission import (
     TeacherPermissionCreate,
     TeacherPermissionUpdate,
     TeacherPermissionBulkCreate,
     TeacherPermissionResponse
 )
+from app.schemas.notification import NotificationCreate
 from app.services.teacher_permission_service import TeacherPermissionService
 from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
 from app.schemas.audit_log import AuditLogCreate
 from sqlalchemy import select
 
 router = APIRouter()
+
+# Permission labels for display
+PERMISSION_LABELS = {
+    "manage_students": "Manage Students",
+    "manage_fees": "Manage Fees",
+    "manage_assets": "Manage Assets",
+    "manage_grades": "Manage Grades",
+    "manage_classes": "Manage Classes",
+    "manage_attendance": "Manage Attendance",
+    "view_analytics": "View Analytics"
+}
 
 
 @router.post("/", response_model=TeacherPermissionResponse)
@@ -28,6 +42,7 @@ async def grant_permission(
 ) -> Any:
     """Grant a permission to a teacher (School Owner only)"""
     current_user = school_context.user
+    current_school = school_context.school
     
     # Verify teacher exists and belongs to school
     teacher_result = await db.execute(
@@ -52,6 +67,20 @@ async def grant_permission(
         permission_data,
         school_context.school_id,
         current_user.id
+    )
+    
+    # Send notification to teacher
+    perm_label = PERMISSION_LABELS.get(permission_data.permission_type.value, permission_data.permission_type.value)
+    await NotificationService.create_notification(
+        db=db,
+        notification_data=NotificationCreate(
+            user_id=teacher.id,
+            title="New Permission Granted",
+            message=f"You have been granted '{perm_label}' permission by {current_user.full_name}.",
+            type=NotificationType.INFO,
+            link=f"/{current_school.code}/my-permissions"
+        ),
+        school_id=school_context.school_id
     )
     
     # Log the action
@@ -82,6 +111,7 @@ async def grant_bulk_permissions(
 ) -> Any:
     """Grant multiple permissions to a teacher at once (School Owner only)"""
     current_user = school_context.user
+    current_school = school_context.school
     
     # Verify teacher exists and belongs to school
     teacher_result = await db.execute(
@@ -106,6 +136,21 @@ async def grant_bulk_permissions(
         bulk_data,
         school_context.school_id,
         current_user.id
+    )
+    
+    # Send notification to teacher
+    perm_labels = [PERMISSION_LABELS.get(p.value, p.value) for p in bulk_data.permissions]
+    perm_list = ", ".join(perm_labels)
+    await NotificationService.create_notification(
+        db=db,
+        notification_data=NotificationCreate(
+            user_id=teacher.id,
+            title="New Permissions Granted",
+            message=f"You have been granted the following permissions by {current_user.full_name}: {perm_list}",
+            type=NotificationType.INFO,
+            link=f"/{current_school.code}/my-permissions"
+        ),
+        school_id=school_context.school_id
     )
     
     # Log the action
@@ -164,19 +209,18 @@ async def get_teacher_permissions(
 
 @router.get("/my-permissions", response_model=List[TeacherPermissionResponse])
 async def get_my_permissions(
-    school_context: SchoolContext = Depends(require_school_owner()),
+    current_user: User = Depends(get_current_active_user),
+    current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get current user's delegated permissions (for teachers)"""
-    current_user = school_context.user
-    
     if current_user.role != UserRole.TEACHER:
         return []
     
     permissions = await TeacherPermissionService.get_teacher_permissions(
         db,
         current_user.id,
-        school_context.school_id
+        current_school.id
     )
     return permissions
 

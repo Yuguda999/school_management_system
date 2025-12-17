@@ -27,6 +27,7 @@ import ClassAttendancePage from './pages/teachers/ClassAttendancePage';
 import SubjectAttendancePage from './pages/teachers/SubjectAttendancePage';
 import ClassAttendanceRecordsPage from './pages/teachers/ClassAttendanceRecordsPage';
 import SubjectAttendanceRecordsPage from './pages/teachers/SubjectAttendanceRecordsPage';
+import MyPermissionsPage from './pages/teachers/MyPermissionsPage';
 
 import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import StudentGradesPage from './pages/students/StudentGradesPage';
@@ -332,7 +333,7 @@ function App() {
             <Route
               path="students"
               element={
-                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']} requiredPermission="manage_students">
                   <StudentsPage />
                 </SchoolRoute>
               }
@@ -340,7 +341,7 @@ function App() {
             <Route
               path="students/:studentId"
               element={
-                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']} requiredPermission="manage_students">
                   <StudentDetailPage />
                 </SchoolRoute>
               }
@@ -396,7 +397,7 @@ function App() {
             <Route
               path="fees"
               element={
-                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']} requiredPermission="manage_fees">
                   <FeesPage />
                 </SchoolRoute>
               }
@@ -457,7 +458,7 @@ function App() {
             <Route
               path="assets"
               element={
-                <SchoolRoute allowedRoles={['school_owner', 'school_admin']}>
+                <SchoolRoute allowedRoles={['school_owner', 'school_admin', 'teacher']} requiredPermission="manage_assets">
                   <AssetsPage />
                 </SchoolRoute>
               }
@@ -493,6 +494,14 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['school_owner']}>
                   <TeacherPermissionsPage />
+                </SchoolRoute>
+              }
+            />
+            <Route
+              path="my-permissions"
+              element={
+                <SchoolRoute allowedRoles={['teacher']}>
+                  <MyPermissionsPage />
                 </SchoolRoute>
               }
             />

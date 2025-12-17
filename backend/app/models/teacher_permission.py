@@ -23,8 +23,11 @@ class TeacherPermission(TenantBaseModel):
     # The teacher receiving the permission
     teacher_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     
-    # The type of permission granted
-    permission_type = Column(Enum(PermissionType), nullable=False)
+    # The type of permission granted - use native_enum=False to store as string values
+    permission_type = Column(
+        Enum(PermissionType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False
+    )
     
     # The school owner who granted this permission
     granted_by = Column(String(36), ForeignKey("users.id"), nullable=False)

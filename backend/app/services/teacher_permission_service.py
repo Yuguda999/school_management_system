@@ -42,8 +42,14 @@ class TeacherPermissionService:
             existing_permission.expires_at = permission_data.expires_at
             existing_permission.granted_by = granted_by
             await db.commit()
-            await db.refresh(existing_permission)
-            return existing_permission
+            # Re-fetch with relationships loaded
+            result = await db.execute(
+                select(TeacherPermission).options(
+                    selectinload(TeacherPermission.teacher),
+                    selectinload(TeacherPermission.granter)
+                ).where(TeacherPermission.id == existing_permission.id)
+            )
+            return result.scalar_one()
         
         # Create new permission
         permission = TeacherPermission(
@@ -56,8 +62,15 @@ class TeacherPermissionService:
         )
         db.add(permission)
         await db.commit()
-        await db.refresh(permission)
-        return permission
+        
+        # Re-fetch with relationships loaded
+        result = await db.execute(
+            select(TeacherPermission).options(
+                selectinload(TeacherPermission.teacher),
+                selectinload(TeacherPermission.granter)
+            ).where(TeacherPermission.id == permission.id)
+        )
+        return result.scalar_one()
 
     @staticmethod
     async def grant_bulk_permissions(
@@ -134,8 +147,15 @@ class TeacherPermissionService:
             permission.expires_at = update_data.expires_at
         
         await db.commit()
-        await db.refresh(permission)
-        return permission
+        
+        # Re-fetch with relationships loaded
+        result = await db.execute(
+            select(TeacherPermission).options(
+                selectinload(TeacherPermission.teacher),
+                selectinload(TeacherPermission.granter)
+            ).where(TeacherPermission.id == permission_id)
+        )
+        return result.scalar_one()
 
     @staticmethod
     async def get_teacher_permissions(

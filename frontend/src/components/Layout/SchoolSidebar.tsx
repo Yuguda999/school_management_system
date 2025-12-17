@@ -19,7 +19,8 @@ import {
   ClipboardDocumentCheckIcon,
   ArrowLeftOnRectangleIcon,
   Squares2X2Icon,
-  CubeIcon
+  CubeIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
@@ -38,6 +39,7 @@ interface NavigationItem {
   roles: string[];
   description: string;
   teacherCondition?: 'hasAssignedClasses' | 'isClassTeacher';
+  permission?: string;
   subItems?: NavigationItem[];
 }
 
@@ -48,7 +50,11 @@ interface NavigationGroup {
 
 const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false }) => {
   const { user, logout } = useAuth();
-  const { hasAssignedClasses, isClassTeacher } = useTeacherPermissions();
+  const {
+    hasAssignedClasses,
+    isClassTeacher,
+    permissions
+  } = useTeacherPermissions();
   const location = useLocation();
   const { schoolCode } = useParams<{ schoolCode: string }>();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -73,7 +79,8 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       name: 'Students',
       href: `/${schoolCode}/students`,
       icon: AcademicCapIcon,
-      roles: ['school_owner', 'school_admin'],
+      roles: ['school_owner', 'school_admin', 'teacher'],
+      permission: 'manage_students',
       description: 'Student records'
     },
     {
@@ -134,7 +141,8 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       name: 'Fees',
       href: `/${schoolCode}/fees`,
       icon: CurrencyDollarIcon,
-      roles: ['school_owner', 'school_admin'],
+      roles: ['school_owner', 'school_admin', 'teacher'],
+      permission: 'manage_fees',
       description: 'Fee management'
     },
     {
@@ -158,7 +166,8 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       name: 'Assets',
       href: `/${schoolCode}/assets`,
       icon: CubeIcon,
-      roles: ['school_owner', 'school_admin'],
+      roles: ['school_owner', 'school_admin', 'teacher'],
+      permission: 'manage_assets',
       description: 'Physical resources'
     },
     {
@@ -167,6 +176,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       icon: Cog6ToothIcon,
       roles: ['school_owner'],
       description: 'Delegate permissions'
+    },
+    {
+      name: 'My Permissions',
+      href: `/${schoolCode}/my-permissions`,
+      icon: ShieldCheckIcon,
+      roles: ['teacher'],
+      description: 'View your permissions'
     },
     {
       name: 'Settings',
@@ -183,9 +199,14 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       if (!user || !item.roles.includes(user.role)) {
         return false;
       }
-      if (user.role === 'teacher' && item.teacherCondition) {
-        if (item.teacherCondition === 'hasAssignedClasses') return hasAssignedClasses;
-        if (item.teacherCondition === 'isClassTeacher') return isClassTeacher;
+      if (user.role === 'teacher') {
+        if (item.teacherCondition) {
+          if (item.teacherCondition === 'hasAssignedClasses' && !hasAssignedClasses) return false;
+          if (item.teacherCondition === 'isClassTeacher' && !isClassTeacher) return false;
+        }
+        if (item.permission && !permissions.includes(item.permission)) {
+          return false;
+        }
       }
       return true;
     });

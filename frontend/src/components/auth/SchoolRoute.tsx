@@ -1,22 +1,26 @@
 import React from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTeacherPermissions } from '../../hooks/useTeacherPermissions';
 import LoadingSpinner from '../ui/LoadingSpinner';
 
 interface SchoolRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
+  requiredPermission?: string;
 }
 
-const SchoolRoute: React.FC<SchoolRouteProps> = ({ 
-  children, 
-  allowedRoles = ['school_owner', 'school_admin', 'teacher', 'student', 'parent'] 
+const SchoolRoute: React.FC<SchoolRouteProps> = ({
+  children,
+  allowedRoles = ['school_owner', 'school_admin', 'teacher', 'student', 'parent'],
+  requiredPermission
 }) => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { permissions, loading: permissionsLoading } = useTeacherPermissions();
   const location = useLocation();
   const { schoolCode } = useParams<{ schoolCode: string }>();
 
-  if (loading) {
+  if (authLoading || (user?.role === 'teacher' && permissionsLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <LoadingSpinner size="lg" />
@@ -94,6 +98,27 @@ const SchoolRoute: React.FC<SchoolRouteProps> = ({
         </div>
       </div>
     );
+  }
+
+  // Check for required permission (only for teachers)
+  if (requiredPermission && user.role === 'teacher') {
+    if (!permissions.includes(requiredPermission)) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Permission Required
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              You need the <strong>{requiredPermission.replace('_', ' ')}</strong> permission to access this page.
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Contact your school administrator to request access.
+            </p>
+          </div>
+        </div>
+      );
+    }
   }
 
   return <>{children}</>;
