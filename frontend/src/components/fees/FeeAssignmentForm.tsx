@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { BulkFeeAssignmentForm, FeeStructure, Class, Term, Student } from '../../types';
 import { useToast } from '../../hooks/useToast';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { apiService } from '../../services/api';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -18,6 +19,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
   loading = false
 }) => {
   const { showError } = useToast();
+  const { formatCurrency } = useCurrency();
   const { user } = useAuth();
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -148,7 +150,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
               <option value="">Select Fee Structure</option>
               {feeStructures.map((feeStructure) => (
                 <option key={feeStructure.id} value={feeStructure.id}>
-                  {feeStructure.name} - ${feeStructure.amount}
+                  {feeStructure.name} - {formatCurrency(feeStructure.amount)}
                 </option>
               ))}
             </select>
@@ -288,7 +290,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Fee Amount:</span>
-                <span className="ml-2 font-medium">${selectedFeeStructure.amount}</span>
+                <span className="ml-2 font-medium">{formatCurrency(selectedFeeStructure.amount)}</span>
               </div>
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Students:</span>
@@ -297,7 +299,7 @@ const FeeAssignmentForm: React.FC<FeeAssignmentFormProps> = ({
               <div>
                 <span className="text-gray-500 dark:text-gray-400">Total Revenue:</span>
                 <span className="ml-2 font-medium">
-                  ${(selectedFeeStructure.amount * students.length).toLocaleString()}
+                  {formatCurrency(selectedFeeStructure.amount * students.length)}
                 </span>
               </div>
               <div>

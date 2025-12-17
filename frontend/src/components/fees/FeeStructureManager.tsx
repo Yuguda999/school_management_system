@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FeeStructure, CreateFeeStructureForm } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import { FeeService } from '../../services/feeService';
@@ -24,6 +25,7 @@ import Card from '../ui/Card';
 
 const FeeStructureManager: React.FC = () => {
   const { user } = useAuth();
+  const { formatCurrency } = useCurrency();
   const { canManageFees } = usePermissions();
   const { showSuccess, showError } = useToast();
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
@@ -183,11 +185,11 @@ const FeeStructureManager: React.FC = () => {
       render: (fee) => (
         <div>
           <div className="text-sm font-bold text-green-600 dark:text-green-400">
-            {FeeService.formatCurrency(fee.amount)}
+            {formatCurrency(fee.amount)}
           </div>
           {fee.late_fee_amount && (
             <div className="text-xs text-red-500 dark:text-red-400">
-              +{FeeService.formatCurrency(fee.late_fee_amount)} late fee
+              +{formatCurrency(fee.late_fee_amount)} late fee
             </div>
           )}
         </div>
@@ -496,7 +498,7 @@ const FeeStructureManager: React.FC = () => {
                     Amount
                   </label>
                   <p className="mt-1 text-xl font-bold text-green-600 dark:text-green-400">
-                    {FeeService.formatCurrency(selectedFeeStructure.amount)}
+                    {formatCurrency(selectedFeeStructure.amount)}
                   </p>
                 </div>
                 <div>

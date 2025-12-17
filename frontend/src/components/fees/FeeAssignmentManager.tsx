@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FeeAssignment, Class, Term } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
@@ -25,6 +26,7 @@ import Card from '../ui/Card';
 
 const FeeAssignmentManager: React.FC = () => {
   const { user } = useAuth();
+  const { formatCurrency } = useCurrency();
   const { canManageFees } = usePermissions();
   const { showSuccess, showError } = useToast();
   const { currentTerm } = useCurrentTerm();
@@ -215,11 +217,11 @@ const FeeAssignmentManager: React.FC = () => {
       render: (assignment) => (
         <div>
           <div className="font-medium text-gray-900 dark:text-white">
-            {FeeService.formatCurrency(assignment.amount)}
+            {formatCurrency(assignment.amount)}
           </div>
           {assignment.discount_amount > 0 && (
             <div className="text-xs text-green-600 dark:text-green-400">
-              -{FeeService.formatCurrency(assignment.discount_amount)} discount
+              -{formatCurrency(assignment.discount_amount)} discount
             </div>
           )}
         </div>
@@ -231,7 +233,7 @@ const FeeAssignmentManager: React.FC = () => {
       sortable: true,
       render: (assignment) => (
         <div className={`font-medium ${assignment.amount_outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-          {FeeService.formatCurrency(assignment.amount_outstanding)}
+          {formatCurrency(assignment.amount_outstanding)}
         </div>
       ),
     },
@@ -271,7 +273,7 @@ const FeeAssignmentManager: React.FC = () => {
     },
     {
       name: 'Total Amount',
-      value: FeeService.formatCurrency(stats.totalAmount),
+      value: formatCurrency(stats.totalAmount),
       icon: CurrencyDollarIcon,
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-100 dark:bg-green-900/30',
@@ -279,7 +281,7 @@ const FeeAssignmentManager: React.FC = () => {
     },
     {
       name: 'Pending Amount',
-      value: FeeService.formatCurrency(stats.pendingAmount),
+      value: formatCurrency(stats.pendingAmount),
       icon: ExclamationTriangleIcon,
       color: 'text-yellow-600 dark:text-yellow-400',
       bgColor: 'bg-yellow-100 dark:bg-yellow-900/30',
@@ -523,18 +525,18 @@ const FeeAssignmentManager: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Total Amount</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{FeeService.formatCurrency(selectedAssignment.amount)}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(selectedAssignment.amount)}</span>
                   </div>
                   {selectedAssignment.discount_amount > 0 && (
                     <div className="flex justify-between text-green-600 dark:text-green-400">
                       <span>Discount</span>
-                      <span>-{FeeService.formatCurrency(selectedAssignment.discount_amount)}</span>
+                      <span>-{formatCurrency(selectedAssignment.discount_amount)}</span>
                     </div>
                   )}
                   <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between">
                     <span className="font-bold text-gray-900 dark:text-white">Outstanding</span>
                     <span className={`font-bold ${selectedAssignment.amount_outstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      {FeeService.formatCurrency(selectedAssignment.amount_outstanding)}
+                      {formatCurrency(selectedAssignment.amount_outstanding)}
                     </span>
                   </div>
                 </div>
@@ -551,7 +553,7 @@ const FeeAssignmentManager: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Amount Paid</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">{FeeService.formatCurrency(selectedAssignment.amount_paid)}</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(selectedAssignment.amount_paid)}</span>
                   </div>
                 </div>
               </div>

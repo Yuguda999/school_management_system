@@ -10,11 +10,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { reportsService, ClassReport } from '../../services/reportsService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import Card from '../ui/Card';
 
 const ClassReports: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
+  const { formatCurrency
+  } = useCurrency();
   const [classes, setClasses] = useState<ClassReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -163,7 +166,7 @@ const ClassReports: React.FC = () => {
               <CurrencyDollarIcon className="h-6 w-6" />
             </div>
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
-              ₹{(classes.reduce((sum, cls) => sum + cls.total_fees_collected, 0) / 100000).toFixed(1)}L
+              {formatCurrency(classes.reduce((sum, cls) => sum + cls.total_fees_collected, 0))}
             </p>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-1">Total Collected</p>
           </div>
@@ -258,13 +261,13 @@ const ClassReports: React.FC = () => {
                 <div>
                   <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Collected</span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    ₹{classReport.total_fees_collected.toLocaleString()}
+                    {formatCurrency(classReport.total_fees_collected)}
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-gray-500 dark:text-gray-400 block mb-1">Pending</span>
                   <span className="font-bold text-red-600 dark:text-red-400">
-                    ₹{classReport.pending_fees.toLocaleString()}
+                    {formatCurrency(classReport.pending_fees)}
                   </span>
                 </div>
               </div>

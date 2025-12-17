@@ -13,6 +13,7 @@ import {
 import analyticsService, { FinanceAnalytics } from '../../services/analyticsService';
 import { useSchoolCode } from '../../hooks/useSchoolCode';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import Card from '../ui/Card';
 
@@ -23,11 +24,10 @@ interface FinanceAnalyticsPanelProps {
 const FinanceAnalyticsPanel: React.FC<FinanceAnalyticsPanelProps> = ({ termId }) => {
   const schoolCode = useSchoolCode();
   const { user } = useAuth();
+  const { formatCurrency } = useCurrency();
   const [analytics, setAnalytics] = useState<FinanceAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const currency = user?.school?.settings?.currency || '$';
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -62,7 +62,7 @@ const FinanceAnalyticsPanel: React.FC<FinanceAnalyticsPanelProps> = ({ termId })
     );
   }
 
-  const formatCurrency = (amount: number) => `${currency}${amount.toLocaleString()}`;
+
 
   return (
     <div className="space-y-6">

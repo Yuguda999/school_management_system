@@ -18,6 +18,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { DashboardData } from '../../types/dashboard';
 import { reportsService } from '../../services/reportsService';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -37,13 +38,11 @@ import { buildSchoolRouteUrl, getSchoolCodeFromUrl } from '../../utils/schoolCod
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { currentTerm } = useCurrentTerm();
+  const { formatCurrency, currencySymbol } = useCurrency();
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(true);
-
-  // Get currency from school settings or default to USD
-  const currency = user?.school?.settings?.currency || '$';
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -104,13 +103,13 @@ const DashboardPage: React.FC = () => {
           },
           {
             name: 'Total Revenue',
-            value: `${currency}${stats.total_revenue?.toLocaleString() || '0'}`,
+            value: formatCurrency(stats.total_revenue || 0),
             icon: CurrencyDollarIcon,
             color: 'bg-green-500'
           },
           {
             name: 'Pending Fees',
-            value: `${currency}${stats.pending_fees.toLocaleString()}`,
+            value: formatCurrency(stats.pending_fees),
             icon: ExclamationTriangleIcon,
             color: 'bg-red-500'
           },
@@ -317,7 +316,7 @@ const DashboardPage: React.FC = () => {
       {isAdmin && dashboardData && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-in-up delay-500">
           <EnrollmentChart data={dashboardData.enrollment_trend} />
-          <RevenueChart data={dashboardData.revenue_data} currency={currency} />
+          <RevenueChart data={dashboardData.revenue_data} currency={currencySymbol} />
         </div>
       )}
 

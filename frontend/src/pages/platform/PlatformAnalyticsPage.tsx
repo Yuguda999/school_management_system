@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import platformAdminService, { PlatformStatistics } from '../../services/platformAdminService';
 
 interface AnalyticsMetric {
@@ -33,6 +34,7 @@ interface TimeSeriesData {
 const PlatformAnalyticsPage: React.FC = () => {
   const { canManagePlatform } = usePermissions();
   const { showError } = useToast();
+  const { formatCurrency } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<PlatformStatistics | null>(null);
   const [timeRange, setTimeRange] = useState('30d');
@@ -162,13 +164,12 @@ const PlatformAnalyticsPage: React.FC = () => {
                       <div className="text-2xl font-semibold text-gray-900 dark:text-white">
                         {(metric.value || 0).toLocaleString()}
                       </div>
-                      <div className={`ml-2 flex items-baseline text-sm font-semibold ${
-                        metric.changeType === 'increase'
+                      <div className={`ml-2 flex items-baseline text-sm font-semibold ${metric.changeType === 'increase'
                           ? 'text-green-600'
                           : metric.changeType === 'decrease'
-                          ? 'text-red-600'
-                          : 'text-gray-500'
-                      }`}>
+                            ? 'text-red-600'
+                            : 'text-gray-500'
+                        }`}>
                         {metric.changeType === 'increase' ? (
                           <ArrowTrendingUpIcon className="self-center flex-shrink-0 h-4 w-4 mr-1" />
                         ) : metric.changeType === 'decrease' ? (
@@ -290,13 +291,12 @@ const PlatformAnalyticsPage: React.FC = () => {
                   <span className="text-sm font-medium text-gray-900 dark:text-white mr-2">
                     {item.value}
                   </span>
-                  <div className={`w-2 h-2 rounded-full ${
-                    item.status === 'excellent' 
-                      ? 'bg-green-500' 
-                      : item.status === 'good' 
-                      ? 'bg-blue-500' 
-                      : 'bg-yellow-500'
-                  }`}></div>
+                  <div className={`w-2 h-2 rounded-full ${item.status === 'excellent'
+                      ? 'bg-green-500'
+                      : item.status === 'good'
+                        ? 'bg-blue-500'
+                        : 'bg-yellow-500'
+                    }`}></div>
                 </div>
               </div>
             ))}
@@ -382,7 +382,7 @@ const PlatformAnalyticsPage: React.FC = () => {
                     {data.teachers || 0}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    ${(data.revenue || 0).toLocaleString()}
+                    {formatCurrency(data.revenue || 0)}
                   </td>
                 </tr>
               ))}

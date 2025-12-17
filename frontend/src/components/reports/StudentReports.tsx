@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { reportsService, StudentReport } from '../../services/reportsService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import CurrentTermIndicator from '../terms/CurrentTermIndicator';
 import { academicService } from '../../services/academicService';
 import { Class } from '../../types';
@@ -20,6 +21,7 @@ import Card from '../ui/Card';
 
 const StudentReports: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
+  const { formatCurrency } = useCurrency();
   const [students, setStudents] = useState<StudentReport[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,7 +182,7 @@ const StudentReports: React.FC = () => {
           <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mr-2">
             <div
               className={`h-1.5 rounded-full ${student.attendance_rate >= 90 ? 'bg-green-500' :
-                  student.attendance_rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
+                student.attendance_rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
                 }`}
               style={{ width: `${student.attendance_rate}%` }}
             ></div>
@@ -217,7 +219,7 @@ const StudentReports: React.FC = () => {
       sortable: true,
       render: (student) => (
         <span className={`text-sm font-medium ${student.pending_amount > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-          ₹{student.pending_amount.toLocaleString()}
+          {formatCurrency(student.pending_amount)}
         </span>
       ),
     },
@@ -370,8 +372,8 @@ const StudentReports: React.FC = () => {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${selectedStudent.grade_average >= 90 ? 'bg-green-500' :
-                            selectedStudent.grade_average >= 75 ? 'bg-blue-500' :
-                              selectedStudent.grade_average >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                          selectedStudent.grade_average >= 75 ? 'bg-blue-500' :
+                            selectedStudent.grade_average >= 60 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
                         style={{ width: `${selectedStudent.grade_average}%` }}
                       ></div>
@@ -388,7 +390,7 @@ const StudentReports: React.FC = () => {
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full ${selectedStudent.attendance_rate >= 90 ? 'bg-green-500' :
-                            selectedStudent.attendance_rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
+                          selectedStudent.attendance_rate >= 75 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
                         style={{ width: `${selectedStudent.attendance_rate}%` }}
                       ></div>
@@ -411,12 +413,12 @@ const StudentReports: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Total Paid</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">₹{selectedStudent.total_fees_paid.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(selectedStudent.total_fees_paid)}</span>
                   </div>
                   <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
                     <span className="text-sm font-bold text-gray-900 dark:text-white">Pending</span>
                     <span className={`text-sm font-bold ${selectedStudent.pending_amount > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                      ₹{selectedStudent.pending_amount.toLocaleString()}
+                      {formatCurrency(selectedStudent.pending_amount)}
                     </span>
                   </div>
                   {selectedStudent.last_payment_date && (

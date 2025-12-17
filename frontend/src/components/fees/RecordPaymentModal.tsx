@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { FeeAssignment, CreateFeePaymentForm } from '../../types';
 import { FeeService } from '../../services/feeService';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { useToast } from '../../hooks/useToast';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 
@@ -30,6 +31,7 @@ const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     });
 
     const { showSuccess, showError } = useToast();
+    const { formatCurrency, currencySymbol, currency } = useCurrency();
     const amount = watch('amount');
 
     useEffect(() => {
@@ -119,7 +121,7 @@ const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                             <div className="flex justify-between text-sm">
                                 <span className="text-gray-600 dark:text-gray-400">Outstanding:</span>
                                 <span className="font-bold text-red-600 dark:text-red-400">
-                                    {FeeService.formatCurrency(assignment.amount_outstanding)}
+                                    {formatCurrency(assignment.amount_outstanding)}
                                 </span>
                             </div>
                         </div>
@@ -131,7 +133,7 @@ const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                                 </label>
                                 <div className="mt-1 relative rounded-md shadow-sm">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-gray-500 sm:text-sm">$</span>
+                                        <span className="text-gray-500 sm:text-sm">{currencySymbol}</span>
                                     </div>
                                     <input
                                         type="number"
@@ -141,7 +143,7 @@ const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
                                         placeholder="0.00"
                                     />
                                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                        <span className="text-gray-500 sm:text-sm">USD</span>
+                                        <span className="text-gray-500 sm:text-sm">{currency}</span>
                                     </div>
                                 </div>
                                 {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}

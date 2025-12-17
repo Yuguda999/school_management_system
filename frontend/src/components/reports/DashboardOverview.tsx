@@ -12,10 +12,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { reportsService, DashboardStats } from '../../services/reportsService';
 import { useCurrentTerm } from '../../hooks/useCurrentTerm';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import Card from '../ui/Card';
 
 const DashboardOverview: React.FC = () => {
   const { currentTerm } = useCurrentTerm();
+  const { formatCurrency } = useCurrency();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +117,7 @@ const DashboardOverview: React.FC = () => {
     },
     {
       title: 'Pending Fees',
-      value: `₹${stats.pending_fees.toLocaleString()}`,
+      value: formatCurrency(stats.pending_fees),
       icon: CurrencyDollarIcon,
       color: 'text-red-600 dark:text-red-400',
       bgColor: 'bg-red-100 dark:bg-red-900/30',
@@ -164,8 +166,8 @@ const DashboardOverview: React.FC = () => {
                     <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
                   )}
                   <span className={`text-sm font-medium ${stat.changeType === 'increase' ? 'text-green-600 dark:text-green-400' :
-                      stat.changeType === 'decrease' ? 'text-red-600 dark:text-red-400' :
-                        'text-gray-600 dark:text-gray-400'
+                    stat.changeType === 'decrease' ? 'text-red-600 dark:text-red-400' :
+                      'text-gray-600 dark:text-gray-400'
                     }`}>
                     {stat.change}
                   </span>
@@ -293,7 +295,7 @@ const DashboardOverview: React.FC = () => {
               </h4>
             </div>
             <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              ₹{stats.pending_fees.toLocaleString()} in pending fees requires attention
+              {formatCurrency(stats.pending_fees)} in pending fees requires attention
             </p>
           </div>
           <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800/50 hover:shadow-md transition-shadow">
