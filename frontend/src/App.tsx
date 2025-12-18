@@ -15,6 +15,8 @@ import FreemiumRegistrationPage from './pages/public/FreemiumRegistrationPage';
 import LandingPage from './pages/public/LandingPage';
 import TeacherProfileCompletionPage from './pages/teachers/TeacherProfileCompletionPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import VerificationPage from './pages/public/VerificationPage';
+import VerifyCredentialPage from './pages/verify/VerifyCredentialPage';
 
 import TeacherProfilePage from './pages/teachers/TeacherProfilePage';
 import TeacherSubjectsPage from './pages/teachers/TeacherSubjectsPage';
@@ -31,6 +33,7 @@ import MyPermissionsPage from './pages/teachers/MyPermissionsPage';
 
 import StudentDashboardPage from './pages/students/StudentDashboardPage';
 import StudentGradesPage from './pages/students/StudentGradesPage';
+import StudentCredentialsPage from './pages/students/StudentCredentialsPage';
 import CBTTestsPage from './pages/cbt/CBTTestsPage';
 import CBTTestCreatePage from './pages/cbt/CBTTestCreatePage';
 import CBTTestGeneratorPage from './pages/cbt/CBTTestGeneratorPage';
@@ -89,6 +92,9 @@ function App() {
           <Route path="/teacher/accept-invitation" element={<TeacherSetupPage />} />
           <Route path="/teacher/complete-profile" element={<TeacherProfileCompletionPage />} />
           <Route path="/register" element={<FreemiumRegistrationPage />} />
+          <Route path="/verify-certificate/:assetId" element={<VerificationPage />} />
+          <Route path="/verify" element={<VerifyCredentialPage />} />
+          <Route path="/verify/:assetId" element={<VerifyCredentialPage />} />
 
           {/* Platform Admin Routes - Completely Isolated */}
           <Route
@@ -143,6 +149,16 @@ function App() {
               element={
                 <SchoolRoute allowedRoles={['student']}>
                   <StudentGradesPage />
+                </SchoolRoute>
+              }
+            />
+
+            {/* Student Credentials */}
+            <Route
+              path="student/credentials"
+              element={
+                <SchoolRoute allowedRoles={['student']}>
+                  <StudentCredentialsPage />
                 </SchoolRoute>
               }
             />

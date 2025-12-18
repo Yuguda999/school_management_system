@@ -272,6 +272,35 @@ class SchoolService {
     );
     return response;
   }
+
+  /**
+   * Enable blockchain identity for a school
+   */
+  async enableBlockchain(schoolId: string): Promise<{ message: string; wallet_address: string }> {
+    const response = await apiService.post<{ message: string; wallet_address: string }>(
+      `/api/v1/schools/${schoolId}/identity/enable`,
+      {}
+    );
+    return response;
+  }
+
+  /**
+   * Get blockchain identity status
+   */
+  async getBlockchainStatus(schoolId: string): Promise<{
+    enabled: boolean;
+    wallet_address: string | null;
+    balance: number;
+    network: string;
+  }> {
+    const response = await apiService.get<{
+      enabled: boolean;
+      wallet_address: string | null;
+      balance: number;
+      network: string;
+    }>(`/api/v1/schools/${schoolId}/identity/status`);
+    return response;
+  }
 }
 
 export const schoolService = new SchoolService();

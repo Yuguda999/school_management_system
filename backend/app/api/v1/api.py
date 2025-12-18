@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 # Import all endpoint routers
-from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, grade_templates, component_mappings, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance, analytics, goals, alerts, gradebook, curriculum, materials, cbt_generator, support, sessions, promotions, search, teacher_permissions
+from app.api.v1.endpoints import auth, schools, school_selection, users, classes, subjects, terms, students, fees, grades, grade_templates, component_mappings, communication, academic_sessions, teacher_subjects, dashboard, reports, teacher_invitations, enrollments, platform_admin, documents, public_school, school_validation, report_card_templates, student_portal, teacher_tools, cbt, cbt_schedules, cbt_student, notifications, audit_logs, assets, attendance, analytics, goals, alerts, gradebook, curriculum, materials, cbt_generator, support, sessions, promotions, search, credentials, teacher_permissions, certificates, school_blockchain
 
 api_router = APIRouter()
 
@@ -46,6 +46,8 @@ api_router.include_router(support.router, prefix="/support", tags=["support"])
 api_router.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 api_router.include_router(promotions.router, prefix="/promotions", tags=["promotions"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
+api_router.include_router(credentials.router, prefix="/credentials", tags=["credentials"])
+api_router.include_router(school_blockchain.router, prefix="/schools", tags=["school-identity"])
 
 # School-specific routes with school code
 api_router.include_router(students.router, prefix="/school/{school_code}/students", tags=["school-students"])

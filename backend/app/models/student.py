@@ -81,17 +81,21 @@ class Student(TenantBaseModel):
     
     # Relationships
     school = relationship("School", back_populates="students")
-    current_class = relationship("Class", back_populates="students")
+    current_class = relationship("Class", foreign_keys=[current_class_id], back_populates="students")
     user = relationship("User", foreign_keys=[user_id], back_populates="student", uselist=False)
     parent = relationship("User", foreign_keys=[parent_id], back_populates="children")
-    enrollments = relationship("Enrollment", back_populates="student")
-    attendances = relationship("Attendance", back_populates="student")
-    grades = relationship("Grade", back_populates="student")
-    fee_payments = relationship("FeePayment", back_populates="student")
+    enrollments = relationship("Enrollment", back_populates="student", cascade="all, delete-orphan")
+    attendances = relationship("Attendance", back_populates="student", cascade="all, delete-orphan")
+    grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
+    fee_payments = relationship("FeePayment", back_populates="student", cascade="all, delete-orphan")
     fee_assignments = relationship("FeeAssignment", back_populates="student")
     documents = relationship("Document", back_populates="student")
     class_history = relationship("StudentClassHistory", back_populates="student")
     goals = relationship("StudentGoal", back_populates="student")
+    certificates = relationship("TransferCertificate", back_populates="student")
+    
+    # Edix Verifiable Credentials
+    credentials = relationship("VerifiableCredential", back_populates="student", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Student(id={self.id}, admission_number={self.admission_number}, name={self.full_name})>"

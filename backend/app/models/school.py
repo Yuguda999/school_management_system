@@ -60,6 +60,11 @@ class School(BaseModel):
     max_teachers = Column(Integer, nullable=True)  # None for unlimited
     max_classes = Column(Integer, nullable=True)   # None for unlimited
     
+    # Blockchain Configuration (Multi-Tenant)
+    blockchain_enabled = Column(Boolean, default=False, nullable=False)
+    wallet_address = Column(String(255), nullable=True) # Public Address
+    encrypted_signing_key = Column(Text, nullable=True) # Encrypted Private Key
+    
     # Relationships
     users = relationship("User", back_populates="school", cascade="all, delete-orphan")
     owners = relationship("SchoolOwnership", back_populates="school", cascade="all, delete-orphan")

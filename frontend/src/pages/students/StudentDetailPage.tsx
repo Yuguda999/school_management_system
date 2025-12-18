@@ -8,7 +8,9 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StudentProfile from '../../components/students/StudentProfile';
 import MultiStepStudentModal from '../../components/students/MultiStepStudentModal';
 import { ReportCardViewer } from '../../components/reports/ReportCardViewer';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import CertificateGeneratorModal from '../../components/students/CertificateGeneratorModal';
+import StudentCredentials from '../../components/students/StudentCredentials';
+import { DocumentTextIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const StudentDetailPage: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -19,6 +21,8 @@ const StudentDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showReportCard, setShowReportCard] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'credentials'>('profile');
 
   useEffect(() => {
     if (studentId) {
@@ -112,6 +116,13 @@ const StudentDetailPage: React.FC = () => {
 
         <div className="flex space-x-3">
           <button
+            onClick={() => setShowCertificateModal(true)}
+            className="btn-secondary flex items-center space-x-2"
+          >
+            <ShieldCheckIcon className="h-4 w-4" />
+            <span>Generate Certificate</span>
+          </button>
+          <button
             onClick={() => setShowReportCard(true)}
             className="btn-secondary flex items-center space-x-2"
           >
@@ -130,10 +141,40 @@ const StudentDetailPage: React.FC = () => {
 
       {/* Student Profile */}
       <div className="card">
-        <StudentProfile
-          student={student}
-          onEdit={handleEdit}
-        />
+        <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+          <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`${activeTab === 'profile'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => setActiveTab('credentials')}
+              className={`${activeTab === 'credentials'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center`}
+            >
+              <ShieldCheckIcon className="h-4 w-4 mr-2" />
+              Credentials (VCs)
+            </button>
+          </nav>
+        </div>
+
+        <div className="p-6 pt-0">
+          {activeTab === 'profile' ? (
+            <StudentProfile
+              student={student}
+              onEdit={handleEdit}
+            />
+          ) : (
+            <StudentCredentials studentId={student.id} studentName={student.full_name} />
+          )}
+        </div>
       </div>
 
       {/* Edit Modal */}
@@ -150,7 +191,16 @@ const StudentDetailPage: React.FC = () => {
           isOpen={showReportCard}
           onClose={() => setShowReportCard(false)}
           studentId={student.id}
-          classId={student.current_class_id}
+          classId={student.current_class_id || ""}
+        />
+      )}
+
+      {showCertificateModal && student && (
+        <CertificateGeneratorModal
+          isOpen={showCertificateModal}
+          onClose={() => setShowCertificateModal(false)}
+          studentId={student.id}
+          studentName={student.full_name}
         />
       )}
     </div>

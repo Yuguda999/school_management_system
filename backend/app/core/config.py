@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     # ASI Cloud
     asi_api_key: Optional[str] = None
     asi_model: str = "openai/gpt-oss-20b"  # Default model
+    
+    # Blockchain (Cardano)
+    blockfrost_project_id: Optional[str] = None
+    school_wallet_signing_key: Optional[str] = None
+    cardano_network: str = "preprod"  # mainnet, preprod, preview
+    master_encryption_key: Optional[str] = None # For encrypting school private keys
 
     def get_allowed_origins_list(self) -> List[str]:
         """Get allowed origins as a list"""

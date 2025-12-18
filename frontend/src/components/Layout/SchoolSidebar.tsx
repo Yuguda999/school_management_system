@@ -134,6 +134,13 @@ const SchoolSidebar: React.FC<SidebarProps> = ({ onClose, isCollapsed = false })
       roles: ['teacher'],
       description: 'Utilities'
     },
+    {
+      name: 'My Credentials',
+      href: `/${schoolCode}/student/credentials`,
+      icon: ShieldCheckIcon,
+      roles: ['student'],
+      description: 'Blockchain credentials'
+    },
   ];
 
   const financeItems: NavigationItem[] = [

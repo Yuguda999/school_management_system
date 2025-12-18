@@ -27,4 +27,5 @@ from .curriculum import *  # noqa
 from .teacher_material import *  # noqa
 from .teacher_permission import *  # noqa
 from .promotion_request import *  # noqa
-
+from .certificate import TransferCertificate
+from .credential import VerifiableCredential

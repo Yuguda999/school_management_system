@@ -62,6 +62,12 @@ const LandingPage: React.FC = () => {
       icon: DevicePhoneMobileIcon,
       color: 'bg-teal-500',
     },
+    {
+      name: 'Blockchain Identity',
+      description: 'Issue verifiable, tamper-proof credentials on the Cardano blockchain.',
+      icon: ShieldCheckIcon,
+      color: 'bg-orange-500',
+    },
   ];
 
   const pricingPlans = [
@@ -129,7 +135,10 @@ const LandingPage: React.FC = () => {
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Features</a>
             <a href="#pricing" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Pricing</a>
-            <a href="#testimonials" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">Testimonials</a>
+            <Link to="/verify" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center">
+              <ShieldCheckIcon className="h-4 w-4 mr-1" />
+              Verify Credential
+            </Link>
           </div>
           <div className="flex items-center space-x-4">
             <Link to="/login" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
@@ -164,7 +173,7 @@ const LandingPage: React.FC = () => {
           </h1>
 
           <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-600 dark:text-gray-300 mb-10 animate-fade-in-up delay-200">
-            Empower your institution with AI-driven insights, advanced analytics, and seamless administration. The future of education management is here.
+            Empower your institution with AI-driven insights, blockchain-secured credentials, and seamless administration. The future of education management is here.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up delay-300">
@@ -305,6 +314,88 @@ const LandingPage: React.FC = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Blockchain Identity Showcase */}
+      <div className="py-24 bg-white dark:bg-gray-800 relative overflow-hidden border-t border-gray-100 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="order-2 lg:order-1 relative">
+              <div className="absolute inset-0 bg-gradient-to-l from-primary-500 to-secondary-500 rounded-3xl blur-2xl opacity-20 transform -rotate-3"></div>
+              <div className="relative bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-3xl p-8 shadow-2xl">
+                {/* Abstract representation of Blockchain Credential */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="h-12 w-12 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                        <AcademicCapIcon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+                      </div>
+                      <div>
+                        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                        <div className="h-3 w-24 bg-gray-100 dark:bg-gray-800 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium">
+                      Verified
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded"></div>
+                    <div className="h-3 w-5/6 bg-gray-100 dark:bg-gray-800 rounded"></div>
+                    <div className="h-3 w-4/6 bg-gray-100 dark:bg-gray-800 rounded"></div>
+                  </div>
+
+                  <div className="pt-6 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center">
+                      <ShieldCheckIcon className="h-4 w-4 mr-1 text-primary-500" />
+                      Secured on Cardano
+                    </div>
+                    <div className="font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                      0x7f...3a9
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="order-1 lg:order-2">
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
+                Sovereign Student <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-primary-400 dark:to-secondary-400">
+                  Identity & Credentials
+                </span>
+              </h2>
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                Issue tamper-proof, verifiable academic credentials that students own forever. Powered by the Cardano blockchain, Edix ensures that diplomas and transcripts are instantly verifiable and impossible to forge.
+              </p>
+
+              <ul className="space-y-4 mb-10">
+                {[
+                  'Tamper-proof academic records',
+                  'Instant global verification',
+                  'Student-owned digital identity',
+                  'Zero-knowledge privacy protection'
+                ].map((item, i) => (
+                  <li key={i} className="flex items-center text-gray-700 dark:text-gray-300">
+                    <div className="h-6 w-6 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mr-3">
+                      <CheckIcon className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                    </div>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <Link
+                to="/verify"
+                className="inline-flex items-center px-8 py-4 text-lg font-bold rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100 transition-all shadow-lg hover:-translate-y-1"
+              >
+                Verify a Credential
+                <ArrowRightIcon className="ml-2 h-5 w-5" />
+              </Link>
             </div>
           </div>
         </div>
@@ -454,6 +545,7 @@ const LandingPage: React.FC = () => {
               <h4 className="text-lg font-semibold mb-6">Product</h4>
               <ul className="space-y-4 text-gray-400">
                 <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
+                <li><Link to="/verify" className="hover:text-white transition-colors">Verify Credential</Link></li>
                 <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Security</a></li>
                 <li><a href="#" className="hover:text-white transition-colors">Roadmap</a></li>
