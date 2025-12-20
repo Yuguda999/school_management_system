@@ -275,3 +275,17 @@ This project is licensed under the MIT License.
 ## Support
 
 For support and questions, please open an issue in the repository.
+
+## Platform Administration
+
+To access the Platform Super Admin dashboard, you must first create an initial admin user. A utility script is provided for this purpose.
+
+### Creating a Platform Super Admin
+
+Run the following command from the `backend` directory:
+
+```bash
+python create_platform_admin.py
+```
+
+Follow the prompts to set the email, details, and password. Once created, you can log in via the standard login page, and the system will automatically redirect you to the Platform Dashboard.

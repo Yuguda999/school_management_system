@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.deps import get_current_active_user, require_platform_admin
+from app.core.deps import get_current_active_user, require_platform_admin_user
 from app.models.user import User
 from app.schemas.platform_admin import (
     SchoolOwnerCreate,
@@ -24,7 +24,7 @@ router = APIRouter()
 
 @router.get("/dashboard", response_model=PlatformDashboardData)
 async def get_platform_dashboard(
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get platform dashboard data"""
@@ -56,7 +56,7 @@ async def get_platform_dashboard(
 
 @router.get("/statistics", response_model=PlatformStatistics)
 async def get_platform_statistics(
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get platform statistics"""
@@ -71,7 +71,7 @@ async def get_all_schools(
     size: int = Query(50, ge=1, le=100),
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all schools with filtering and pagination"""
@@ -88,7 +88,7 @@ async def get_all_schools(
 async def update_school_status(
     school_id: str,
     status_update: SchoolStatusUpdate,
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update school status (activate/deactivate, verify/unverify)"""
@@ -126,7 +126,7 @@ async def update_school_status(
 @router.post("/schools/bulk-action")
 async def bulk_school_action(
     bulk_action: BulkSchoolAction,
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Perform bulk actions on schools"""
@@ -177,7 +177,7 @@ async def bulk_school_action(
 async def get_school_owners(
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=100),
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get all school owners"""
@@ -191,7 +191,7 @@ async def get_school_owners(
 @router.post("/school-owners", response_model=SchoolOwnerResponse)
 async def create_school_owner(
     owner_data: SchoolOwnerCreate,
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Create a new school owner"""
@@ -204,7 +204,7 @@ async def create_school_owner(
 async def update_school_owner(
     owner_id: str,
     owner_update: SchoolOwnerUpdate,
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Update a school owner"""
@@ -229,7 +229,7 @@ async def update_school_owner(
 @router.delete("/school-owners/{owner_id}")
 async def delete_school_owner(
     owner_id: str,
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Delete (soft delete) a school owner"""
@@ -248,7 +248,7 @@ async def delete_school_owner(
 
 @router.get("/trial-statistics", response_model=TrialStatistics)
 async def get_trial_statistics(
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get trial statistics for freemium schools"""
@@ -260,7 +260,7 @@ async def get_trial_statistics(
 @router.get("/activity", response_model=List[PlatformActivity])
 async def get_platform_activity(
     limit: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(require_platform_admin()),
+    current_user: User = Depends(require_platform_admin_user()),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Get recent platform activity"""
