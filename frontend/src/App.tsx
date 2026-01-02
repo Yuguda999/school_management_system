@@ -8,6 +8,7 @@ import SchoolRoute from './components/auth/SchoolRoute';
 import ProfileCompletionCheck from './components/auth/ProfileCompletionCheck';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import { lazy, Suspense } from 'react';
+import ReloadPrompt from './components/pwa/ReloadPrompt';
 import RoleBasedRedirect from './components/auth/RoleBasedRedirect';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
@@ -84,6 +85,7 @@ function App() {
 
   return (
     <>
+      <ReloadPrompt />
       <NotificationProvider>
         <Suspense fallback={<div className="h-screen w-full flex items-center justify-center"><LoadingSpinner /></div>}>
           <Routes>
