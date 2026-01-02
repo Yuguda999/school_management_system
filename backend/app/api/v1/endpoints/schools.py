@@ -20,6 +20,7 @@ from app.schemas.school import (
 from app.services.school_service import SchoolService
 from app.services.school_ownership_service import SchoolOwnershipService
 from app.services.file_upload_service import FileUploadService
+from app.services.redis_service import redis_service
 
 router = APIRouter()
 
@@ -262,6 +263,9 @@ async def update_school_settings(
             detail="School not found"
         )
     
+    # Invalidate cache
+    await redis_service.delete(f"school_settings:{current_school.id}")
+
     return {"message": "Settings updated successfully", "settings": updated_school.settings}
 
 
@@ -534,6 +538,9 @@ async def update_school_theme(
     # Update the cached school object in the context to reflect the changes
     school_context.school = updated_school
 
+    # Invalidate cache
+    await redis_service.delete(f"school_settings:{current_school.id}")
+
     return {
         "message": "Theme settings updated successfully",
         "theme_settings": updated_school.settings.get("theme_settings", {})
@@ -545,7 +552,20 @@ async def get_school_settings(
     school_context: SchoolContext = Depends(get_current_school_context)
 ) -> Any:
     """Get current school settings"""
-    return {"settings": school_context.school.settings or {}}
+    cache_key = f"school_settings:{school_context.school.id}"
+    
+    # Try to get from cache
+    cached_settings = await redis_service.get(cache_key)
+    if cached_settings:
+        return {"settings": cached_settings}
+    
+    # If not in cache, get from DB
+    settings = school_context.school.settings or {}
+    
+    # Set in cache for 5 minutes
+    await redis_service.set(cache_key, settings, expire=300)
+    
+    return {"settings": settings}
 
 
 @router.post("/me/deactivate")

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from app.core.config import settings
 from app.core.database_init import check_and_initialize_database
 from app.api.v1.api import api_router
@@ -56,6 +57,9 @@ app = FastAPI(
     redoc_url="/api/v1/redoc",
     lifespan=lifespan
 )
+
+# Add GZip Middleware
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add CORS middleware
 app.add_middleware(
