@@ -6,6 +6,7 @@ import {
   BuildingOfficeIcon,
   BuildingStorefrontIcon,
   SparklesIcon,
+  PaintBrushIcon,
 } from '@heroicons/react/24/outline';
 
 
@@ -23,8 +24,9 @@ import GradeTemplateManagement from './GradeTemplateManagement';
 import SessionManagement from './SessionManagement';
 import { aiSupportService } from '../../services/aiSupportService';
 import Card from '../ui/Card';
+import AppearanceSettings from './AppearanceSettings';
 
-type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'general';
+type SchoolSettingsTab = 'overview' | 'schools' | 'academic' | 'appearance' | 'general';
 
 interface NavItem {
   id: SchoolSettingsTab;
@@ -139,6 +141,13 @@ const SchoolSettings: React.FC = () => {
       icon: AcademicCapIcon,
       description: 'Academic year and term settings',
       show: true,
+    },
+    {
+      id: 'appearance',
+      name: 'Appearance',
+      icon: PaintBrushIcon,
+      description: 'School branding and theme',
+      show: user?.role === 'school_owner' || user?.role === 'school_admin',
     },
     {
       id: 'general',
@@ -273,6 +282,9 @@ const SchoolSettings: React.FC = () => {
             </Card>
           </div>
         );
+
+      case 'appearance':
+        return <AppearanceSettings />;
 
       case 'general':
         return (

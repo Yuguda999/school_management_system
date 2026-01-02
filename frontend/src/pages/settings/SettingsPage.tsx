@@ -22,7 +22,7 @@ import BlockchainSettings from '../../components/settings/BlockchainSettings';
 import PageHeader from '../../components/Layout/PageHeader';
 import Card from '../../components/ui/Card';
 
-type SettingsTab = 'profile' | 'theme' | 'notifications' | 'school' | 'blockchain' | 'system';
+type SettingsTab = 'profile' | 'notifications' | 'school' | 'blockchain' | 'system';
 
 interface SettingsNavItem {
   id: SettingsTab;
@@ -44,14 +44,6 @@ const SettingsPage: React.FC = () => {
       name: 'Profile',
       icon: UserIcon,
       description: 'Personal information and account settings',
-      allowedRoles: ['super_admin', 'admin', 'teacher', 'student', 'parent', 'school_owner', 'school_admin'],
-      category: 'personal',
-    },
-    {
-      id: 'theme',
-      name: 'Appearance',
-      icon: PaintBrushIcon,
-      description: 'Theme and display preferences',
       allowedRoles: ['super_admin', 'admin', 'teacher', 'student', 'parent', 'school_owner', 'school_admin'],
       category: 'personal',
     },
@@ -209,113 +201,6 @@ const SettingsPage: React.FC = () => {
                     <ShieldCheckIcon className="h-4 w-4 inline mr-1" />
                     To update your profile information, please visit the <a href={`/${user?.school_code}/profile`} className="text-primary-600 dark:text-primary-400 hover:underline">Profile Page</a>.
                   </p>
-                </div>
-              </div>
-            </Card>
-          </div>
-        );
-
-      case 'theme':
-        return (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 text-white shadow-lg shadow-purple-500/30">
-                <PaintBrushIcon className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Appearance</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Customize how the app looks</p>
-              </div>
-            </div>
-
-            <Card variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Theme Mode</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={() => theme.mode !== 'light' && toggleDarkMode()}
-                    className={`relative p-6 rounded-2xl border-2 transition-all duration-200 ${theme.mode === 'light'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className={`p-4 rounded-xl mb-3 ${theme.mode === 'light'
-                        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg shadow-amber-500/30'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                        }`}>
-                        <SunIcon className="h-8 w-8" />
-                      </div>
-                      <span className={`font-medium ${theme.mode === 'light'
-                        ? 'text-primary-700 dark:text-primary-300'
-                        : 'text-gray-700 dark:text-gray-300'
-                        }`}>Light</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Bright and clean</span>
-                    </div>
-                    {theme.mode === 'light' && (
-                      <div className="absolute top-3 right-3">
-                        <div className="h-5 w-5 rounded-full bg-primary-500 flex items-center justify-center">
-                          <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => theme.mode !== 'dark' && toggleDarkMode()}
-                    className={`relative p-6 rounded-2xl border-2 transition-all duration-200 ${theme.mode === 'dark'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 ring-2 ring-primary-500/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className={`p-4 rounded-xl mb-3 ${theme.mode === 'dark'
-                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
-                        }`}>
-                        <MoonIcon className="h-8 w-8" />
-                      </div>
-                      <span className={`font-medium ${theme.mode === 'dark'
-                        ? 'text-primary-700 dark:text-primary-300'
-                        : 'text-gray-700 dark:text-gray-300'
-                        }`}>Dark</span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Easy on the eyes</span>
-                    </div>
-                    {theme.mode === 'dark' && (
-                      <div className="absolute top-3 right-3">
-                        <div className="h-5 w-5 rounded-full bg-primary-500 flex items-center justify-center">
-                          <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </Card>
-
-            <Card variant="glass">
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Preview</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  See how different elements look with your current theme
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-xl bg-primary-500 text-white text-center">
-                    <span className="text-sm font-medium">Primary</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-green-500 text-white text-center">
-                    <span className="text-sm font-medium">Success</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-yellow-500 text-white text-center">
-                    <span className="text-sm font-medium">Warning</span>
-                  </div>
-                  <div className="p-4 rounded-xl bg-red-500 text-white text-center">
-                    <span className="text-sm font-medium">Danger</span>
-                  </div>
                 </div>
               </div>
             </Card>

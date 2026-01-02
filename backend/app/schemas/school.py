@@ -172,7 +172,11 @@ class SchoolThemeSettings(BaseModel):
     """Schema for school theme settings"""
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
+    accent_color: Optional[str] = None
     dark_mode_enabled: Optional[bool] = None
+    theme_preset_id: Optional[str] = None  # ID from predefined themes
+    font_family: Optional[str] = None
+    border_radius: Optional[str] = None  # 'rounded', 'sharp', 'pill'
     custom_css: Optional[str] = None
 
 

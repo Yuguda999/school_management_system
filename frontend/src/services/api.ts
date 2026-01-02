@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 class ApiService {
   public api: AxiosInstance;
@@ -20,30 +20,30 @@ class ApiService {
     });
 
     // Request interceptor to add auth token
-      this.api.interceptors.request.use(
-        (config) => {
-          // Don't add auth token for login endpoints only
-          const isLoginEndpoint = config.url?.includes('/auth/login') || 
-                                 config.url?.includes('/auth/student/login') ||
-                                 (config.url?.includes('/auth/school/') && config.url?.includes('/student/login'));
-          
-          console.log('🔍 Request interceptor:', {
-            url: config.url,
-            isLoginEndpoint,
-            hasAuthHeader: !!config.headers.Authorization
-          });
-          
-          if (!isLoginEndpoint) {
-            const token = localStorage.getItem('access_token');
-            if (token) {
-              config.headers.Authorization = `Bearer ${token}`;
-              console.log('🔑 Added auth token for non-login endpoint');
-            }
-          } else {
-            console.log('🚫 Skipping auth token for login endpoint');
+    this.api.interceptors.request.use(
+      (config) => {
+        // Don't add auth token for login endpoints only
+        const isLoginEndpoint = config.url?.includes('/auth/login') ||
+          config.url?.includes('/auth/student/login') ||
+          (config.url?.includes('/auth/school/') && config.url?.includes('/student/login'));
+
+        console.log('🔍 Request interceptor:', {
+          url: config.url,
+          isLoginEndpoint,
+          hasAuthHeader: !!config.headers.Authorization
+        });
+
+        if (!isLoginEndpoint) {
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            console.log('🔑 Added auth token for non-login endpoint');
           }
-          return config;
-        },
+        } else {
+          console.log('🚫 Skipping auth token for login endpoint');
+        }
+        return config;
+      },
       (error) => {
         return Promise.reject(error);
       }
@@ -64,7 +64,7 @@ class ApiService {
 
         // Don't attempt token refresh for authentication endpoints
         const isAuthEndpoint = originalRequest.url?.includes('/auth/') || originalRequest.url?.includes('/login');
-        
+
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
           if (this.isRefreshing) {
             // If we're already refreshing, queue this request
@@ -105,12 +105,12 @@ class ApiService {
             this.processQueue(refreshError, null);
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            
+
             // Trigger auth error callback if set (e.g., to logout user)
             if (this.authErrorCallback) {
               this.authErrorCallback();
             }
-            
+
             // Token refresh failed, tokens cleared
             return Promise.reject(refreshError);
           } finally {
@@ -145,7 +145,7 @@ class ApiService {
     console.log('POST data:', data);
     console.log('POST data type:', typeof data);
     console.log('POST data keys:', data ? Object.keys(data) : 'no data');
-    
+
     const response: AxiosResponse<T> = await this.api.post(url, data, config);
     return response.data;
   }
