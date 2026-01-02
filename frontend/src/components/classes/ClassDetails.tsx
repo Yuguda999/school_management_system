@@ -215,6 +215,18 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
       let schoolInfo = null;
       let gradeTemplate = null;
 
+      // Fetch fresh class data to ensure we have the latest template ID
+      let templateIdToUse = selectedTemplateId;
+      try {
+        const freshClassData = await academicService.getClass(classData.id);
+        if (freshClassData.report_card_template_id) {
+          templateIdToUse = freshClassData.report_card_template_id;
+          console.log('Using class-assigned template:', templateIdToUse);
+        }
+      } catch (e) {
+        console.warn("Could not fetch fresh class data, using current state", e);
+      }
+
       try {
         const [school, gradeTemplates] = await Promise.all([
           schoolService.getCurrentSchool(),
@@ -224,19 +236,26 @@ const ClassDetails: React.FC<ClassDetailsProps> = ({
         // Try to find a grade template for this class or use default
         // For now using default as fallback
         gradeTemplate = gradeTemplates.find(t => t.is_default) || gradeTemplates[0];
+
+        // If no class-specific template, check school default
+        if (!templateIdToUse && school.default_template_id) {
+          templateIdToUse = school.default_template_id;
+          console.log('Using school default template:', templateIdToUse);
+        }
       } catch (e) {
         console.error('Error fetching initial data', e);
       }
 
-      if (selectedTemplateId) {
+      if (templateIdToUse) {
         try {
-          templateData = await TemplateService.getTemplate(selectedTemplateId);
+          templateData = await TemplateService.getTemplate(templateIdToUse);
         } catch (e) {
           console.error('Failed to fetch selected template', e);
         }
       }
 
       if (!templateData) {
+        console.log('No specific template found, searching for system default');
         const templates = await TemplateService.getTemplates();
         templateData = templates.find(t => t.isDefault) || templates[0];
       }

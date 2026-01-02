@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { TemplateService, ReportCardTemplate } from '../../services/templateService';
+import { alertSuccess, alertError } from '../../utils/notifications';
 import ModernTemplateEditor from '../../components/templates/ModernTemplateEditor';
 import TemplatePreviewModal from '../../components/templates/TemplatePreviewModal';
 import TemplateGallery from '../../components/templates/TemplateGallery';
@@ -444,9 +445,11 @@ const ReportCardTemplatesPanel: React.FC = () => {
                                 if (updated) {
                                     setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t));
                                     setEditingTemplate(updated);
+                                    alertSuccess('Template saved successfully');
                                 }
                             } catch (error) {
                                 console.error('Error saving template:', error);
+                                alertError('Failed to save template');
                             }
                         }
                     }}

@@ -84,7 +84,8 @@ export class TemplateService {
         zIndex: field.z_index,
         visible: field.is_visible,
         // Map other properties from JSON
-        ...field.properties
+        ...field.properties,
+        properties: field.properties // Enable nested access for new features
       })) || []
     };
   }
@@ -146,17 +147,27 @@ export class TemplateService {
         z_index: el.zIndex || 0,
 
         // Store extra properties in JSON
+        // Read from properties object first (where editor stores them),
+        // fallback to top-level for backward compatibility
         properties: {
-          showRemarks: el.showRemarks,
-          striped: el.striped,
-          compact: el.compact,
-          headerBackgroundColor: el.headerBackgroundColor,
-          headerTextColor: el.headerTextColor,
-          rotation: el.rotation,
-          opacity: el.opacity,
-          locked: el.locked,
-          boxShadow: el.boxShadow,
-          borderRadius: el.borderRadius
+          showRemarks: el.properties?.showRemarks ?? el.showRemarks,
+          striped: el.properties?.striped ?? el.striped,
+          compact: el.properties?.compact ?? el.compact,
+          headerBackgroundColor: el.properties?.headerBackgroundColor ?? el.headerBackgroundColor,
+          headerTextColor: el.properties?.headerTextColor ?? el.headerTextColor,
+          // Additional table properties stored in properties object
+          showTotal: el.properties?.showTotal,
+          showGrade: el.properties?.showGrade,
+          showComponentColumns: el.properties?.showComponentColumns,
+          visibleComponents: el.properties?.visibleComponents,
+          headerOverrides: el.properties?.headerOverrides,
+          columnWidths: el.properties?.columnWidths,
+          // General element properties
+          rotation: el.properties?.rotation ?? el.rotation,
+          opacity: el.properties?.opacity ?? el.opacity,
+          locked: el.properties?.locked ?? el.locked,
+          boxShadow: el.properties?.boxShadow ?? el.boxShadow,
+          borderRadius: el.properties?.borderRadius ?? el.borderRadius
         }
       }));
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PhotoIcon } from '@heroicons/react/24/outline';
 import { GradeTemplate } from '../../types';
+import { API_BASE_URL } from '../../services/api';
 
 export interface TemplateElement {
     id: string;
@@ -45,7 +46,43 @@ interface ReportCardRendererProps {
     isEditing?: boolean;
     onUpdate?: (updates: Partial<TemplateElement>) => void;
     onEditEnd?: () => void;
+    onResizeStart?: (e: React.MouseEvent, direction: string) => void;
 }
+
+const ResizeHandle = ({ direction, onMouseDown }: { direction: string; onMouseDown: (e: React.MouseEvent) => void }) => {
+    const getPositionStyle = () => {
+        switch (direction) {
+            case 'nw': return { top: -3, left: -3, cursor: 'nw-resize' };
+            case 'n': return { top: -3, left: '50%', transform: 'translateX(-50%)', cursor: 'n-resize' };
+            case 'ne': return { top: -3, right: -3, cursor: 'ne-resize' };
+            case 'e': return { top: '50%', right: -3, transform: 'translateY(-50%)', cursor: 'e-resize' };
+            case 'se': return { bottom: -3, right: -3, cursor: 'se-resize' };
+            case 's': return { bottom: -3, left: '50%', transform: 'translateX(-50%)', cursor: 's-resize' };
+            case 'sw': return { bottom: -3, left: -3, cursor: 'sw-resize' };
+            case 'w': return { top: '50%', left: -3, transform: 'translateY(-50%)', cursor: 'w-resize' };
+            default: return {};
+        }
+    };
+
+    return (
+        <div
+            style={{
+                position: 'absolute',
+                width: 8,
+                height: 8,
+                backgroundColor: 'white',
+                border: '1px solid #3b82f6',
+                borderRadius: '50%',
+                zIndex: 100,
+                ...getPositionStyle()
+            }}
+            onMouseDown={(e) => {
+                e.stopPropagation();
+                onMouseDown(e);
+            }}
+        />
+    );
+};
 
 export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
     element,
@@ -58,6 +95,7 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
     isEditing = false,
     onUpdate,
     onEditEnd,
+    onResizeStart,
 }) => {
     if (!element) return null;
 
@@ -216,7 +254,15 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
                 );
             case 'school_logo':
                 // Display actual school logo from data
-                const logoUrl = data?.schoolLogo;
+                let logoUrl = data?.schoolLogo;
+
+                // Handle relative URLs
+                if (logoUrl && !logoUrl.startsWith('http') && !logoUrl.startsWith('data:') && !logoUrl.startsWith('blob:')) {
+                    // Ensure proper slash handling
+                    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+                    const path = logoUrl.startsWith('/') ? logoUrl : `/${logoUrl}`;
+                    logoUrl = `${baseUrl}${path}?t=cors`;
+                }
 
                 if (imgError || !logoUrl) {
                     return (
@@ -233,6 +279,7 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
                             alt="School Logo"
                             className="max-w-full max-h-full object-contain"
                             onError={() => setImgError(true)}
+                            crossOrigin="anonymous"
                         />
                     </div>
                 );
@@ -245,42 +292,42 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
             case 'grade_table':
                 const { headerBg, headerColor, borderColor, striped, compact } = getTableStyles();
                 const cellPadding = compact ? '4px 8px' : '8px 12px';
+                const hasCustomWidths = element.properties?.columnWidths && Object.keys(element.properties.columnWidths).length > 0;
 
-                // Build headers: Subject + Components (from template) + Total + Grade + Remarks
-                const headers = ['Subject'];
+                // Build columns definition
+                const columns: { key: string, label: string }[] = [{ key: 'subject', label: 'Subject' }];
 
-                // Add component columns if template exists and user wants them
+                // Add component columns
                 if (gradeTemplate && element.properties?.showComponentColumns !== false) {
                     gradeTemplate.assessment_components.forEach(component => {
-                        // Check if this specific component should be shown
                         if (component.id && element.properties?.visibleComponents?.[component.id] !== false) {
-                            headers.push(component.name);
+                            columns.push({ key: component.id, label: component.name });
                         }
                     });
                 }
 
-                // Add Total if enabled (default true)
-                if (element.properties?.showTotal !== false) headers.push('Total');
-
-                // Add Grade if enabled (default true)
-                if (element.properties?.showGrade !== false) headers.push('Grade');
-
-                // Add Remarks if enabled
-                if (element.properties?.showRemarks) headers.push('Remarks');
+                if (element.properties?.showTotal !== false) columns.push({ key: 'total', label: 'Total' });
+                if (element.properties?.showGrade !== false) columns.push({ key: 'grade', label: 'Grade' });
+                if (element.properties?.showRemarks) columns.push({ key: 'remarks', label: 'Remarks' });
 
                 return (
                     <div className="w-full h-full overflow-hidden">
-                        <table className="w-full text-inherit border-collapse">
+                        <table className="w-full text-inherit border-collapse" style={{ tableLayout: hasCustomWidths ? 'fixed' : 'auto' }}>
+                            <colgroup>
+                                {columns.map((col) => (
+                                    <col key={col.key} style={{ width: element.properties?.columnWidths?.[col.key] || 'auto' }} />
+                                ))}
+                            </colgroup>
                             <thead>
                                 <tr style={{ backgroundColor: headerBg, color: headerColor }}>
-                                    {headers.map((header, idx) => (
-                                        <th key={idx} style={{
+                                    {columns.map((col, idx) => (
+                                        <th key={col.key} style={{
                                             border: `1px solid ${borderColor}`,
                                             padding: cellPadding,
                                             textAlign: idx === 0 ? 'left' : 'center',
                                             fontSize: compact ? '0.75em' : '1em'
                                         }}>
-                                            {header}
+                                            {element.properties?.headerOverrides?.[col.key] || col.label}
                                         </th>
                                     ))}
                                 </tr>
@@ -307,59 +354,46 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
 
                                         return {
                                             subject: sampleSubjects[i],
-                                            components: {
-                                                'c1': baseScores[i],
-                                                'c2': baseScores[i] + 0.5,
-                                                'c3': examScores[i]
-                                            },
-                                            total: totals[i],
-                                            grade: grades[i],
-                                            remark: remarks[i]
+                                            // Mock data structure matching columns logic
                                         };
                                     });
 
+                                    // Helper to extract value safely
+                                    const getValue = (row: any, key: string, label: string) => {
+                                        if (key === 'subject') return row.subject;
+                                        if (key === 'total') return row.total || row.score || '-';
+                                        if (key === 'grade') return row.grade || (sampleData === element.data && grades[0]) || '-'; // Fallback for mock vs real
+                                        if (key === 'remarks') return row.remarks || row.remark || '-';
+
+                                        // Component check
+                                        if (row.component_scores && row.component_scores[label]) return row.component_scores[label];
+                                        if (row.components && row.components[label]) return row.components[label];
+                                        if (row.components && row.components[key]) return row.components[key];
+
+                                        // Mock data fallback for preview
+                                        if (!element.data) {
+                                            const idx = sampleSubjects.indexOf(row.subject);
+                                            if (idx >= 0) {
+                                                // Quick mock logic
+                                                if (label.toLowerCase().includes('exam')) return 60;
+                                                return 15;
+                                            }
+                                        }
+                                        return '-';
+                                    };
+
                                     return sampleData.map((row: any, i: number) => (
                                         <tr key={i} style={{ backgroundColor: striped && i % 2 === 1 ? '#f9fafb' : 'transparent' }}>
-                                            <td style={{ border: `1px solid ${borderColor}`, padding: cellPadding }}>{row.subject}</td>
-
-                                            {/* Component columns */}
-                                            {gradeTemplate && element.properties?.showComponentColumns !== false && gradeTemplate.assessment_components.map((component, compIdx) => {
-                                                if (!component.id || element.properties?.visibleComponents?.[component.id] === false) return null;
-
-                                                // Look up component score - check both component_scores (from backend) and components (legacy)
-                                                const componentScore = row.component_scores?.[component.name] ||  // Backend consolidated grades
-                                                    row.components?.[component.name] ||   // Legacy format
-                                                    row.components?.[component.id] ||
-                                                    row[component.name.toLowerCase()] ||
-                                                    '-';
-
-                                                return (
-                                                    <td key={compIdx} style={{ border: `1px solid ${borderColor}`, padding: cellPadding, textAlign: 'center' }}>
-                                                        {componentScore}
-                                                    </td>
-                                                );
-                                            })}
-
-                                            {/* Total column */}
-                                            {element.properties?.showTotal !== false && (
-                                                <td style={{ border: `1px solid ${borderColor}`, padding: cellPadding, textAlign: 'center', fontWeight: 'bold' }}>
-                                                    {row.total || row.score || '-'}
+                                            {columns.map((col, idx) => (
+                                                <td key={col.key} style={{
+                                                    border: `1px solid ${borderColor}`,
+                                                    padding: cellPadding,
+                                                    textAlign: idx === 0 ? 'left' : 'center',
+                                                    fontWeight: (col.key === 'total' || col.key === 'grade') ? 'bold' : 'normal'
+                                                }}>
+                                                    {getValue(row, col.key, col.label)}
                                                 </td>
-                                            )}
-
-                                            {/* Grade column */}
-                                            {element.properties?.showGrade !== false && (
-                                                <td style={{ border: `1px solid ${borderColor}`, padding: cellPadding, textAlign: 'center', fontWeight: 'bold' }}>
-                                                    {row.grade || '-'}
-                                                </td>
-                                            )}
-
-                                            {/* Remarks column */}
-                                            {element.properties?.showRemarks && (
-                                                <td style={{ border: `1px solid ${borderColor}`, padding: cellPadding }}>
-                                                    {row.remarks || row.remark || '-'}
-                                                </td>
-                                            )}
+                                            ))}
                                         </tr>
                                     ));
                                 })()}
@@ -481,10 +515,18 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
                 );
 
             case 'image':
+                let imgSrc = element.content;
+                if (imgSrc && imgSrc !== 'Image Placeholder' && !imgSrc.startsWith('http') && !imgSrc.startsWith('data:') && !imgSrc.startsWith('blob:')) {
+                    // Ensure proper slash handling
+                    const baseUrl = API_BASE_URL.replace(/\/$/, '');
+                    const path = imgSrc.startsWith('/') ? imgSrc : `/${imgSrc}`;
+                    imgSrc = `${baseUrl}${path}?t=cors`;
+                }
+
                 return (
                     <div className="w-full h-full flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300 overflow-hidden">
-                        {element.content && element.content !== 'Image Placeholder' ? (
-                            <img src={element.content} alt="Element" className="w-full h-full object-contain" />
+                        {imgSrc && imgSrc !== 'Image Placeholder' ? (
+                            <img src={imgSrc} alt="Element" className="w-full h-full object-contain" crossOrigin="anonymous" />
                         ) : (
                             <div className="text-center">
                                 <PhotoIcon className="h-8 w-8 text-gray-400 mx-auto mb-1" />
@@ -509,6 +551,18 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
             className={isSelected && !isPreview ? 'ring-2 ring-blue-500 ring-opacity-50' : ''}
         >
             {renderContent()}
+
+            {isSelected && !isPreview && !element.locked && onResizeStart && (
+                <>
+                    {['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map((dir) => (
+                        <ResizeHandle
+                            key={dir}
+                            direction={dir}
+                            onMouseDown={(e) => onResizeStart(e, dir)}
+                        />
+                    ))}
+                </>
+            )}
         </div>
     );
 };

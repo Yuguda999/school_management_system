@@ -24,12 +24,14 @@ import { TemplateService, ReportCardTemplate } from '../../services/templateServ
 import ModernTemplateEditor from '../../components/templates/ModernTemplateEditor';
 import TemplatePreviewModal from '../../components/templates/TemplatePreviewModal';
 import TemplateGallery from '../../components/templates/TemplateGallery';
+import { useToast } from '../../hooks/useToast';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'newest' | 'oldest' | 'name' | 'usage' | 'default';
 type FilterBy = 'all' | 'published' | 'draft' | 'default';
 
 const ReportCardTemplatesPage: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [templates, setTemplates] = useState<ReportCardTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -470,9 +472,11 @@ const ReportCardTemplatesPage: React.FC = () => {
                   setEditingTemplate(updated);
 
                   console.log('✅ Template saved - editor will reload with database UUIDs');
+                  showSuccess('Template saved successfully!');
                 }
               } catch (error) {
                 console.error('Error saving template:', error);
+                showError('Failed to save template. Please try again.');
               }
             }
           }}

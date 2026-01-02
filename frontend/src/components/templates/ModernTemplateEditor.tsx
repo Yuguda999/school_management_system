@@ -21,6 +21,8 @@ import {
   CalendarDaysIcon,
   UserGroupIcon,
   ListBulletIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { ReportCardTemplate } from '../../services/templateService';
 import { ReportCardRenderer, TemplateElement } from './ReportCardRenderer';
@@ -406,7 +408,17 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
   const [elements, setElements] = useState<TemplateElement[]>([]);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [initialResizeState, setInitialResizeState] = useState<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    startXPos: number;
+    startYPos: number;
+  } | null>(null);
   const [canvasScale, setCanvasScale] = useState(0.7);
   const [showGrid, setShowGrid] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
@@ -624,27 +636,30 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
 
   const moveElement = useCallback((id: string, direction: 'up' | 'down') => {
     setElements(prev => {
-      const newElements = [...prev];
-      const index = newElements.findIndex(el => el.id === id);
-      if (index === -1) return prev;
+      // Sort elements by z-index descending (visual order)
+      const sorted = [...prev].sort((a, b) => b.zIndex - a.zIndex);
+      const currentIndex = sorted.findIndex(el => el.id === id);
 
-      if (direction === 'up' && index > 0) {
-        // Swap z-index
-        const tempZ = newElements[index].zIndex;
-        newElements[index].zIndex = newElements[index - 1].zIndex;
-        newElements[index - 1].zIndex = tempZ;
-        // Swap elements
-        [newElements[index], newElements[index - 1]] = [newElements[index - 1], newElements[index]];
-      } else if (direction === 'down' && index < newElements.length - 1) {
-        // Swap z-index
-        const tempZ = newElements[index].zIndex;
-        newElements[index].zIndex = newElements[index + 1].zIndex;
-        newElements[index + 1].zIndex = tempZ;
-        // Swap elements
-        [newElements[index], newElements[index + 1]] = [newElements[index + 1], newElements[index]];
-      }
+      if (currentIndex === -1) return prev;
 
-      return newElements;
+      let targetIndex = -1;
+      // Up means 'bring forward', so move to lower index in descending list
+      if (direction === 'up') targetIndex = currentIndex - 1;
+      // Down means 'send backward', so move to higher index in descending list
+      if (direction === 'down') targetIndex = currentIndex + 1;
+
+      // Check bounds
+      if (targetIndex < 0 || targetIndex >= sorted.length) return prev;
+
+      const currentEl = sorted[currentIndex];
+      const targetEl = sorted[targetIndex];
+
+      // Swap z-indices in the state
+      return prev.map(el => {
+        if (el.id === currentEl.id) return { ...el, zIndex: targetEl.zIndex };
+        if (el.id === targetEl.id) return { ...el, zIndex: currentEl.zIndex };
+        return el;
+      });
     });
   }, []);
 
@@ -667,7 +682,74 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
     }
   }, [elements, canvasScale]);
 
+  const handleResizeStart = useCallback((e: React.MouseEvent, direction: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const element = elements.find(el => el.id === selectedElement);
+    if (!element || !selectedElement) return;
+
+    setIsResizing(true);
+    setResizeDirection(direction);
+    setInitialResizeState({
+      startX: e.clientX,
+      startY: e.clientY,
+      startWidth: element.width,
+      startHeight: element.height,
+      startXPos: element.x,
+      startYPos: element.y,
+    });
+  }, [elements, selectedElement]);
+
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isResizing && initialResizeState && selectedElement && resizeDirection) {
+      const deltaX = (e.clientX - initialResizeState.startX) / canvasScale;
+      const deltaY = (e.clientY - initialResizeState.startY) / canvasScale;
+
+      let newWidth = initialResizeState.startWidth;
+      let newHeight = initialResizeState.startHeight;
+      let newX = initialResizeState.startXPos;
+      let newY = initialResizeState.startYPos;
+
+      // Calculate new dimensions/position based on direction
+      if (resizeDirection.includes('e')) {
+        newWidth = Math.max(20, initialResizeState.startWidth + deltaX);
+      }
+      if (resizeDirection.includes('w')) {
+        const potentialWidth = initialResizeState.startWidth - deltaX;
+        if (potentialWidth >= 20) {
+          newWidth = potentialWidth;
+          newX = initialResizeState.startXPos + deltaX;
+        }
+      }
+      if (resizeDirection.includes('s')) {
+        newHeight = Math.max(20, initialResizeState.startHeight + deltaY);
+      }
+      if (resizeDirection.includes('n')) {
+        const potentialHeight = initialResizeState.startHeight - deltaY;
+        if (potentialHeight >= 20) {
+          newHeight = potentialHeight;
+          newY = initialResizeState.startYPos + deltaY;
+        }
+      }
+
+      // Snap to grid for resize
+      if (snapToGrid) {
+        newWidth = Math.round(newWidth / 10) * 10;
+        newHeight = Math.round(newHeight / 10) * 10;
+        newX = Math.round(newX / 10) * 10;
+        newY = Math.round(newY / 10) * 10;
+      }
+
+      updateElement(selectedElement, {
+        width: newWidth,
+        height: newHeight,
+        x: newX,
+        y: newY
+      });
+      return;
+    }
+
     if (!isDragging || !selectedElement) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -687,10 +769,13 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
     y = Math.max(0, Math.min(canvasHeight - 50, y));
 
     updateElement(selectedElement, { x, y });
-  }, [isDragging, selectedElement, dragOffset, canvasScale, updateElement, snapToGrid, canvasWidth, canvasHeight]);
+  }, [isDragging, isResizing, selectedElement, dragOffset, canvasScale, updateElement, snapToGrid, canvasWidth, canvasHeight, initialResizeState, resizeDirection]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsResizing(false);
+    setInitialResizeState(null);
+    setResizeDirection(null);
   }, []);
 
   const handleCanvasClick = useCallback((e: React.MouseEvent) => {
@@ -742,7 +827,11 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 bg-gray-100 dark:bg-gray-900 z-[100] flex flex-col h-screen w-screen overflow-hidden font-sans">
+    <div
+      className="fixed inset-0 bg-gray-100 dark:bg-gray-900 z-[100] flex flex-col h-screen w-screen overflow-hidden font-sans"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 h-14 flex items-center justify-between shrink-0 z-50 relative shadow-sm">
         <div className="flex items-center space-x-4">
@@ -936,12 +1025,25 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Background Color</label>
                         <div className="flex items-center space-x-2">
-                          <input
-                            type="color"
-                            value={backgroundColor}
-                            onChange={(e) => setBackgroundColor(e.target.value)}
-                            className="h-8 w-8 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
-                          />
+                          <div className="relative flex items-center justify-center">
+                            <input
+                              type="color"
+                              value={backgroundColor}
+                              onChange={(e) => setBackgroundColor(e.target.value)}
+                              className="h-9 w-9 p-0.5 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
+                            />
+                            <svg className="absolute h-5 w-5 pointer-events-none" viewBox="0 0 24 24" fill="none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                              <defs>
+                                <linearGradient id="rainbow" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="#ef4444" />
+                                  <stop offset="33%" stopColor="#eab308" />
+                                  <stop offset="66%" stopColor="#22c55e" />
+                                  <stop offset="100%" stopColor="#3b82f6" />
+                                </linearGradient>
+                              </defs>
+                              <path d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.077-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.156 6.365a15.995 15.995 0 00-4.647 4.763m0 0c-.461.949-.929 1.886-1.42 2.801" stroke="url(#rainbow)" />
+                            </svg>
+                          </div>
                           <input
                             type="text"
                             value={backgroundColor}
@@ -1000,8 +1102,12 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
                   transform: `scale(${canvasScale})`,
                   backgroundColor: backgroundColor,
                 }}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
+                style={{
+                  width: canvasWidth,
+                  height: canvasHeight,
+                  transform: `scale(${canvasScale})`,
+                  backgroundColor: backgroundColor,
+                }}
                 onClick={handleCanvasClick}
               >
                 {/* Grid Overlay */}
@@ -1055,14 +1161,18 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
                       isSelected={selectedElement === element.id}
                       isPreview={previewMode}
                       scale={1} // Pass 1 because the parent container is already scaled
-                      onMouseDown={(e) => handleMouseDown(e, element.id)}
-                      gradeTemplate={gradeTemplate || undefined}
+                      onMouseDown={(e: React.MouseEvent) => handleMouseDown(e, element.id)}
                       data={schoolData ? {
                         schoolName: schoolData.name,
                         schoolAddress: `${schoolData.address_line1 || ''}${schoolData.address_line2 ? '\n' + schoolData.address_line2 : ''}\n${schoolData.city || ''}, ${schoolData.state || ''}`,
                         schoolMotto: schoolData.motto,
                         schoolLogo: schoolData.logo_url
                       } : undefined}
+                      gradeTemplate={gradeTemplate || undefined}
+                      isEditing={sidebarTab === 'properties' && selectedElement === element.id}
+                      onUpdate={(updates: Partial<TemplateElement>) => updateElement(element.id, updates)}
+                      onEditEnd={() => setSidebarTab('elements')}
+                      onResizeStart={handleResizeStart}
                     />
                   ))}
               </div>
@@ -1386,6 +1496,67 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ element, onUpdateElem
                   />
                 </div>
               </div>
+
+              {/* Enhanced Column Settings */}
+              {element.type === 'grade_table' && (
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <h5 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-3">Column Settings</h5>
+                  <div className="space-y-3">
+                    {/* Helper to generate active column list */}
+                    {(() => {
+                      const columns = [{ key: 'subject', label: 'Subject' }];
+                      if (gradeTemplate && element.properties?.showComponentColumns !== false) {
+                        gradeTemplate.assessment_components.forEach(c => {
+                          if (element.properties?.visibleComponents?.[c.id || ''] !== false) {
+                            columns.push({ key: c.id || '', label: c.name });
+                          }
+                        });
+                      }
+                      if (element.properties?.showTotal !== false) columns.push({ key: 'total', label: 'Total' });
+                      if (element.properties?.showGrade !== false) columns.push({ key: 'grade', label: 'Grade' });
+                      if (element.properties?.showRemarks) columns.push({ key: 'remarks', label: 'Remarks' });
+
+                      return columns.map(col => (
+                        <div key={col.key} className="bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
+                          <div className="text-xs font-medium text-gray-500 mb-1">{col.label}</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Header</label>
+                              <input
+                                type="text"
+                                value={element.properties?.headerOverrides?.[col.key] || ''}
+                                placeholder={col.label}
+                                onChange={(e) => onUpdateElement(element.id, {
+                                  properties: {
+                                    ...element.properties,
+                                    headerOverrides: { ...element.properties?.headerOverrides, [col.key]: e.target.value }
+                                  }
+                                })}
+                                className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-400 mb-0.5">Width</label>
+                              <input
+                                type="text"
+                                value={element.properties?.columnWidths?.[col.key] || ''}
+                                placeholder="Auto"
+                                onChange={(e) => onUpdateElement(element.id, {
+                                  properties: {
+                                    ...element.properties,
+                                    columnWidths: { ...element.properties?.columnWidths, [col.key]: e.target.value }
+                                  }
+                                })}
+                                className="w-full text-xs border border-gray-300 dark:border-gray-600 rounded px-1.5 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1689,8 +1860,19 @@ const LayersPanel: React.FC<LayersPanelProps> = ({
                 <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                   {element.content.split('\n')[0].substring(0, 30) || element.type}
                 </span>
+                {element.locked && <LockClosedIcon className="w-3 h-3 text-gray-400" />}
               </div>
               <div className="flex items-center space-x-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateElement(element.id, { locked: !element.locked });
+                  }}
+                  className={`p-1 rounded transition-colors ${element.locked ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                  title={element.locked ? "Unlock Element" : "Lock Element"}
+                >
+                  {element.locked ? <LockClosedIcon className="w-3 h-3" /> : <LockOpenIcon className="w-3 h-3" />}
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

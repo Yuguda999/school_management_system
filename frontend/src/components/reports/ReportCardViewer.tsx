@@ -57,9 +57,10 @@ export const ReportCardViewer: React.FC<ReportCardViewerProps> = ({
             setStudentData(studentData);
 
             // 2. Fetch School Info
+            let schoolInfoData: any = null;
             try {
-                const school = await schoolService.getCurrentSchool();
-                setSchoolInfo(school);
+                schoolInfoData = await schoolService.getCurrentSchool();
+                setSchoolInfo(schoolInfoData);
             } catch (e) {
                 console.error('Failed to fetch school info:', e);
             }
@@ -71,6 +72,7 @@ export const ReportCardViewer: React.FC<ReportCardViewerProps> = ({
                 try {
                     const classDetails = await academicService.getClass(classId);
                     templateId = classDetails.report_card_template_id;
+                    console.log('ReportCardViewer: Class specific template:', templateId);
 
                     // Also try to fetch grade template for this class
                     // Note: This assumes a method exists or we fetch all and filter
@@ -83,8 +85,9 @@ export const ReportCardViewer: React.FC<ReportCardViewerProps> = ({
                 }
             }
 
-            if (!templateId && user?.school?.default_template_id) {
-                templateId = user.school.default_template_id;
+            if (!templateId && schoolInfoData?.default_template_id) {
+                templateId = schoolInfoData.default_template_id;
+                console.log('ReportCardViewer: Using school default template:', templateId);
             }
 
             // Fetch the actual template
