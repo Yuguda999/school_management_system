@@ -116,25 +116,42 @@ class Settings(BaseSettings):
     def compute_database_urls(self) -> 'Settings':
         """
         Ensure correct async and sync database URLs are generated.
-        1. Convert standard postgresql:// to postgresql+psycopg:// for the async engine.
-           (psycopg works better with PgBouncer transaction mode than asyncpg)
-        2. Derive postgresql:// sync URL for Alembic migrations.
+        1. For Supabase: Use asyncpg with prepared_statement_cache_size=0 (better PgBouncer support)
+        2. For other PostgreSQL: Use psycopg driver
+        3. Derive sync URL for Alembic migrations.
         """
         if self.database_url:
-            # Handle Supabase/Standard Postgres URLs for Async Engine
-            # Use psycopg instead of asyncpg for PgBouncer compatibility
-            if self.database_url.startswith("postgresql://"):
-                # Force psycopg driver for the main async database_url
-                self.database_url = self.database_url.replace("postgresql://", "postgresql+psycopg://")
-            elif self.database_url.startswith("postgresql+asyncpg://"):
-                # Convert asyncpg to psycopg for PgBouncer compatibility
-                self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+            is_supabase = "supabase.com" in self.database_url or "pooler.supabase.com" in self.database_url
             
+            if is_supabase:
+                # For Supabase: Use asyncpg with PgBouncer compatibility options
+                if self.database_url.startswith("postgresql://"):
+                    self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://")
+                elif self.database_url.startswith("postgresql+psycopg://"):
+                    self.database_url = self.database_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+                
+                # Add PgBouncer compatibility parameters for asyncpg
+                if "prepared_statement_cache_size" not in self.database_url:
+                    separator = "&" if "?" in self.database_url else "?"
+                    self.database_url = f"{self.database_url}{separator}prepared_statement_cache_size=0&statement_cache_size=0"
+            else:
+                # For non-Supabase: Use psycopg driver
+                if self.database_url.startswith("postgresql://"):
+                    self.database_url = self.database_url.replace("postgresql://", "postgresql+psycopg://")
+                elif self.database_url.startswith("postgresql+asyncpg://"):
+                    self.database_url = self.database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
 
-            # Derive Sync URL for Alembic/Migrations
-            if self.database_url.startswith("postgresql+psycopg://"):
+            # Derive Sync URL for Alembic/Migrations (always use psycopg sync)
+            if "postgresql+" in self.database_url:
                 if not self.database_url_sync or self.database_url_sync.startswith("sqlite"):
-                    self.database_url_sync = self.database_url.replace("postgresql+psycopg://", "postgresql://")
+                    # Extract base URL without the driver prefix for sync connection
+                    sync_url = self.database_url
+                    sync_url = sync_url.replace("postgresql+asyncpg://", "postgresql://")
+                    sync_url = sync_url.replace("postgresql+psycopg://", "postgresql://")
+                    # Remove asyncpg-specific params for sync
+                    if "prepared_statement_cache_size" in sync_url:
+                        sync_url = sync_url.split("?")[0]  # Remove query params for sync
+                    self.database_url_sync = sync_url
                     
         return self
 
