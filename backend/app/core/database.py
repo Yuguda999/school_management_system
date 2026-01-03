@@ -16,6 +16,7 @@ print(f"[database.py] Using DB URL scheme: {settings.database_url.split('://')[0
 # Using psycopg (psycopg3) driver instead of asyncpg for PgBouncer compatibility
 # psycopg handles PgBouncer transaction mode much better than asyncpg
 # NullPool ensures we don't do any pooling on SQLAlchemy side (let PgBouncer handle it)
+# prepare_threshold=0 disables prepared statement caching to avoid duplicate statement errors
 
 # Async engine for FastAPI
 async_engine = create_async_engine(
@@ -23,9 +24,12 @@ async_engine = create_async_engine(
     echo=False,
     future=True,
     poolclass=NullPool,  # Let PgBouncer handle connection pooling
+    connect_args={
+        "prepare_threshold": 0,  # Disable prepared statement caching to fix '_pg3_0' errors
+    },
 )
 
-print(f"[database.py] Async engine created with psycopg driver and NullPool", flush=True)
+print(f"[database.py] Async engine created with psycopg driver, NullPool, and prepare_threshold=0", flush=True)
 
 # Sync engine for Alembic migrations
 sync_engine = create_engine(
