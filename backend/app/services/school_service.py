@@ -328,10 +328,13 @@ class SchoolService:
                 subject=subject,
                 html_content=html_content
             )
+            logger.info(f"Trial welcome email sent to {admin_user.email}")
 
         except Exception as e:
             # Log error but don't fail registration
-            print(f"Failed to send welcome email: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send welcome email: {e}")
 
     @staticmethod
     async def get_school_by_id(db: AsyncSession, school_id: str) -> Optional[School]:

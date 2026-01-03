@@ -134,9 +134,11 @@ const ReportCardTemplatesPage: React.FC = () => {
       const success = await TemplateService.deleteTemplate(templateToDelete);
       if (success) {
         setTemplates(prev => prev.filter(t => t.id !== templateToDelete));
+        showSuccess('Template deleted successfully!');
       }
     } catch (error) {
       console.error('Error deleting template:', error);
+      showError('Failed to delete template. Please try again.');
     } finally {
       setShowDeleteConfirm(false);
       setTemplateToDelete(null);
@@ -728,6 +730,13 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
               <StarIcon className="h-4 w-4" />
             </button>
           )}
+          <button
+            onClick={onDelete}
+            className="p-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all"
+            title="Delete Template"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>

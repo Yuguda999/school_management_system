@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import (
@@ -67,6 +67,7 @@ async def create_parent(
 @router.post("/teachers", response_model=UserResponse)
 async def create_teacher_with_subjects(
     teacher_data: TeacherCreateWithSubjects,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
@@ -74,6 +75,7 @@ async def create_teacher_with_subjects(
     """Create a new teacher with subject assignments (School Admin only)"""
     import logging
     from app.services.email_service import EmailService
+    from app.services.background_email_service import send_email_background
     from app.core.config import settings
     
     logger = logging.getLogger(__name__)
@@ -96,14 +98,15 @@ async def create_teacher_with_subjects(
             school_logo=current_school.logo_url
         )
         
-        await EmailService.send_email(
+        background_tasks.add_task(
+            send_email_background,
             to_emails=[user.email],
             subject=f"Your Teacher Account at {current_school.name} is Ready!",
             html_content=html_content,
             text_content=text_content,
             sender_name=current_school.name
         )
-        logger.info(f"Welcome email with credentials sent to new teacher: {user.email}")
+        logger.info(f"Welcome email scheduled for new teacher: {user.email}")
     except Exception as e:
         logger.error(f"Failed to send welcome email to new teacher: {str(e)}")
         # Don't fail teacher creation if email fails

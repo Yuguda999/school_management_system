@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -28,6 +28,7 @@ router = APIRouter()
 @router.post("/register", response_model=SchoolRegistrationResponse)
 async def register_school(
     registration_data: FreemiumRegistration,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Register a new school with freemium trial access"""
@@ -40,6 +41,7 @@ async def register_school(
         # Send welcome email to new school owner
         try:
             from app.services.email_service import EmailService
+            from app.services.background_email_service import send_email_background
             from app.core.config import settings
             
             login_url = f"{settings.frontend_url}/{school.code.lower()}/login"
@@ -52,7 +54,8 @@ async def register_school(
                 school_logo=school.logo_url
             )
             
-            await EmailService.send_email(
+            background_tasks.add_task(
+                send_email_background,
                 to_emails=[admin_user.email],
                 subject=f"Welcome to {school.name} - Your School is Ready!",
                 html_content=html_content,

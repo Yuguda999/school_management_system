@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 import logging
@@ -197,6 +197,7 @@ async def update_invitation_status(
 async def resend_teacher_invitation(
     resend_data: InvitationResendRequest,
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_school_admin_user()),
     current_school: School = Depends(get_current_school),
     db: AsyncSession = Depends(get_db)
@@ -284,7 +285,7 @@ async def resend_teacher_invitation(
             text_content=text_content,
             sender_name=school.name  # Dynamic school name as sender
         )
-        logger.info(f"Email sending completed. Result: {email_sent}")
+        logger.info(f"Resend invitation email sent. Result: {email_sent}")
 
         if not email_sent:
             logger.warning(f"Failed to send resend invitation email to {invitation.email}")

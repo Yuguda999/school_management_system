@@ -364,13 +364,69 @@ const ELEMENT_TEMPLATES = [
   {
     type: 'line',
     icon: Squares2X2Icon,
-    label: 'Divider Line',
-    description: 'Decorative or separator line',
+    label: 'Horizontal Line',
+    description: 'Horizontal divider line',
     defaultProps: {
       content: '',
       width: 300,
-      height: 2,
+      height: 1,
       backgroundColor: '#6b7280',
+    }
+  },
+  {
+    type: 'vertical_line',
+    icon: Squares2X2Icon,
+    label: 'Vertical Line',
+    description: 'Vertical divider line',
+    defaultProps: {
+      content: '',
+      width: 1,
+      height: 100,
+      backgroundColor: '#6b7280',
+    }
+  },
+  {
+    type: 'rectangle',
+    icon: Squares2X2Icon,
+    label: 'Rectangle',
+    description: 'Rectangle shape',
+    defaultProps: {
+      content: '',
+      width: 150,
+      height: 100,
+      backgroundColor: '#3b82f6',
+      borderWidth: 0,
+      borderColor: '#1e40af',
+    }
+  },
+  {
+    type: 'rounded_rectangle',
+    icon: Squares2X2Icon,
+    label: 'Rounded Box',
+    description: 'Rectangle with rounded corners',
+    defaultProps: {
+      content: '',
+      width: 150,
+      height: 100,
+      backgroundColor: '#10b981',
+      borderRadius: 12,
+      borderWidth: 0,
+      borderColor: '#047857',
+    }
+  },
+  {
+    type: 'circle',
+    icon: Squares2X2Icon,
+    label: 'Circle',
+    description: 'Circle or oval shape',
+    defaultProps: {
+      content: '',
+      width: 100,
+      height: 100,
+      backgroundColor: '#f59e0b',
+      borderRadius: 9999,
+      borderWidth: 0,
+      borderColor: '#d97706',
     }
   },
   {
@@ -393,8 +449,24 @@ const ELEMENT_TEMPLATES = [
 ];
 
 const FONTS = [
+  // Classic System Fonts
   'Arial', 'Times New Roman', 'Georgia', 'Helvetica', 'Verdana',
-  'Tahoma', 'Trebuchet MS', 'Courier New', 'Impact', 'Comic Sans MS'
+  'Tahoma', 'Trebuchet MS', 'Courier New', 'Garamond', 'Palatino',
+  // Modern Sans-Serif
+  'Montserrat', 'Poppins', 'Raleway', 'Open Sans', 'Lato',
+  'Roboto', 'Nunito', 'Quicksand', 'Inter', 'Outfit',
+  // Elegant Serif
+  'Playfair Display', 'Merriweather', 'Lora', 'Cormorant Garamond', 'Libre Baskerville',
+  'Crimson Text', 'EB Garamond', 'Source Serif Pro', 'PT Serif', 'Bitter',
+  // Stylish Display
+  'Bebas Neue', 'Oswald', 'Anton', 'Josefin Sans', 'Abril Fatface',
+  'Archivo Black', 'Barlow Condensed', 'Fjalla One', 'Righteous', 'Pacifico',
+  // Script & Decorative
+  'Dancing Script', 'Great Vibes', 'Sacramento', 'Satisfy', 'Lobster',
+  'Caveat', 'Kaushan Script', 'Amatic SC', 'Courgette', 'Shadows Into Light',
+  // Professional
+  'Work Sans', 'Source Sans Pro', 'Fira Sans', 'Karla', 'Mulish',
+  'Rubik', 'Manrope', 'DM Sans', 'Plus Jakarta Sans', 'Urbanist',
 ];
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
@@ -427,6 +499,8 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
   const [sidebarTab, setSidebarTab] = useState<'elements' | 'properties' | 'layers'>('elements');
   const [gradeTemplate, setGradeTemplate] = useState<GradeTemplate | null>(null);
   const [schoolData, setSchoolData] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Paper settings
   const [paperSize, setPaperSize] = useState<'A4' | 'Letter' | 'Legal'>('A4');
@@ -712,22 +786,25 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
       let newY = initialResizeState.startYPos;
 
       // Calculate new dimensions/position based on direction
+      // Allow minimum of 1px for lines, 20px for other elements
+      const minDimension = 1;
+
       if (resizeDirection.includes('e')) {
-        newWidth = Math.max(20, initialResizeState.startWidth + deltaX);
+        newWidth = Math.max(minDimension, initialResizeState.startWidth + deltaX);
       }
       if (resizeDirection.includes('w')) {
         const potentialWidth = initialResizeState.startWidth - deltaX;
-        if (potentialWidth >= 20) {
+        if (potentialWidth >= minDimension) {
           newWidth = potentialWidth;
           newX = initialResizeState.startXPos + deltaX;
         }
       }
       if (resizeDirection.includes('s')) {
-        newHeight = Math.max(20, initialResizeState.startHeight + deltaY);
+        newHeight = Math.max(minDimension, initialResizeState.startHeight + deltaY);
       }
       if (resizeDirection.includes('n')) {
         const potentialHeight = initialResizeState.startHeight - deltaY;
-        if (potentialHeight >= 20) {
+        if (potentialHeight >= minDimension) {
           newHeight = potentialHeight;
           newY = initialResizeState.startYPos + deltaY;
         }
@@ -784,7 +861,10 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
     }
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
     const templateData = {
       id: template?.id,
       name: templateName,
@@ -801,8 +881,14 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
         backgroundColor,
       }
     };
-    onSave(templateData);
-  }, [template, templateName, elements, onSave, canvasWidth, canvasHeight, paperSize, orientation, backgroundColor]);
+
+    try {
+      await onSave(templateData);
+    } finally {
+      // Small delay to show the loading state for visual feedback
+      setTimeout(() => setIsSaving(false), 500);
+    }
+  }, [template, templateName, elements, onSave, canvasWidth, canvasHeight, paperSize, orientation, backgroundColor, isSaving]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -921,10 +1007,23 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={handleSave}
-              className="flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors shadow-sm hover:shadow"
+              disabled={isSaving}
+              className={`flex items-center px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors shadow-sm hover:shadow ${isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
-              <DocumentTextIcon className="h-3.5 w-3.5 mr-1.5" />
-              Save
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin h-3.5 w-3.5 mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <DocumentTextIcon className="h-3.5 w-3.5 mr-1.5" />
+                  Save
+                </>
+              )}
             </button>
             <button
               onClick={onClose}
@@ -964,7 +1063,11 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
             </div>
 
             {/* Sidebar Content */}
-            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            <div
+              className="flex-1 overflow-y-auto p-4 custom-scrollbar"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
               {sidebarTab === 'elements' && (
                 <ElementsPanel onAddElement={addElement} />
               )}
@@ -977,6 +1080,15 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
                   gradeTemplate={gradeTemplate}
                   canvasWidth={canvasWidth}
                   canvasHeight={canvasHeight}
+                  uploadedImages={uploadedImages}
+                  onUploadImage={(imageDataUrl) => {
+                    if (uploadedImages.length < 5) {
+                      setUploadedImages(prev => [...prev, imageDataUrl]);
+                    }
+                  }}
+                  onRemoveImage={(index) => {
+                    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+                  }}
                 />
               )}
               {sidebarTab === 'properties' && !selectedElement && (
@@ -1169,9 +1281,9 @@ const ModernTemplateEditor: React.FC<ModernTemplateEditorProps> = ({
                         schoolLogo: schoolData.logo_url
                       } : undefined}
                       gradeTemplate={gradeTemplate || undefined}
-                      isEditing={sidebarTab === 'properties' && selectedElement === element.id}
+                      isEditing={false}
                       onUpdate={(updates: Partial<TemplateElement>) => updateElement(element.id, updates)}
-                      onEditEnd={() => setSidebarTab('elements')}
+                      onEditEnd={() => { }}
                       onResizeStart={handleResizeStart}
                     />
                   ))}
@@ -1227,9 +1339,12 @@ interface PropertiesPanelProps {
   gradeTemplate: GradeTemplate | null;
   canvasWidth: number;
   canvasHeight: number;
+  uploadedImages: string[];
+  onUploadImage: (imageDataUrl: string) => void;
+  onRemoveImage: (index: number) => void;
 }
 
-const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ element, onUpdateElement, onDeleteElement, onDuplicateElement, gradeTemplate, canvasWidth, canvasHeight }) => {
+const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ element, onUpdateElement, onDeleteElement, onDuplicateElement, gradeTemplate, canvasWidth, canvasHeight, uploadedImages, onUploadImage, onRemoveImage }) => {
   if (!element) {
     return (
       <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -1334,6 +1449,96 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ element, onUpdateElem
               className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             />
           </div>
+
+          {/* Image Upload Section - Only for image elements */}
+          {element.type === 'image' && (
+            <div className="border-t border-b border-gray-200 dark:border-gray-700 py-4 space-y-3">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">Image Settings</h4>
+
+              {/* Upload Button */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Upload Image ({uploadedImages.length}/5)
+                </label>
+                {uploadedImages.length < 5 ? (
+                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                    <div className="text-center">
+                      <PhotoIcon className="h-8 w-8 mx-auto text-gray-400 mb-1" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Click to upload image</span>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PNG, JPG, GIF up to 2MB</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size <= 2 * 1024 * 1024) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const dataUrl = event.target?.result as string;
+                            onUploadImage(dataUrl);
+                          };
+                          reader.readAsDataURL(file);
+                        } else if (file) {
+                          alert('Image must be less than 2MB');
+                        }
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <p className="text-sm text-amber-600 dark:text-amber-400">Maximum 5 images reached. Remove an image to upload more.</p>
+                )}
+              </div>
+
+              {/* Uploaded Images Gallery */}
+              {uploadedImages.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Select Image</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {uploadedImages.map((img, index) => (
+                      <div
+                        key={index}
+                        className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 ${element.content === img ? 'border-blue-500' : 'border-gray-200 dark:border-gray-600'}`}
+                        onClick={() => onUpdateElement(element.id, { content: img })}
+                      >
+                        <img src={img} alt={`Uploaded ${index + 1}`} className="w-full h-16 object-cover" />
+                        {element.content === img && (
+                          <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                            <span className="text-white text-xs font-medium bg-blue-500 px-2 py-0.5 rounded">Selected</span>
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveImage(index);
+                            if (element.content === img) {
+                              onUpdateElement(element.id, { content: '' });
+                            }
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove image"
+                        >
+                          <XMarkIcon className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Clear Image Button */}
+              {element.content && element.content !== 'Image Placeholder' && (
+                <button
+                  onClick={() => onUpdateElement(element.id, { content: '' })}
+                  className="w-full px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-300 dark:border-red-700 rounded-lg transition-colors"
+                >
+                  Clear Image
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Table Specific Properties */}
           {isTable && (
@@ -1843,24 +2048,26 @@ const LayersPanel: React.FC<LayersPanelProps> = ({
               }`}
             onClick={() => onSelectElement(element.id)}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between overflow-hidden">
+              <div className="flex items-center space-x-2 min-w-0 flex-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onUpdateElement(element.id, { visible: !element.visible });
                   }}
-                  className={`w-4 h-4 rounded border flex items-center justify-center ${element.visible
+                  className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${element.visible
                     ? 'bg-blue-600 border-blue-600'
                     : 'border-gray-300 dark:border-gray-600'
                     }`}
                 >
                   {element.visible && <EyeIcon className="w-3 h-3 text-white" />}
                 </button>
-                <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {element.content.split('\n')[0].substring(0, 30) || element.type}
+                <span className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[120px]">
+                  {element.type === 'image' && element.content?.startsWith('data:')
+                    ? 'Uploaded Image'
+                    : (element.content?.split('\n')[0]?.substring(0, 20) || element.type)}
                 </span>
-                {element.locked && <LockClosedIcon className="w-3 h-3 text-gray-400" />}
+                {element.locked && <LockClosedIcon className="flex-shrink-0 w-3 h-3 text-gray-400" />}
               </div>
               <div className="flex items-center space-x-1">
                 <button

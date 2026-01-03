@@ -301,6 +301,7 @@ class CommunicationService:
         school_logo: Optional[str] = None
     ) -> bool:
         """Send message to individual recipient using real email/SMS services"""
+        import asyncio
         from app.services.email_service import EmailService
         
         try:

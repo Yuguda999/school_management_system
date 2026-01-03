@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -31,6 +31,7 @@ from app.schemas.auth import (
 )
 from app.services.school_ownership_service import SchoolOwnershipService
 from app.services.email_service import EmailService
+from app.services.background_email_service import send_email_background
 from app.models.student import Student, StudentStatus
 from app.schemas.auth import StudentLoginRequest
 from app.services.notification_service import NotificationService
@@ -46,6 +47,7 @@ router = APIRouter()
 @router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """Login endpoint - Only for Platform Admins and School Owners"""
@@ -152,14 +154,15 @@ async def login(
             location="Unknown"
         )
         
-        await EmailService.send_email(
+        background_tasks.add_task(
+            send_email_background,
             to_emails=[user.email],
             subject=f"New Login Detected - {school_name}",
             html_content=html_content,
             text_content=text_content,
             sender_name=school_name
         )
-        logger.info(f"Login notification email sent to {user.email}")
+        logger.info(f"Login notification email scheduled for {user.email}")
     except Exception as e:
         logger.error(f"Failed to send login notification email: {str(e)}")
         # Don't fail login if email fails
@@ -182,6 +185,7 @@ async def login(
 async def school_login(
     school_code: str,
     login_data: LoginRequest,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ) -> Any:
     """School-specific login endpoint"""
@@ -307,14 +311,15 @@ async def school_login(
             location="Unknown"
         )
         
-        await EmailService.send_email(
+        background_tasks.add_task(
+            send_email_background,
             to_emails=[user.email],
             subject=f"New Login Detected - {school.name}",
             html_content=html_content,
             text_content=text_content,
             sender_name=school.name
         )
-        logger.info(f"Login notification email sent to {user.email}")
+        logger.info(f"Login notification email scheduled for {user.email}")
     except Exception as e:
         logger.error(f"Failed to send login notification email: {str(e)}")
         # Don't fail login if email fails
@@ -708,6 +713,7 @@ async def confirm_password_reset(
 @router.post("/change-password")
 async def change_password(
     password_data: ChangePasswordRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Any:
@@ -755,14 +761,15 @@ async def change_password(
             change_time=datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
         )
         
-        await EmailService.send_email(
+        background_tasks.add_task(
+            send_email_background,
             to_emails=[current_user.email],
             subject=f"Password Changed - {school_name}",
             html_content=html_content,
             text_content=text_content,
             sender_name=school_name
         )
-        logger.info(f"Password change email sent to {current_user.email}")
+        logger.info(f"Password change email scheduled for {current_user.email}")
     except Exception as e:
         logger.error(f"Failed to send password change email: {str(e)}")
         # Don't fail if email fails

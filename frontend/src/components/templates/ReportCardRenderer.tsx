@@ -5,7 +5,7 @@ import { API_BASE_URL } from '../../services/api';
 
 export interface TemplateElement {
     id: string;
-    type: 'text' | 'table' | 'image' | 'line' | 'shape' | 'school_logo' | 'school_header' | 'school_name' | 'school_address' | 'school_motto' | 'student_info' | 'student_name' | 'class_name' | 'roll_number' | 'academic_year' | 'term' | 'total_marks' | 'percentage' | 'position' | 'result' | 'attendance_summary' | 'next_term_date' | 'grade_table' | 'attendance_table' | 'behavior_table' | 'signature' | 'watermark' | 'grading_scale';
+    type: 'text' | 'table' | 'image' | 'line' | 'vertical_line' | 'rectangle' | 'rounded_rectangle' | 'circle' | 'shape' | 'school_logo' | 'school_header' | 'school_name' | 'school_address' | 'school_motto' | 'student_info' | 'student_name' | 'class_name' | 'roll_number' | 'academic_year' | 'term' | 'total_marks' | 'percentage' | 'position' | 'result' | 'attendance_summary' | 'next_term_date' | 'grade_table' | 'attendance_table' | 'behavior_table' | 'signature' | 'watermark' | 'grading_scale';
     content: string;
     x: number;
     y: number;
@@ -523,9 +523,11 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
                     imgSrc = `${baseUrl}${path}?t=cors`;
                 }
 
+                const hasImage = imgSrc && imgSrc !== 'Image Placeholder';
+
                 return (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50 border-2 border-dashed border-gray-300 overflow-hidden">
-                        {imgSrc && imgSrc !== 'Image Placeholder' ? (
+                    <div className={`w-full h-full flex items-center justify-center overflow-hidden ${!hasImage ? 'bg-gray-50 border-2 border-dashed border-gray-300' : ''}`}>
+                        {hasImage ? (
                             <img src={imgSrc} alt="Element" className="w-full h-full object-contain" crossOrigin="anonymous" />
                         ) : (
                             <div className="text-center">
@@ -537,7 +539,49 @@ export const ReportCardRenderer: React.FC<ReportCardRendererProps> = ({
                 );
 
             case 'line':
-                return <div className="w-full h-full" style={{ backgroundColor: element.color }} />;
+            case 'vertical_line':
+                return <div className="w-full h-full" style={{ backgroundColor: element.backgroundColor || element.color || '#6b7280' }} />;
+
+            case 'rectangle':
+                return (
+                    <div
+                        className="w-full h-full"
+                        style={{
+                            backgroundColor: element.backgroundColor || '#3b82f6',
+                            borderWidth: element.borderWidth || 0,
+                            borderColor: element.borderColor || 'transparent',
+                            borderStyle: element.borderWidth ? 'solid' : 'none',
+                        }}
+                    />
+                );
+
+            case 'rounded_rectangle':
+                return (
+                    <div
+                        className="w-full h-full"
+                        style={{
+                            backgroundColor: element.backgroundColor || '#10b981',
+                            borderRadius: element.borderRadius || 12,
+                            borderWidth: element.borderWidth || 0,
+                            borderColor: element.borderColor || 'transparent',
+                            borderStyle: element.borderWidth ? 'solid' : 'none',
+                        }}
+                    />
+                );
+
+            case 'circle':
+                return (
+                    <div
+                        className="w-full h-full"
+                        style={{
+                            backgroundColor: element.backgroundColor || '#f59e0b',
+                            borderRadius: '50%',
+                            borderWidth: element.borderWidth || 0,
+                            borderColor: element.borderColor || 'transparent',
+                            borderStyle: element.borderWidth ? 'solid' : 'none',
+                        }}
+                    />
+                );
 
             default:
                 return <div className="w-full h-full flex items-center justify-center text-gray-500 border border-dashed border-gray-300">Unknown Element</div>;

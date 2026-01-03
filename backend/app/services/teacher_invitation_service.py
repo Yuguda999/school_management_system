@@ -134,7 +134,8 @@ class TeacherInvitationService:
             
             if not email_sent:
                 logger.warning(f"Failed to send invitation email to {invitation.email}")
-                # Don't fail the invitation creation if email fails
+            else:
+                logger.info(f"Invitation email sent to {invitation.email}")
                 
         except Exception as e:
             logger.error(f"Error sending invitation email: {str(e)}")
