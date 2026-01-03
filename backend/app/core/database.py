@@ -32,9 +32,14 @@ async_engine = create_async_engine(
 print(f"[database.py] Async engine created with psycopg driver, NullPool, and prepare_threshold=0", flush=True)
 
 # Sync engine for Alembic migrations
+# Also needs prepare_threshold=0 to avoid prepared statement conflicts
 sync_engine = create_engine(
     settings.database_url_sync,
-    echo=False  # Disable SQL echo to reduce logs
+    echo=False,  # Disable SQL echo to reduce logs
+    poolclass=NullPool,  # No pooling on our side
+    connect_args={
+        "prepare_threshold": 0,  # Disable prepared statement caching
+    },
 )
 
 # Async session factory
