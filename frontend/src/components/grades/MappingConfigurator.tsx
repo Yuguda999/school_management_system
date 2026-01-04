@@ -85,13 +85,16 @@ const MappingConfigurator: React.FC<MappingConfiguratorProps> = ({
     const fetchTemplates = async () => {
         try {
             const data = await gradeTemplateService.getGradeTemplates();
+            console.log('Loaded templates:', data);
             // Set default template if available
             const defaultTemplate = data.find(t => t.is_default);
+            console.log('Default template found:', defaultTemplate);
             if (defaultTemplate) {
                 setSelectedTemplate(defaultTemplate);
             }
             setTemplates(data);
         } catch (error: any) {
+            console.error('Error loading templates:', error);
             showError('Failed to load grade templates');
         }
     };
@@ -284,6 +287,7 @@ const MappingConfigurator: React.FC<MappingConfiguratorProps> = ({
                             }}
                             className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         >
+                            <option value="">Select Grade Template</option>
                             {templates.map(template => (
                                 <option key={template.id} value={template.id}>
                                     {template.name} {template.is_default && '(Default)'}
