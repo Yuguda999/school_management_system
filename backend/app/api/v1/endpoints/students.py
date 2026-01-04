@@ -31,6 +31,7 @@ from app.schemas.student import (
 )
 from app.services.csv_import_service import CSVImportService
 from app.services.student_service import StudentService
+from app.core.cache_manager import cache_response, CacheManager
 import math
 
 router = APIRouter()
@@ -135,6 +136,9 @@ async def create_student(
         db, student_data, school_context.school_id, current_user.id
     )
     
+    # Invalidate cache
+    await CacheManager.invalidate_prefix("get_students")
+
     # Enhance response with related data
     return await enhance_student_response(student, db)
 
@@ -151,6 +155,9 @@ async def bulk_update_students(
         db, bulk_data, current_school.id, current_user.id
     )
     
+    # Invalidate cache
+    await CacheManager.invalidate_prefix("get_students")
+    
     # Enhance response
     response_students = []
     for student in students:
@@ -161,6 +168,7 @@ async def bulk_update_students(
 
 
 @router.get("/", response_model=StudentListResponse)
+@cache_response(expire=300)
 async def get_students(
     class_id: Optional[str] = Query(None, description="Filter by class"),
     status: Optional[StudentStatus] = Query(None, description="Filter by status"),
@@ -393,6 +401,9 @@ async def update_student(
         db, student_id, student_data, current_school.id, current_user.id
     )
     
+    # Invalidate cache
+    await CacheManager.invalidate_prefix("get_students")
+
     # Enhance response
     return await enhance_student_response(student, db)
 
@@ -484,6 +495,9 @@ async def delete_student(
             detail="Student not found"
         )
     
+    # Invalidate cache
+    await CacheManager.invalidate_prefix("get_students")
+
     return {"message": "Student deleted successfully"}
 
 

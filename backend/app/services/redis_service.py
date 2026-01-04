@@ -55,6 +55,25 @@ class RedisService:
         except Exception as e:
             logger.error(f"Redis DELETE error for key {key}: {e}")
 
+    async def delete_prefix(self, prefix: str):
+        """Delete all keys matching prefix"""
+        try:
+            if not self.redis:
+                await self.connect()
+            
+            # Use scan_iter for safe iteration over keys
+            # Note: explicit type ignore because redis types can be tricky
+            keys = []
+            async for key in self.redis.scan_iter(match=f"{prefix}*"): # type: ignore
+                keys.append(key)
+                
+            if keys:
+                await self.redis.delete(*keys) # type: ignore
+                logger.info(f"Deleted {len(keys)} keys matching prefix {prefix}")
+                
+        except Exception as e:
+            logger.error(f"Redis DELETE PATTERN error for {prefix}: {e}")
+
     async def close(self):
         """Close Redis connection"""
         if self.redis:

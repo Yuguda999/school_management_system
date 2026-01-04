@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, Time, Integer, JSON, Table
+from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Text, Date, Time, Integer, JSON, Table, Index
 from sqlalchemy.orm import relationship
 from app.models.base import TenantBaseModel
 import enum
@@ -254,6 +254,11 @@ class Attendance(TenantBaseModel):
     subject = relationship("Subject")
     term = relationship("Term", back_populates="attendances")
     marker = relationship("User")
+    
+    __table_args__ = (
+        Index('idx_attendance_school_date', 'school_id', 'date'),
+        Index('idx_attendance_student_term', 'student_id', 'term_id'),
+    )
     
     def __repr__(self):
         attendance_type = "subject" if self.subject_id else "class"

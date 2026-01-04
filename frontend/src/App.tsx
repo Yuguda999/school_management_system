@@ -1,4 +1,3 @@
-
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -10,6 +9,8 @@ import LoadingSpinner from './components/ui/LoadingSpinner';
 import { lazy, Suspense } from 'react';
 import ReloadPrompt from './components/pwa/ReloadPrompt';
 import RoleBasedRedirect from './components/auth/RoleBasedRedirect';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './services/queryClient';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const SchoolLoginPage = lazy(() => import('./pages/auth/SchoolLoginPage'));
@@ -84,7 +85,7 @@ function App() {
   }
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <ReloadPrompt />
       <NotificationProvider>
         <Suspense fallback={<div className="h-screen w-full flex items-center justify-center"><LoadingSpinner /></div>}>
@@ -556,7 +557,7 @@ function App() {
           </Routes>
         </Suspense>
       </NotificationProvider>
-    </>
+    </QueryClientProvider>
   );
 }
 

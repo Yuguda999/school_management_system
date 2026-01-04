@@ -16,11 +16,13 @@ from app.schemas.dashboard import (
     DashboardFilters
 )
 from app.services.dashboard_service import DashboardService
+from app.core.cache_manager import cache_response
 
 router = APIRouter()
 
 
 @router.get("/stats", response_model=DashboardStats)
+@cache_response(expire=300)
 async def get_dashboard_stats(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     current_user: User = Depends(get_current_active_user),
@@ -35,6 +37,7 @@ async def get_dashboard_stats(
 
 
 @router.get("/", response_model=DashboardData)
+@cache_response(expire=300)
 async def get_dashboard_data(
     term_id: Optional[str] = Query(None, description="Filter by term"),
     class_id: Optional[str] = Query(None, description="Filter by class"),

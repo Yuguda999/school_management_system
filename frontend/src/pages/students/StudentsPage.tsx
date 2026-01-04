@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, MagnifyingGlassIcon, FunnelIcon, DocumentArrowUpIcon, UserGroupIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { Student, PaginatedResponse } from '../../types';
+import { Student } from '../../types';
 import { studentService } from '../../services/studentService';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useToast } from '../../hooks/useToast';
+import { useStudents } from '../../hooks/useStudents';
+import { useQueryClient } from '@tanstack/react-query';
 import { getSchoolCodeFromUrl, buildSchoolRouteUrl } from '../../utils/schoolCode';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import StudentTable from '../../components/students/StudentTable';
@@ -21,9 +23,21 @@ const StudentsPage: React.FC = () => {
   const { canManageStudents } = usePermissions();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning, showInfo } = useToast();
-  const [students, setStudents] = useState<PaginatedResponse<Student> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState({
+    class_id: '',
+    status: '',
+    page: 1,
+    size: 10,
+  });
+
+  const { students, isLoading: loading, deleteStudent } = useStudents({
+    ...filters,
+    search: searchTerm || undefined,
+    school_id: user?.school_id || undefined,
+  });
+
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -32,37 +46,8 @@ const StudentsPage: React.FC = () => {
   const [studentToDelete, setStudentToDelete] = useState<string | null>(null);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
   const [showCSVImportModal, setShowCSVImportModal] = useState(false);
-  const [filters, setFilters] = useState({
-    class_id: '',
-    status: '',
-    page: 1,
-    size: 10,
-  });
-
-  useEffect(() => {
-    if (user?.school_id) {
-      fetchStudents();
-    }
-  }, [filters, searchTerm, user]);
-
-  const fetchStudents = async () => {
-    try {
-      setLoading(true);
-      const response = await studentService.getStudents({
-        ...filters,
-        search: searchTerm || undefined,
-        school_id: user?.school_id || undefined,
-      });
-      setStudents(response);
-    } catch (error: any) {
-      console.error('Failed to fetch students:', error);
-      const errorMessage = typeof error.response?.data?.detail === 'string'
-        ? error.response.data.detail
-        : 'Failed to load students. Please try again.';
-      showError(errorMessage, 'Loading Failed');
-    } finally {
-      setLoading(false);
-    }
+  const fetchStudents = () => {
+    queryClient.invalidateQueries({ queryKey: ['students'] });
   };
 
   const handleExport = async () => {
@@ -116,22 +101,12 @@ const StudentsPage: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDeleteStudent = async () => {
+  const confirmDeleteStudent = () => {
     if (!studentToDelete) return;
-
-    try {
-      showInfo('Deleting student...', 'Please wait');
-      await studentService.deleteStudent(studentToDelete);
-      fetchStudents();
-      showSuccess('Student has been successfully deleted.', 'Student Deleted!');
-    } catch (error: any) {
-      console.error('Failed to delete student:', error);
-      const errorMessage = error.response?.data?.detail || 'Failed to delete student. Please try again.';
-      showError(errorMessage, 'Delete Failed');
-    } finally {
-      setShowDeleteModal(false);
-      setStudentToDelete(null);
-    }
+    // Optimistic delete via hook - notifications handled in hook
+    deleteStudent(studentToDelete);
+    setShowDeleteModal(false);
+    setStudentToDelete(null);
   };
 
   const confirmBulkDeleteStudents = async () => {

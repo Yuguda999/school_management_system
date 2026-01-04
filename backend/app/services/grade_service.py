@@ -750,25 +750,36 @@ class GradeService:
             subject_grades_map[subject_id].append(grade)
         
         # Consolidate each subject's grades
+        # Optimization: Fetch all component mappings for all subjects at once
+        subject_ids = list(subject_grades_map.keys())
+        
+        all_mappings_result = await db.execute(
+            select(ComponentMapping).options(
+                selectinload(ComponentMapping.component).selectinload(AssessmentComponent.template)
+            ).where(
+                ComponentMapping.subject_id.in_(subject_ids),
+                ComponentMapping.term_id == term_id,
+                ComponentMapping.school_id == school_id,
+                ComponentMapping.is_deleted == False,
+                ComponentMapping.include_in_calculation == True
+            )
+        )
+        all_mappings = list(all_mappings_result.scalars().all())
+        
+        # Group mappings by subject_id
+        mappings_by_subject = {}
+        for mapping in all_mappings:
+            if mapping.subject_id not in mappings_by_subject:
+                mappings_by_subject[mapping.subject_id] = []
+            mappings_by_subject[mapping.subject_id].append(mapping)
+
         consolidated_grades = []
         for subject_id, subject_grades in subject_grades_map.items():
             if not subject_grades:
                 continue
             
-            # Get component mappings for this subject/term
-            # Mappings tell us which exam types map to which components
-            mappings_result = await db.execute(
-                select(ComponentMapping).options(
-                    selectinload(ComponentMapping.component).selectinload(AssessmentComponent.template)
-                ).where(
-                    ComponentMapping.subject_id == subject_id,
-                    ComponentMapping.term_id == term_id,
-                    ComponentMapping.school_id == school_id,
-                    ComponentMapping.is_deleted == False,
-                    ComponentMapping.include_in_calculation == True
-                )
-            )
-            mappings = list(mappings_result.scalars().all())
+            # Get mappings from memory
+            mappings = mappings_by_subject.get(subject_id, [])
             
             # Build a map: exam_type -> component_name
             exam_type_to_component = {}

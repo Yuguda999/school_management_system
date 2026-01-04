@@ -48,8 +48,8 @@ class Student(TenantBaseModel):
     
     # Academic Information
     admission_date = Column(Date, nullable=False)
-    current_class_id = Column(String(36), ForeignKey("classes.id"), nullable=True)
-    status = Column(Enum(StudentStatus), default=StudentStatus.ACTIVE, nullable=False)
+    current_class_id = Column(String(36), ForeignKey("classes.id"), nullable=True, index=True)
+    status = Column(Enum(StudentStatus), default=StudentStatus.ACTIVE, nullable=False, index=True)
 
     # User Account Link (for students with portal access)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, unique=True)
@@ -77,7 +77,7 @@ class Student(TenantBaseModel):
     additional_data = Column(JSON, nullable=True, default={})
     
     # Foreign Keys
-    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False)
+    school_id = Column(String(36), ForeignKey("schools.id"), nullable=False, index=True)
     
     # Relationships
     school = relationship("School", back_populates="students")
